@@ -39,7 +39,9 @@ export function ReviewStep({ draft, onEdit }: { draft: WizardDraft; onEdit: (ste
         </Row>
         <Row label={<>Voice {edit(3)}</>}>{draft.voice.pillars.map((p) => p.name).join(" · ") || "—"}</Row>
         <Row label="Personality">
-          {draft.voice.personality.map((p) => `${p.is} not ${p.notBut}`).join("; ") || "—"}
+          {draft.voice.personality
+            .map((p) => `${p.is} not ${p.notBut.replace(/^not\s+/i, "")}`)
+            .join("; ") || "—"}
         </Row>
         <Row label="Terminology">
           {draft.vocabulary.terminology.length
