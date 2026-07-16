@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { getRunStatus, writeThisIdea } from "./actions";
+import { writeThisIdea } from "./actions";
+import { RunProgress } from "./RunProgress";
 
 type Keyword = {
   id: string; phrase: string; intent: string;
@@ -20,15 +21,6 @@ const RUNNING = new Set([
   "finding_gaps", "finding_aeo", "compiling",
 ]);
 
-const STAGE_LABEL: Record<string, string> = {
-  queued: "Queued",
-  researching_keywords: "Researching keywords",
-  analyzing_competitors: "Analyzing competitors",
-  finding_gaps: "Finding content gaps",
-  finding_aeo: "Finding answer-engine opportunities",
-  compiling: "Compiling your plan",
-};
-
 const INTENTS: { key: string; label: string }[] = [
   { key: "high_intent", label: "High intent" },
   { key: "informational", label: "Informational" },
@@ -40,11 +32,12 @@ const PRIORITY_BADGE = (p: number) =>
   p <= 1 ? "badge--attention" : p === 2 ? "badge--opportunity" : "badge--draft";
 
 export function DashboardClient({
-  brainName, runId, runStatus, keywords, ideas, competitorIntel, trends, bestPractices, creditsBalance,
+  brainName, runId, runStatus, runStartedAt, keywords, ideas, competitorIntel, trends, bestPractices, creditsBalance,
 }: {
   brainName: string;
   runId: string | null;
   runStatus: string | null;
+  runStartedAt: string | null;
   keywords: Keyword[];
   ideas: Idea[];
   competitorIntel: CompetitorIntel[];
@@ -57,16 +50,6 @@ export function DashboardClient({
   const [writing, startWrite] = useTransition();
 
   const running = !!runStatus && RUNNING.has(runStatus);
-
-  // Live run status: poll while the run is in progress, refresh when it lands.
-  useEffect(() => {
-    if (!runId || !running) return;
-    const t = setInterval(async () => {
-      const { status } = await getRunStatus(runId);
-      if (!RUNNING.has(status)) router.refresh();
-    }, 4000);
-    return () => clearInterval(t);
-  }, [runId, running, router]);
 
   const write = (ideaId: string) =>
     startWrite(async () => {
@@ -87,17 +70,18 @@ export function DashboardClient({
         <span className="badge badge--draft whitespace-nowrap">{creditsBalance} credits</span>
       </div>
 
-      {/* Live run status */}
-      {running && (
-        <div className="card--lg card mt-8">
-          <div className="flex items-center gap-3">
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-accent-strong" />
-            <span className="text-h5 text-ink-green">{STAGE_LABEL[runStatus!] ?? "Working…"}</span>
-          </div>
-          <p className="mt-2 text-body-sm text-muted">
-            Your first intelligence report is running on your own domain — this is the product working live. It updates here as each stage lands.
-          </p>
-        </div>
+      {/* Live, itemized run progress */}
+      {running && runId && (
+        <RunProgress
+          runId={runId}
+          initialStatus={runStatus!}
+          startedAt={runStartedAt}
+          initialCounts={{
+            keywords: keywords.length,
+            competitors: competitorIntel.length,
+            ideas: ideas.length,
+          }}
+        />
       )}
 
       {runStatus === "failed" && (

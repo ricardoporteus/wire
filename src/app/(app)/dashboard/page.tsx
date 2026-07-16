@@ -53,6 +53,7 @@ export default async function DashboardPage() {
       brainName={brain.name}
       runId={run?.id ?? null}
       runStatus={run?.status ?? null}
+      runStartedAt={run?.startedAt ? run.startedAt.toISOString() : null}
       keywords={kws.map((k) => ({
         id: k.id, phrase: k.phrase, intent: k.intent,
         difficulty: k.difficulty, priority: k.priority, aeoFormat: k.aeoFormat,

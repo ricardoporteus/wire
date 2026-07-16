@@ -6,11 +6,11 @@
  */
 
 import { auth } from "@clerk/nextjs/server";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { inngest } from "@/lib/inngest";
 import {
-  contentIdeas, brandBrains, organizations, intelligenceRuns, documents, sources,
+  contentIdeas, brandBrains, organizations, intelligenceRuns, documents, sources, keywords,
 } from "@/db/schema";
 
 async function callerOrgId(): Promise<{ clerkOrgId: string; userId: string }> {
@@ -19,18 +19,42 @@ async function callerOrgId(): Promise<{ clerkOrgId: string; userId: string }> {
   return { clerkOrgId, userId };
 }
 
-/** Poll target for a run in progress — returns just the status. */
-export async function getRunStatus(runId: string) {
+type RunProgressSnapshot = {
+  status: string;
+  startedAt: string | null;
+  counts: { keywords: number; competitors: number; ideas: number };
+};
+
+/**
+ * Poll target for a run in progress. Returns the current stage (status), the
+ * start time (for the elapsed timer) and live result counts so the dashboard
+ * can itemize progress — each stage checks off with its real output as it lands.
+ */
+export async function getRunStatus(runId: string): Promise<RunProgressSnapshot> {
+  const empty = { keywords: 0, competitors: 0, ideas: 0 };
   const { clerkOrgId } = await callerOrgId();
   const run = await db.query.intelligenceRuns.findFirst({
     where: eq(intelligenceRuns.id, runId),
   });
-  if (!run) return { status: "unknown" as const };
+  if (!run) return { status: "unknown", startedAt: null, counts: empty };
   // Ownership: run → brain → org → clerk org.
   const brain = await db.query.brandBrains.findFirst({ where: eq(brandBrains.id, run.brainId) });
   const org = brain && await db.query.organizations.findFirst({ where: eq(organizations.id, brain.orgId) });
   if (!org || org.clerkOrgId !== clerkOrgId) throw new Error("forbidden");
-  return { status: run.status };
+
+  const [kw, id] = await Promise.all([
+    db.select({ n: count() }).from(keywords).where(eq(keywords.runId, runId)),
+    db.select({ n: count() }).from(contentIdeas).where(eq(contentIdeas.runId, runId)),
+  ]);
+  return {
+    status: run.status,
+    startedAt: run.startedAt ? run.startedAt.toISOString() : null,
+    counts: {
+      keywords: kw[0]?.n ?? 0,
+      competitors: run.competitorIntel?.length ?? 0,
+      ideas: id[0]?.n ?? 0,
+    },
+  };
 }
 
 /**
