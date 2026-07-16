@@ -40,7 +40,11 @@ export function AppHeader({ creditsBalance }: { creditsBalance: number | null })
               {creditsBalance} credits
             </Link>
           )}
-          <OrganizationSwitcher afterSelectOrganizationUrl="/dashboard" hidePersonal />
+          <OrganizationSwitcher
+            afterCreateOrganizationUrl="/onboarding"
+            afterSelectOrganizationUrl="/dashboard"
+            hidePersonal
+          />
           <UserButton />
         </div>
       </div>

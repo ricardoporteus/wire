@@ -26,6 +26,7 @@ export default async function DashboardPage() {
         <span className="eyebrow">Wire</span>
         <h1 className="mt-4 text-h2 text-ink-green">This month&apos;s opportunities</h1>
         <p className="mt-2 text-muted">Finish onboarding to build your Brand Brain and fire your first run.</p>
+        <a href="/onboarding" className="btn-accent mt-6 inline-block">Start onboarding →</a>
       </main>
     );
   }
