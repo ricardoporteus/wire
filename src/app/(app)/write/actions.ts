@@ -12,7 +12,11 @@ import { db } from "@/lib/db";
 import { documents, sources, brandBrains, organizations, exports as exportsTable } from "@/db/schema";
 import { inngest } from "@/lib/inngest";
 import { requireOrg } from "@/lib/org";
+import { CREDIT_COSTS } from "@/lib/credits";
 import { fetchArticleText } from "@/jobs/content-writer-pipeline";
+
+/** Sentinel the UI recognizes to show the upgrade prompt. */
+const NO_CREDITS = "insufficient_credits" as const;
 
 async function ownedDoc(documentId: string) {
   const { orgId: clerkOrgId } = await auth();
@@ -65,6 +69,7 @@ export async function createFromPaste(text: string) {
   const clean = text.trim();
   if (clean.length < 40) return { ok: false as const, error: "Paste a bit more to work with (at least a few sentences)." };
   const { org, brain, userId } = await brainAndUser();
+  if (org.creditsBalance < CREDIT_COSTS.diagnosis) return { ok: false as const, error: NO_CREDITS };
   const documentId = await startDoc({ brainId: brain.id, orgId: org.id, userId, kind: "pasted_text", normalizedText: clean });
   return { ok: true as const, documentId };
 }
@@ -78,6 +83,7 @@ export async function createFromUrl(url: string) {
     return { ok: false as const, error: "That doesn't look like a valid URL." };
   }
   const { org, brain, userId } = await brainAndUser();
+  if (org.creditsBalance < CREDIT_COSTS.diagnosis) return { ok: false as const, error: NO_CREDITS };
   let text: string;
   try {
     text = await fetchArticleText(u);
@@ -106,6 +112,7 @@ export async function getDocState(documentId: string) {
 export async function confirmAndGenerate(documentId: string, useAlternative = false) {
   const { doc, org } = await ownedDoc(documentId);
   if (!doc.diagnosis) return { ok: false as const, error: "Not diagnosed yet." };
+  if (org.creditsBalance < CREDIT_COSTS.generation) return { ok: false as const, error: NO_CREDITS };
 
   if (useAlternative && doc.diagnosis.alternative) {
     const alt = doc.diagnosis.alternative;
@@ -124,6 +131,7 @@ export async function confirmAndGenerate(documentId: string, useAlternative = fa
 export async function regenerate(documentId: string, editorNote: string) {
   const { doc, org } = await ownedDoc(documentId);
   if (!doc.diagnosis) return { ok: false as const, error: "Nothing to regenerate yet." };
+  if (org.creditsBalance < CREDIT_COSTS.regeneration) return { ok: false as const, error: NO_CREDITS };
   await inngest.send({
     name: "wire/document.generate.requested",
     data: { documentId, orgId: org.id, regeneration: true, editorNote: editorNote.slice(0, 2000) },
@@ -136,6 +144,7 @@ export async function createRepurposePack(documentId: string, kinds: string[]) {
   const { doc, org } = await ownedDoc(documentId);
   if (!doc.bodyMarkdown) return { ok: false as const, error: "Generate the piece first." };
   if (!kinds.length) return { ok: false as const, error: "Pick at least one format." };
+  if (org.creditsBalance < CREDIT_COSTS.repurpose) return { ok: false as const, error: NO_CREDITS };
   await inngest.send({
     name: "wire/document.repurpose.requested",
     data: { documentId, orgId: org.id, kinds },

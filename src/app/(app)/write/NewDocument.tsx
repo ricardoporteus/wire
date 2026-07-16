@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createFromPaste, createFromUrl } from "./actions";
+import { UpgradeNotice } from "@/components/UpgradeNotice";
 
 const TABS = [
   { key: "paste", label: "Paste text", enabled: true },
@@ -65,7 +66,9 @@ export function NewDocument() {
         )}
       </div>
 
-      {error && <p className="mt-3 text-body-sm text-negative">{error}</p>}
+      {error === "insufficient_credits"
+        ? <UpgradeNotice className="mt-3" />
+        : error && <p className="mt-3 text-body-sm text-negative">{error}</p>}
 
       <div className="mt-5 flex items-center gap-3">
         <button className="btn-accent" disabled={pending} onClick={go}>

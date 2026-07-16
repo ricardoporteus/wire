@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createRepurposePack, getExports } from "../actions";
+import { UpgradeNotice } from "@/components/UpgradeNotice";
 
 type Export = { id: string; kind: string; content: string };
 
@@ -93,7 +94,9 @@ export function ExportPanel({ documentId, initialExports }: { documentId: string
             </label>
           ))}
         </div>
-        {error && <p className="mt-2 text-body-sm text-negative">{error}</p>}
+        {error === "insufficient_credits"
+          ? <UpgradeNotice className="mt-2" />
+          : error && <p className="mt-2 text-body-sm text-negative">{error}</p>}
         <button className="btn-accent mt-4" disabled={building || selected.size === 0} onClick={create}>
           {building ? "Building your pack…" : `Create pack (${selected.size})`}
         </button>

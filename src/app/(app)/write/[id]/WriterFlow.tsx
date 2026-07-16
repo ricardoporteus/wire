@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { getDocState, confirmAndGenerate, regenerate } from "../actions";
 import { ExportPanel } from "./ExportPanel";
+import { UpgradeNotice } from "@/components/UpgradeNotice";
 
 type Diagnosis = {
   coreMessage: string;
@@ -71,22 +72,36 @@ export function WriterFlow({
     setS((p) => ({ ...p, status: "generating" })); // urgent — flip the view now
   };
 
+  const [err, setErr] = useState<string | null>(null);
+
   const confirm = (useAlt: boolean) => {
+    const prev = s.status;
+    setErr(null);
     beginGeneration();
-    start(async () => { await confirmAndGenerate(documentId, useAlt); });
+    start(async () => {
+      const res = await confirmAndGenerate(documentId, useAlt);
+      if (!res.ok) { setErr(res.error); setS((p) => ({ ...p, status: prev })); }
+    });
   };
 
   const rerun = () => {
+    const prev = s.status;
+    setErr(null);
     beginGeneration();
     start(async () => {
-      await regenerate(documentId, note);
-      setNote("");
+      const res = await regenerate(documentId, note);
+      if (res.ok) setNote("");
+      else { setErr(res.error); setS((p) => ({ ...p, status: prev })); }
     });
   };
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
       <span className="eyebrow">{brainName} · Writer</span>
+
+      {err === "insufficient_credits"
+        ? <UpgradeNotice className="mt-4" />
+        : err && <p className="mt-4 text-body-sm text-negative">{err}</p>}
 
       {/* Working states */}
       {WORKING.has(s.status) && (
