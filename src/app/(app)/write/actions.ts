@@ -98,6 +98,7 @@ export async function getDocState(documentId: string) {
     title: doc.title ?? null,
     bodyMarkdown: doc.bodyMarkdown ?? null,
     brief: doc.brief ?? null,
+    updatedAt: doc.updatedAt ? doc.updatedAt.toISOString() : null,
   };
 }
 

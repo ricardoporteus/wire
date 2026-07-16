@@ -28,6 +28,7 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
         title: doc.title ?? null,
         bodyMarkdown: doc.bodyMarkdown ?? null,
         brief: doc.brief ?? null,
+        updatedAt: doc.updatedAt ? doc.updatedAt.toISOString() : null,
       }}
     />
   );

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { getDocState, confirmAndGenerate, regenerate } from "../actions";
 
 type Diagnosis = {
@@ -31,6 +30,7 @@ type State = {
   title: string | null;
   bodyMarkdown: string | null;
   brief: Brief | null;
+  updatedAt: string | null;
 };
 
 const fmt = (s: string) => s.replaceAll("_", " ");
@@ -44,32 +44,38 @@ export function WriterFlow({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   initial: any;
 }) {
-  const router = useRouter();
   const [s, setS] = useState<State>(initial);
   const [note, setNote] = useState("");
   const [pending, start] = useTransition();
-
-  // Re-sync from the server whenever a refresh delivers new document data.
-  useEffect(() => setS(initial), [initial.status, initial.title, initial.bodyMarkdown]);
+  // updatedAt of the document when we kicked off a (re)generation. A terminal
+  // status whose updatedAt still matches this is the *pre-generation* snapshot —
+  // the job just hasn't marked itself running yet — so we ignore it rather than
+  // let it revert the optimistic "generating" view (and stop the poll).
+  const genBaseline = useRef<string | null>(null);
 
   useEffect(() => {
     if (!WORKING.has(s.status)) return;
     const t = setInterval(async () => {
       const next = await getDocState(documentId);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setS(next as any);
-      if (!WORKING.has(next.status)) router.refresh(); // pull fresh body/brief server-side
-    }, 3000);
+      if (WORKING.has(next.status)) { setS(next); return; } // live working status
+      if (genBaseline.current !== null && next.updatedAt === genBaseline.current) return; // stale — keep waiting
+      setS(next); // a genuinely new terminal result
+    }, 2500);
     return () => clearInterval(t);
-  }, [s.status, documentId, router]);
+  }, [s.status, documentId]);
+
+  const beginGeneration = () => {
+    genBaseline.current = s.updatedAt ?? null;
+    setS((p) => ({ ...p, status: "generating" })); // urgent — flip the view now
+  };
 
   const confirm = (useAlt: boolean) => {
-    setS((p) => ({ ...p, status: "generating" })); // urgent — flip the view now
+    beginGeneration();
     start(async () => { await confirmAndGenerate(documentId, useAlt); });
   };
 
   const rerun = () => {
-    setS((p) => ({ ...p, status: "generating" }));
+    beginGeneration();
     start(async () => {
       await regenerate(documentId, note);
       setNote("");
