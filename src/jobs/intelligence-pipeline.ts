@@ -184,8 +184,8 @@ export const runIntelligence = inngest.createFunction(
     totals.in += kw.tokensIn; totals.out += kw.tokensOut;
     await step.run("save:keywords", async () => {
       const rows = [
-        ...kw.data.highIntent.map((k) => ({ intent: "high_intent", ...k })),
-        ...kw.data.informational.map((k) => ({ intent: "informational", ...k })),
+        ...kw.data.highIntent.map((k) => ({ ...k, intent: "high_intent" })),
+        ...kw.data.informational.map((k) => ({ ...k, intent: "informational" })),
         ...kw.data.longTail.map((k) => ({ intent: "long_tail", phrase: k.phrase, rationale: k.rationale, difficulty: null, priority: 2 })),
       ];
       for (const r of rows) {

@@ -56,6 +56,7 @@ export const repurposeDocument = inngest.createFunction(
     const doc = await step.run("load", () =>
       db.query.documents.findFirst({ where: eq(documents.id, documentId) }));
     if (!doc?.bodyMarkdown) throw new Error("Nothing to repurpose — generate the piece first");
+    const bodyMarkdown = doc.bodyMarkdown; // narrowed here; keep it across the step closure below
 
     const brainRow = await db.query.brandBrains.findFirst({ where: eq(brandBrains.id, doc.brainId) });
     const brain = brandBrainSchema.parse(brainRow);
@@ -72,7 +73,7 @@ export const repurposeDocument = inngest.createFunction(
           content: [
             `Requested kinds and their specs:`,
             ...kinds.map((k) => `- ${k}: ${EXPORT_SPECS[k]}`),
-            `\n<document title="${doc.title}">\n${doc.bodyMarkdown.slice(0, 30_000)}\n</document>`,
+            `\n<document title="${doc.title}">\n${bodyMarkdown.slice(0, 30_000)}\n</document>`,
             `\nProduce the pack.`,
           ].join("\n"),
         }],
