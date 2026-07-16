@@ -8,10 +8,15 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { organizations } from "@/db/schema";
 import { BillingTable } from "./BillingTable";
+import { BillingSync } from "./BillingSync";
+import { reconcileSubscriptionCredits } from "./actions";
 
 export default async function BillingPage() {
   const { orgId: clerkOrgId } = await auth();
   if (!clerkOrgId) return null;
+  // Grant a just-purchased plan's credits even if the Clerk webhook didn't reach
+  // localhost — idempotent, so returning here after checkout tops up the balance.
+  await reconcileSubscriptionCredits();
   const org = await db.query.organizations.findFirst({ where: eq(organizations.clerkOrgId, clerkOrgId) });
 
   return (
@@ -34,6 +39,8 @@ export default async function BillingPage() {
           </div>
         </div>
       )}
+
+      <BillingSync />
 
       <div className="mt-8">
         <BillingTable />
