@@ -11,7 +11,7 @@ import { documents, exports as exportsTable } from "@/db/schema";
 import { brandBrainSchema, type BrandBrain } from "@/lib/brand-brain.zod";
 import { brandBrains } from "@/db/schema";
 import { debitCredits, recordUsage } from "@/lib/credits";
-import { generateJson } from "./content-writer-pipeline";
+import { generateJson, stripEmDashes } from "./content-writer-pipeline";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -38,9 +38,10 @@ Personality: ${brain.voice.personality.map((p) => `${p.is} not ${p.notBut}`).joi
 Locale: ${brain.voice.locale}. Terminology rules apply exactly as in the source piece.
 
 Rules:
-1. The piece inside <document> is the only source of claims — add nothing, invent nothing.
+1. The piece inside <document> is the only source of claims. Add nothing, invent nothing.
 2. Channel-native means rewritten for the channel, not truncated.
-3. Respond with a single JSON object: { "items": [{ "kind", "content" }] } — one item per requested kind, kinds verbatim. No preamble, no fences.`;
+3. Never use em dashes (the "—" character) or the "--" substitute. Use commas, colons, parentheses, or separate sentences instead. En dashes in number ranges (e.g. "10–14") are fine.
+4. Respond with a single JSON object: { "items": [{ "kind", "content" }] }, one item per requested kind, kinds verbatim. No preamble, no fences.`;
 
 export const repurposeDocument = inngest.createFunction(
   { id: "document-repurpose", retries: 1 },
@@ -77,7 +78,7 @@ export const repurposeDocument = inngest.createFunction(
     await step.run("save", async () => {
       for (const item of pack.data.items) {
         await db.insert(exportsTable).values({
-          documentId, kind: item.kind as never, content: item.content,
+          documentId, kind: item.kind as never, content: stripEmDashes(item.content),
         });
       }
     });
