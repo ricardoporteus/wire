@@ -34,10 +34,8 @@ const RESEARCH_MODEL = "claude-haiku-4-5";
 const INTELLIGENCE_RUN_CREDITS = 100;
 // COST KNOB #2. Each extra search adds ~$0.01 in tool fees AND accumulates context
 // that every later turn reprocesses. 12 → 6 → 4 as we tightened COGS.
-const MAX_SEARCH_USES = 4;
-// The loop must allow more turns than searches, so the model always has turns left
-// to synthesize its JSON (and self-repair) after exhausting its search budget.
-const MAX_TURNS_PER_STAGE = MAX_SEARCH_USES + 4;
+const MAX_SEARCH_USES = 4; // paid runs (scheduled / on-demand)
+const TRIAL_SEARCH_USES = 2; // the free onboarding run searches less to bound uncompensated COGS
 
 /** $/1M tokens by model. Used to compute real COGS with cache accounting. */
 const PRICING: Record<string, { in: number; out: number }> = {
@@ -87,7 +85,10 @@ async function researchStage<T>(opts: {
   brain: BrandBrain;
   instruction: string;
   schema: z.ZodType<T>;
+  searchUses?: number; // per-run override (trial runs search less to cut COGS)
 }): Promise<{ data: T; tokensIn: number; tokensOut: number; costUsdMicros: number }> {
+  const searchUses = opts.searchUses ?? MAX_SEARCH_USES;
+  const maxTurns = searchUses + 4; // always leave turns to synthesize + self-repair
   // Cache the (constant) system prompt across every turn and every stage of the run.
   const system: Anthropic.TextBlockParam[] = [
     { type: "text", text: RESEARCH_SYSTEM(opts.brain), cache_control: { type: "ephemeral" } },
@@ -95,7 +96,7 @@ async function researchStage<T>(opts: {
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: opts.instruction }];
   let tokensIn = 0, tokensOut = 0, costUsdMicros = 0;
 
-  for (let turn = 0; turn < MAX_TURNS_PER_STAGE; turn++) {
+  for (let turn = 0; turn < maxTurns; turn++) {
     // One moving cache breakpoint on the latest message so the growing search
     // transcript is read from cache (~0.1x) instead of re-billed at full price each turn.
     rollingCache(messages);
@@ -103,7 +104,7 @@ async function researchStage<T>(opts: {
       model: RESEARCH_MODEL,
       max_tokens: 6000,
       system,
-      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: MAX_SEARCH_USES }],
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: searchUses }],
       messages,
     });
     const u = res.usage;
@@ -219,10 +220,17 @@ export const runIntelligence = inngest.createFunction(
     await step.run("start", () => mark("researching_keywords", { startedAt: new Date() }));
     const totals = { in: 0, out: 0, cost: 0 };
 
+    // Trial (onboarding) runs are free to the customer, so bound their search
+    // budget to keep uncompensated COGS down; paid runs get the fuller pass.
+    const trigger = await step.run("load-trigger", () =>
+      db.query.intelligenceRuns.findFirst({ where: eq(intelligenceRuns.id, runId) })
+        .then((r) => r?.trigger ?? "on_demand"));
+    const searchUses = trigger === "onboarding" ? TRIAL_SEARCH_USES : MAX_SEARCH_USES;
+
     /* 1. Keyword research */
     const kw = await step.run("stage:keywords", () =>
       researchStage({
-        brain, schema: keywordStage,
+        brain, searchUses, schema: keywordStage,
         instruction: `Research the keywords this brand's ICP is searching this month. Cover: high-intent (ready to act), informational (research phase), and long-tail phrases — with geographic intent for the listed geographies where relevant. 10–15 high-intent, 10–15 informational, 8–12 long-tail. Real phrases people type.`,
       }));
     totals.in += kw.tokensIn; totals.out += kw.tokensOut; totals.cost += kw.costUsdMicros;
@@ -249,7 +257,7 @@ export const runIntelligence = inngest.createFunction(
     /* 2. Competitor analysis */
     const comp = await step.run("stage:competitors", () =>
       researchStage({
-        brain, schema: competitorStage,
+        brain, searchUses, schema: competitorStage,
         instruction: `Analyze each competitor listed in the Brand Brain: what topics they publish, what keywords they appear to target, their content formats, and their clearest weakness that is our opportunity. If a site is unreachable, research reviews and mentions of it instead and say so in the weakness note.`,
       }));
     totals.in += comp.tokensIn; totals.out += comp.tokensOut; totals.cost += comp.costUsdMicros;
@@ -259,7 +267,7 @@ export const runIntelligence = inngest.createFunction(
     /* 3. Content gaps */
     const gaps = await step.run("stage:gaps", () =>
       researchStage({
-        brain, schema: gapStage,
+        brain, searchUses, schema: gapStage,
         instruction: `Using the ICP's search behaviour and the competitor picture, identify topics the ICP searches for that ${brain.name} is not covering well (check ${brain.siteUrl} coverage). These are the highest-priority opportunities. 6–10 gaps with a suggested content angle each.`,
       }));
     totals.in += gaps.tokensIn; totals.out += gaps.tokensOut; totals.cost += gaps.costUsdMicros;
@@ -268,7 +276,7 @@ export const runIntelligence = inngest.createFunction(
     /* 4. AEO opportunities */
     const aeo = await step.run("stage:aeo", () =>
       researchStage({
-        brain, schema: aeoStage,
+        brain, searchUses, schema: aeoStage,
         instruction: `Find Answer-Engine opportunities: People-Also-Ask clusters the ICP asks, featured-snippet questions with no dominant answer, and conversational/voice phrasings. For snippets, recommend the winning format (paragraph / list / table).`,
       }));
     totals.in += aeo.tokensIn; totals.out += aeo.tokensOut; totals.cost += aeo.costUsdMicros;
@@ -292,7 +300,7 @@ export const runIntelligence = inngest.createFunction(
     /* 5. Trends + best practices */
     const tr = await step.run("stage:trends", () =>
       researchStage({
-        brain, schema: trendStage,
+        brain, searchUses, schema: trendStage,
         instruction: `What is trending in this brand's niche right now (news, viral content, seasonal timing), and what current SEO/AEO best-practice changes affect content formatting, E-E-A-T, or answer-engine visibility? 4–8 trends, 4–8 best practices.`,
       }));
     totals.in += tr.tokensIn; totals.out += tr.tokensOut; totals.cost += tr.costUsdMicros;
@@ -300,7 +308,7 @@ export const runIntelligence = inngest.createFunction(
     /* 6. The month's ranked content plan — synthesized from everything above */
     const ideas = await step.run("stage:ideas", () =>
       researchStage({
-        brain, schema: ideasStage,
+        brain, searchUses, schema: ideasStage,
         instruction: `Synthesize this month's plan. Findings so far:
 KEYWORDS: ${JSON.stringify(kw.data).slice(0, 6000)}
 GAPS: ${JSON.stringify(gaps.data).slice(0, 4000)}

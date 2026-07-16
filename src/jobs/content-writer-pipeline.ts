@@ -154,27 +154,25 @@ export const diagnoseDocument = inngest.createFunction(
       ].join("\n");
     });
 
-    const result = await step.run("diagnose", async () => {
-      const res = await anthropic.messages.create({
-        model: WRITER_MODEL, max_tokens: 1200,
+    const result = await step.run("diagnose", () =>
+      generateJson({
         system: DIAGNOSIS_SYSTEM(brain, intel),
-        messages: [{ role: "user", content: `<source kind="${source.kind}">\n${source.normalizedText!.slice(0, 30_000)}\n</source>\n\nDiagnose this source.` }],
-      });
-      const parsed = diagnosisSchema.parse(jsonOf(res));
-      return { parsed, usage: res.usage };
-    });
+        userContent: `<source kind="${source.kind}">\n${source.normalizedText!.slice(0, 30_000)}\n</source>\n\nDiagnose this source.`,
+        schema: diagnosisSchema,
+        maxTokens: 1200,
+      }));
 
     await step.run("save", () =>
       db.update(documents).set({
         status: "awaiting_confirm",
-        format: result.parsed.recommendedFormat,
+        format: result.data.recommendedFormat,
         diagnosis: {
-          coreMessage: result.parsed.coreMessage,
-          recommendedTitle: result.parsed.recommendedTitle,
-          targetKeyword: result.parsed.targetKeyword,
-          targetAeoQuestion: result.parsed.targetAeoQuestion,
-          whyThisFormat: result.parsed.whyThisFormat,
-          alternative: result.parsed.alternative,
+          coreMessage: result.data.coreMessage,
+          recommendedTitle: result.data.recommendedTitle,
+          targetKeyword: result.data.targetKeyword,
+          targetAeoQuestion: result.data.targetAeoQuestion,
+          whyThisFormat: result.data.whyThisFormat,
+          alternative: result.data.alternative,
         },
         tokensIn: result.usage.input_tokens, tokensOut: result.usage.output_tokens,
         updatedAt: new Date(),
@@ -274,38 +272,34 @@ export const generateDocument = inngest.createFunction(
     await step.run("mark", () =>
       db.update(documents).set({ status: "generating" }).where(eq(documents.id, documentId)));
 
-    const gen = await step.run("write", async () => {
-      const res = await anthropic.messages.create({
-        model: WRITER_MODEL, max_tokens: 8000,
+    const gen = await step.run("write", () =>
+      generateJson({
         system: WRITER_SYSTEM(brain, formatRule),
-        messages: [{
-          role: "user",
-          content: [
-            `Confirmed diagnosis:`,
-            `Title: ${doc.diagnosis!.recommendedTitle}`,
-            `Core message: ${doc.diagnosis!.coreMessage}`,
-            doc.diagnosis!.targetKeyword ? `Primary keyword: ${doc.diagnosis!.targetKeyword}` : "",
-            doc.diagnosis!.targetAeoQuestion ? `Target AEO question: ${doc.diagnosis!.targetAeoQuestion}` : "",
-            regeneration && doc.bodyMarkdown ? `\nPrevious draft (revise per the editor note, keep what works):\n${doc.bodyMarkdown.slice(0, 20_000)}` : "",
-            editorNote ? `\nEditor note: ${editorNote}` : "",
-            source?.normalizedText ? `\n<source>\n${source.normalizedText.slice(0, 40_000)}\n</source>` : "",
-            `\nWrite the ${formatRule.format} now.`,
-          ].filter(Boolean).join("\n"),
-        }],
-      });
-      return { out: generationSchema.parse(jsonOf(res)), usage: res.usage };
-    });
+        userContent: [
+          `Confirmed diagnosis:`,
+          `Title: ${doc.diagnosis!.recommendedTitle}`,
+          `Core message: ${doc.diagnosis!.coreMessage}`,
+          doc.diagnosis!.targetKeyword ? `Primary keyword: ${doc.diagnosis!.targetKeyword}` : "",
+          doc.diagnosis!.targetAeoQuestion ? `Target AEO question: ${doc.diagnosis!.targetAeoQuestion}` : "",
+          regeneration && doc.bodyMarkdown ? `\nPrevious draft (revise per the editor note, keep what works):\n${doc.bodyMarkdown.slice(0, 20_000)}` : "",
+          editorNote ? `\nEditor note: ${editorNote}` : "",
+          source?.normalizedText ? `\n<source>\n${source.normalizedText.slice(0, 40_000)}\n</source>` : "",
+          `\nWrite the ${formatRule.format} now.`,
+        ].filter(Boolean).join("\n"),
+        schema: generationSchema,
+        maxTokens: 8000,
+      }));
 
     /* Deterministic terminology lint — enforcement pass #2, code not AI */
-    const violations = lintTerminology(gen.out.bodyMarkdown + " " + gen.out.title, brain);
+    const violations = lintTerminology(gen.data.bodyMarkdown + " " + gen.data.title, brain);
 
     await step.run("save", () =>
       db.update(documents).set({
         status: "draft",
-        title: gen.out.title,
-        bodyMarkdown: gen.out.bodyMarkdown,
+        title: gen.data.title,
+        bodyMarkdown: gen.data.bodyMarkdown,
         brief: {
-          ...gen.out.brief,
+          ...gen.data.brief,
           terminologyCheckPassed: violations.length === 0,
           voiceChecksPassed: true, // pillar checks surfaced in editor v1.1
           // violations listed for the editor to render inline:
@@ -371,6 +365,36 @@ function jsonOf(res: Anthropic.Message): unknown {
   try { return JSON.parse(text); } catch { throw new Error("Model returned non-JSON output"); }
 }
 
+/**
+ * Generate schema-valid JSON with one self-repair pass. Models occasionally drop
+ * a required field or emit null for an optional; on a parse failure we feed the
+ * exact validation error back and ask for corrected JSON — the same robustness
+ * the research loop and the Brand Brain drafter already have.
+ */
+async function generateJson<T>(opts: {
+  system: string;
+  userContent: string;
+  schema: z.ZodType<T>;
+  maxTokens: number;
+}): Promise<{ data: T; usage: { input_tokens: number; output_tokens: number } }> {
+  const messages: Anthropic.MessageParam[] = [{ role: "user", content: opts.userContent }];
+  let inTok = 0, outTok = 0;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await anthropic.messages.create({
+      model: WRITER_MODEL, max_tokens: opts.maxTokens, system: opts.system, messages,
+    });
+    inTok += res.usage.input_tokens; outTok += res.usage.output_tokens;
+    const parsed = opts.schema.safeParse(jsonOf(res));
+    if (parsed.success) return { data: parsed.data, usage: { input_tokens: inTok, output_tokens: outTok } };
+    messages.push({ role: "assistant", content: res.content });
+    messages.push({
+      role: "user",
+      content: `Your output failed validation: ${parsed.error.message.slice(0, 700)}. Return ONLY corrected JSON with every required field present. Omit optional fields you cannot fill — do not use null.`,
+    });
+  }
+  throw new Error("Model output failed schema validation after one repair attempt");
+}
+
 function wc(t: string) { return t.split(/\s+/).filter(Boolean).length; }
 function blobUrl(fileKey: string) { return `${process.env.BLOB_BASE_URL}/${fileKey}`; }
 function costMicros(tin: number, tout: number) {
@@ -379,7 +403,35 @@ function costMicros(tin: number, tout: number) {
   return Math.round((tin * IN + tout * OUT));
 }
 
-/* Integration stubs — implemented against real services in the app repo */
-declare function fetchArticleText(url: string): Promise<string>;
-declare function extractFileText(fileKey: string): Promise<string>;
-declare function transcribeWithAssemblyAI(url: string): Promise<{ text: string; durationSec: number }>;
+/* ─────────────────────────── ingestion integrations ─────────────────────── */
+
+/** Fetch a web article and reduce it to readable plain text. */
+export async function fetchArticleText(url: string): Promise<string> {
+  const res = await fetch(url, {
+    redirect: "follow",
+    headers: { "user-agent": "WireBot/1.0 (+https://wire.example/bot)" },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new Error(`Couldn't fetch that URL (HTTP ${res.status}).`);
+  if (!res.headers.get("content-type")?.includes("text/html")) {
+    throw new Error("That URL doesn't look like a readable web page.");
+  }
+  const text = (await res.text())
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&[a-z#0-9]+;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (text.length < 200) throw new Error("Couldn't extract enough text from that page.");
+  return text.slice(0, 60_000);
+}
+
+// Not yet wired up — these need blob storage + AssemblyAI. Fail with a clear
+// message (rather than a ReferenceError) so the UI can steer users to paste/URL.
+async function extractFileText(_fileKey: string): Promise<string> {
+  throw new Error("File upload isn't available yet — paste the text or use a URL for now.");
+}
+async function transcribeWithAssemblyAI(_url: string): Promise<{ text: string; durationSec: number }> {
+  throw new Error("Audio/video ingestion isn't available yet — paste the text or use a URL for now.");
+}

@@ -8,8 +8,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { inngest } from "@/lib/inngest";
 import {
-  contentIdeas, brandBrains, organizations, intelligenceRuns, documents,
+  contentIdeas, brandBrains, organizations, intelligenceRuns, documents, sources,
 } from "@/db/schema";
 
 async function callerOrgId(): Promise<{ clerkOrgId: string; userId: string }> {
@@ -46,8 +47,24 @@ export async function writeThisIdea(ideaId: string) {
   const org = brain && await db.query.organizations.findFirst({ where: eq(organizations.id, brain.orgId) });
   if (!brain || !org || org.clerkOrgId !== clerkOrgId) throw new Error("forbidden");
 
+  // An idea has no external source, so seed one from the brief — the diagnosis
+  // step reads it as the source material and grounds against live intelligence.
+  const seed = [
+    `Content brief for a new ${idea.format.replaceAll("_", " ")}.`,
+    `Working title: ${idea.title}`,
+    idea.whyNow ? `Why this matters now: ${idea.whyNow}` : "",
+    idea.targetAeoQuestion ? `Question to answer: ${idea.targetAeoQuestion}` : "",
+    `Write an original, on-brand piece that delivers on this brief for the brand's ICP.`,
+  ].filter(Boolean).join("\n");
+
+  const [src] = await db.insert(sources).values({
+    brainId: brain.id, kind: "pasted_text", status: "ready",
+    normalizedText: seed, createdByClerkUserId: userId,
+  }).returning({ id: sources.id });
+
   const [doc] = await db.insert(documents).values({
     brainId: brain.id,
+    sourceId: src.id,
     ideaId: idea.id,
     format: idea.format,
     status: "diagnosing",
@@ -55,6 +72,7 @@ export async function writeThisIdea(ideaId: string) {
   }).returning({ id: documents.id });
 
   await db.update(contentIdeas).set({ status: "queued" }).where(eq(contentIdeas.id, idea.id));
+  await inngest.send({ name: "wire/document.diagnose.requested", data: { documentId: doc.id, orgId: org.id } });
 
   return { documentId: doc.id };
 }
