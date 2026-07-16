@@ -18,8 +18,12 @@ export async function POST(req: NextRequest) {
   switch (evt.type) {
     case "organization.created": {
       const { id, name } = evt.data;
+      // Mirror the org only — no credits here. Trial credits are granted once,
+      // atomically, when the user *approves* their Brand Brain (see
+      // approveBrain in the onboarding actions), so a signup that never
+      // completes onboarding never holds spendable credits.
       await db.insert(organizations)
-        .values({ clerkOrgId: id, name, planSlug: "trial", creditsBalance: PLAN_GRANTS.trial })
+        .values({ clerkOrgId: id, name, planSlug: "trial", creditsBalance: 0 })
         .onConflictDoNothing();
       break;
     }
