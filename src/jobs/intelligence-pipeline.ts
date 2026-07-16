@@ -26,9 +26,39 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 const anthropic = new Anthropic();
-const RESEARCH_MODEL = "claude-opus-4-8";
+// COST KNOB #1 (biggest lever). A full run is input-token-dominated, so the model
+// rate sets the floor. Measured: Opus 4.8 ≈ $20/run, Sonnet 5 ≈ $1.1, Haiku 4.5 ≈ $0.65.
+// Haiku keeps every run under the $1 target; bump to sonnet/opus (and re-check the
+// per-run cost) only if the eval harness shows Haiku's research quality is inadequate.
+const RESEARCH_MODEL = "claude-haiku-4-5";
 const INTELLIGENCE_RUN_CREDITS = 100;
-const MAX_SEARCHES_PER_STAGE = 6; // was 12 — bounds context growth (COGS); paired with prompt caching in researchStage
+// COST KNOB #2. Each extra search adds ~$0.01 in tool fees AND accumulates context
+// that every later turn reprocesses. 12 → 6 → 4 as we tightened COGS.
+const MAX_SEARCH_USES = 4;
+// The loop must allow more turns than searches, so the model always has turns left
+// to synthesize its JSON (and self-repair) after exhausting its search budget.
+const MAX_TURNS_PER_STAGE = MAX_SEARCH_USES + 4;
+
+/** $/1M tokens by model. Used to compute real COGS with cache accounting. */
+const PRICING: Record<string, { in: number; out: number }> = {
+  "claude-haiku-4-5": { in: 1, out: 5 },
+  "claude-sonnet-5": { in: 3, out: 15 },
+  "claude-opus-4-8": { in: 5, out: 25 },
+};
+const RATE = PRICING[RESEARCH_MODEL] ?? PRICING["claude-opus-4-8"];
+const WEB_SEARCH_USD = 0.01; // ~$10 per 1,000 searches
+const CACHE_WRITE_MULT = 1.25; // 5-minute ephemeral write premium
+const CACHE_READ_MULT = 0.1;
+
+/** True USD cost of one API call, in micros, honoring cache read/write pricing. */
+function callCostMicros(u: Anthropic.Usage): number {
+  const inTokens =
+    u.input_tokens +
+    (u.cache_creation_input_tokens ?? 0) * CACHE_WRITE_MULT +
+    (u.cache_read_input_tokens ?? 0) * CACHE_READ_MULT;
+  const usd = (inTokens * RATE.in + u.output_tokens * RATE.out) / 1_000_000;
+  return Math.round(usd * 1_000_000);
+}
 
 /* ------------------------- shared research plumbing ------------------------ */
 
@@ -57,15 +87,15 @@ async function researchStage<T>(opts: {
   brain: BrandBrain;
   instruction: string;
   schema: z.ZodType<T>;
-}): Promise<{ data: T; tokensIn: number; tokensOut: number }> {
+}): Promise<{ data: T; tokensIn: number; tokensOut: number; costUsdMicros: number }> {
   // Cache the (constant) system prompt across every turn and every stage of the run.
   const system: Anthropic.TextBlockParam[] = [
     { type: "text", text: RESEARCH_SYSTEM(opts.brain), cache_control: { type: "ephemeral" } },
   ];
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: opts.instruction }];
-  let tokensIn = 0, tokensOut = 0;
+  let tokensIn = 0, tokensOut = 0, costUsdMicros = 0;
 
-  for (let turn = 0; turn < MAX_SEARCHES_PER_STAGE; turn++) {
+  for (let turn = 0; turn < MAX_TURNS_PER_STAGE; turn++) {
     // One moving cache breakpoint on the latest message so the growing search
     // transcript is read from cache (~0.1x) instead of re-billed at full price each turn.
     rollingCache(messages);
@@ -73,7 +103,7 @@ async function researchStage<T>(opts: {
       model: RESEARCH_MODEL,
       max_tokens: 6000,
       system,
-      tools: [{ type: "web_search_20250305", name: "web_search" }],
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: MAX_SEARCH_USES }],
       messages,
     });
     const u = res.usage;
@@ -81,6 +111,10 @@ async function researchStage<T>(opts: {
     // win comes from cache_read tokens being ~10x cheaper than fresh input.
     tokensIn += u.input_tokens + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
     tokensOut += u.output_tokens;
+    costUsdMicros += callCostMicros(u);
+    // Web-search tool fee: one billable search per server_tool_use block this turn.
+    const searches = res.content.filter((b) => b.type === "server_tool_use").length;
+    costUsdMicros += Math.round(searches * WEB_SEARCH_USD * 1_000_000);
 
     if (res.stop_reason !== "tool_use") {
       const text = res.content
@@ -94,7 +128,7 @@ async function researchStage<T>(opts: {
         messages.push({ role: "user", content: `That output failed validation: ${parsed.error.message.slice(0, 600)}. Emit corrected JSON only.` });
         continue;
       }
-      return { data: parsed.data, tokensIn, tokensOut };
+      return { data: parsed.data, tokensIn, tokensOut, costUsdMicros };
     }
     // server-side tool execution (web_search) — append and continue the loop
     messages.push({ role: "assistant", content: res.content });
@@ -183,7 +217,7 @@ export const runIntelligence = inngest.createFunction(
       db.update(intelligenceRuns).set({ status: status as never, ...extra }).where(eq(intelligenceRuns.id, runId));
 
     await step.run("start", () => mark("researching_keywords", { startedAt: new Date() }));
-    const totals = { in: 0, out: 0 };
+    const totals = { in: 0, out: 0, cost: 0 };
 
     /* 1. Keyword research */
     const kw = await step.run("stage:keywords", () =>
@@ -191,7 +225,7 @@ export const runIntelligence = inngest.createFunction(
         brain, schema: keywordStage,
         instruction: `Research the keywords this brand's ICP is searching this month. Cover: high-intent (ready to act), informational (research phase), and long-tail phrases — with geographic intent for the listed geographies where relevant. 10–15 high-intent, 10–15 informational, 8–12 long-tail. Real phrases people type.`,
       }));
-    totals.in += kw.tokensIn; totals.out += kw.tokensOut;
+    totals.in += kw.tokensIn; totals.out += kw.tokensOut; totals.cost += kw.costUsdMicros;
     await step.run("save:keywords", async () => {
       const rows = [
         ...kw.data.highIntent.map((k) => ({ ...k, intent: "high_intent" })),
@@ -218,7 +252,7 @@ export const runIntelligence = inngest.createFunction(
         brain, schema: competitorStage,
         instruction: `Analyze each competitor listed in the Brand Brain: what topics they publish, what keywords they appear to target, their content formats, and their clearest weakness that is our opportunity. If a site is unreachable, research reviews and mentions of it instead and say so in the weakness note.`,
       }));
-    totals.in += comp.tokensIn; totals.out += comp.tokensOut;
+    totals.in += comp.tokensIn; totals.out += comp.tokensOut; totals.cost += comp.costUsdMicros;
     await step.run("save:competitors", () =>
       mark("finding_gaps", { competitorIntel: comp.data.competitors }));
 
@@ -228,7 +262,7 @@ export const runIntelligence = inngest.createFunction(
         brain, schema: gapStage,
         instruction: `Using the ICP's search behaviour and the competitor picture, identify topics the ICP searches for that ${brain.name} is not covering well (check ${brain.siteUrl} coverage). These are the highest-priority opportunities. 6–10 gaps with a suggested content angle each.`,
       }));
-    totals.in += gaps.tokensIn; totals.out += gaps.tokensOut;
+    totals.in += gaps.tokensIn; totals.out += gaps.tokensOut; totals.cost += gaps.costUsdMicros;
     await step.run("save:gaps", () => mark("finding_aeo"));
 
     /* 4. AEO opportunities */
@@ -237,7 +271,7 @@ export const runIntelligence = inngest.createFunction(
         brain, schema: aeoStage,
         instruction: `Find Answer-Engine opportunities: People-Also-Ask clusters the ICP asks, featured-snippet questions with no dominant answer, and conversational/voice phrasings. For snippets, recommend the winning format (paragraph / list / table).`,
       }));
-    totals.in += aeo.tokensIn; totals.out += aeo.tokensOut;
+    totals.in += aeo.tokensIn; totals.out += aeo.tokensOut; totals.cost += aeo.costUsdMicros;
     await step.run("save:aeo", async () => {
       for (const q of aeo.data.peopleAlsoAsk) {
         await db.insert(keywords).values({
@@ -261,7 +295,7 @@ export const runIntelligence = inngest.createFunction(
         brain, schema: trendStage,
         instruction: `What is trending in this brand's niche right now (news, viral content, seasonal timing), and what current SEO/AEO best-practice changes affect content formatting, E-E-A-T, or answer-engine visibility? 4–8 trends, 4–8 best practices.`,
       }));
-    totals.in += tr.tokensIn; totals.out += tr.tokensOut;
+    totals.in += tr.tokensIn; totals.out += tr.tokensOut; totals.cost += tr.costUsdMicros;
 
     /* 6. The month's ranked content plan — synthesized from everything above */
     const ideas = await step.run("stage:ideas", () =>
@@ -274,7 +308,7 @@ AEO: ${JSON.stringify(aeo.data).slice(0, 4000)}
 TRENDS: ${JSON.stringify(tr.data.trends).slice(0, 2000)}
 Produce 8–12 prioritized content pieces (best opportunity first): title in the brand's headline style, format (from: ${brain.formats.map((f) => f.format).join(", ")}), target keyword (verbatim from findings), target AEO question if applicable, and why now.`,
       }));
-    totals.in += ideas.tokensIn; totals.out += ideas.tokensOut;
+    totals.in += ideas.tokensIn; totals.out += ideas.tokensOut; totals.cost += ideas.costUsdMicros;
 
     await step.run("save:ideas", async () => {
       let rank = 1;
@@ -293,6 +327,11 @@ Produce 8–12 prioritized content pieces (best opportunity first): title in the
         trends: tr.data.trends, bestPractices: tr.data.bestPractices,
         tokensIn: totals.in, tokensOut: totals.out, completedAt: new Date(),
       });
+      // Record real COGS on the run's ledger row for per-tenant cost visibility.
+      await db.update(usageLedger)
+        .set({ costUsdMicros: totals.cost, tokensIn: totals.in, tokensOut: totals.out })
+        .where(and(eq(usageLedger.refId, runId), eq(usageLedger.reason, "intelligence_run")));
+      console.log(`[COGS] run ${runId} model=${RESEARCH_MODEL} cost=$${(totals.cost / 1_000_000).toFixed(4)} tokensIn=${totals.in} tokensOut=${totals.out}`);
     });
 
     // Notify (Resend) — "Your July intelligence report is ready" → dashboard link
