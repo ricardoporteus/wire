@@ -5,13 +5,19 @@
  * run is only ever touched after confirming it belongs to the caller's org.
  */
 
+import { randomUUID } from "node:crypto";
 import { auth } from "@clerk/nextjs/server";
-import { and, asc, count, eq, gt } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { inngest } from "@/lib/inngest";
+import { CREDIT_COSTS } from "@/lib/credits";
 import {
   contentIdeas, brandBrains, organizations, intelligenceRuns, documents, sources, keywords, runEvents,
 } from "@/db/schema";
+
+const RUNNING_STATES = new Set([
+  "queued", "researching_keywords", "analyzing_competitors", "finding_gaps", "finding_aeo", "compiling",
+]);
 
 async function callerOrgId(): Promise<{ clerkOrgId: string; userId: string }> {
   const { orgId: clerkOrgId, userId } = await auth();
@@ -75,6 +81,44 @@ export async function getRunStatus(runId: string, sinceSeq = 0): Promise<RunProg
     events,
     maxSeq: events.length ? events[events.length - 1].seq : sinceSeq,
   };
+}
+
+/**
+ * On-demand intelligence run. Mirrors the onboarding enqueue: create a queued
+ * run row and fire the pipeline event. Pre-checks balance and refuses if a run
+ * is already in flight (the pipeline debits 100 credits atomically at start).
+ */
+export async function rerunIntelligence(): Promise<
+  | { ok: true; runId: string }
+  | { ok: false; error: "insufficient_credits" | "already_running" | "not_ready"; runId?: string }
+> {
+  const { clerkOrgId } = await callerOrgId();
+  const org = await db.query.organizations.findFirst({ where: eq(organizations.clerkOrgId, clerkOrgId) });
+  if (!org) throw new Error("no_active_org");
+  const brain = await db.query.brandBrains.findFirst({ where: eq(brandBrains.orgId, org.id) });
+  if (!brain || !brain.wizardCompletedAt) return { ok: false, error: "not_ready" };
+
+  // Don't stack runs — surface the one already going instead.
+  const latest = await db.query.intelligenceRuns.findFirst({
+    where: eq(intelligenceRuns.brainId, brain.id),
+    orderBy: [desc(intelligenceRuns.createdAt)],
+  });
+  if (latest && RUNNING_STATES.has(latest.status)) {
+    return { ok: false, error: "already_running", runId: latest.id };
+  }
+  if (org.creditsBalance < CREDIT_COSTS.intelligence_run) {
+    return { ok: false, error: "insufficient_credits" };
+  }
+
+  const runId = randomUUID();
+  await db.insert(intelligenceRuns).values({
+    id: runId, brainId: brain.id, trigger: "on_demand", status: "queued",
+  });
+  await inngest.send({
+    name: "wire/intelligence.run.requested",
+    data: { runId, brainId: brain.id, orgId: org.id },
+  });
+  return { ok: true, runId };
 }
 
 /**

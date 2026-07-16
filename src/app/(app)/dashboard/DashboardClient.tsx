@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { writeThisIdea } from "./actions";
+import { rerunIntelligence, writeThisIdea } from "./actions";
 import { RunProgress } from "./RunProgress";
+import { UpgradeNotice } from "@/components/UpgradeNotice";
 
 type Keyword = {
   id: string; phrase: string; intent: string;
@@ -48,8 +49,31 @@ export function DashboardClient({
   const router = useRouter();
   const [tab, setTab] = useState(INTENTS[0].key);
   const [writing, startWrite] = useTransition();
+  const [rerunning, startRerun] = useTransition();
+  // Optimistically show progress the instant a run starts, before the next fetch.
+  const [started, setStarted] = useState<{ runId: string; at: string } | null>(null);
+  const [rerunErr, setRerunErr] = useState<"insufficient_credits" | "other" | null>(null);
 
-  const running = !!runStatus && RUNNING.has(runStatus);
+  const serverRunning = !!runStatus && RUNNING.has(runStatus);
+  // Effective progress source: an optimistic just-started run wins over the server snapshot.
+  const progress = started
+    ? { runId: started.runId, status: "queued", startedAt: started.at }
+    : serverRunning && runId
+      ? { runId, status: runStatus!, startedAt: runStartedAt }
+      : null;
+
+  const rerun = () =>
+    startRerun(async () => {
+      setRerunErr(null);
+      const res = await rerunIntelligence();
+      if (res.ok || res.error === "already_running") {
+        setStarted({ runId: res.runId!, at: new Date().toISOString() });
+      } else if (res.error === "insufficient_credits") {
+        setRerunErr("insufficient_credits");
+      } else {
+        setRerunErr("other");
+      }
+    });
 
   const write = (ideaId: string) =>
     startWrite(async () => {
@@ -62,25 +86,43 @@ export function DashboardClient({
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <span className="eyebrow">{brainName}</span>
           <h1 className="mt-4 text-h2 text-ink-green">This month&apos;s opportunities</h1>
         </div>
-        <span className="badge badge--draft whitespace-nowrap">{creditsBalance} credits</span>
+        <div className="flex flex-none flex-col items-end gap-2">
+          <span className="badge badge--draft whitespace-nowrap">{creditsBalance} credits</span>
+          {!progress && (
+            <button
+              className="btn-ghost whitespace-nowrap"
+              disabled={rerunning}
+              onClick={rerun}
+              title="Runs a fresh intelligence report on your domain (100 credits)"
+            >
+              {rerunning ? "Starting…" : "↻ Re-run intelligence"}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Live, itemized run progress */}
-      {running && runId && (
+      {rerunErr === "insufficient_credits" && <UpgradeNotice className="mt-4" />}
+      {rerunErr === "other" && (
+        <p className="mt-4 text-body-sm text-negative">Couldn&apos;t start a run — finish onboarding first, then try again.</p>
+      )}
+
+      {/* Live, itemized run progress (optimistic on start, else the server snapshot) */}
+      {progress && (
         <RunProgress
-          runId={runId}
-          initialStatus={runStatus!}
-          startedAt={runStartedAt}
+          runId={progress.runId}
+          initialStatus={progress.status}
+          startedAt={progress.startedAt}
           initialCounts={{
             keywords: keywords.length,
             competitors: competitorIntel.length,
             ideas: ideas.length,
           }}
+          onDone={() => setStarted(null)}
         />
       )}
 

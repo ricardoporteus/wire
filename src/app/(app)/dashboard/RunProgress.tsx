@@ -46,11 +46,13 @@ export function RunProgress({
   initialStatus,
   startedAt,
   initialCounts,
+  onDone,
 }: {
   runId: string;
   initialStatus: string;
   startedAt: string | null;
   initialCounts: Counts;
+  onDone?: () => void;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
@@ -77,10 +79,12 @@ export function RunProgress({
     }
     if (TERMINAL.has(res.status)) {
       doneRef.current = true;
-      // Let the last "report ready" line land, then reveal the full dashboard.
-      setTimeout(() => router.refresh(), 1400);
+      // Let the last "report ready" line land, then clear the optimistic run and
+      // reveal the full dashboard. onDone must fire with the refresh so this
+      // component unmounts instead of re-detecting "complete" and looping.
+      setTimeout(() => { onDone?.(); router.refresh(); }, 1400);
     }
-  }, [runId, router]);
+  }, [runId, router, onDone]);
 
   // Fast poll for a lively feed; an immediate first poll avoids an empty beat.
   useEffect(() => {
