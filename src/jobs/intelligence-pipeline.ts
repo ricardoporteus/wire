@@ -28,7 +28,7 @@ import { z } from "zod";
 const anthropic = new Anthropic();
 const RESEARCH_MODEL = "claude-opus-4-8";
 const INTELLIGENCE_RUN_CREDITS = 100;
-const MAX_SEARCHES_PER_STAGE = 12;
+const MAX_SEARCHES_PER_STAGE = 6; // was 12 — bounds context growth (COGS); paired with prompt caching in researchStage
 
 /* ------------------------- shared research plumbing ------------------------ */
 
@@ -58,19 +58,29 @@ async function researchStage<T>(opts: {
   instruction: string;
   schema: z.ZodType<T>;
 }): Promise<{ data: T; tokensIn: number; tokensOut: number }> {
+  // Cache the (constant) system prompt across every turn and every stage of the run.
+  const system: Anthropic.TextBlockParam[] = [
+    { type: "text", text: RESEARCH_SYSTEM(opts.brain), cache_control: { type: "ephemeral" } },
+  ];
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: opts.instruction }];
   let tokensIn = 0, tokensOut = 0;
 
   for (let turn = 0; turn < MAX_SEARCHES_PER_STAGE; turn++) {
+    // One moving cache breakpoint on the latest message so the growing search
+    // transcript is read from cache (~0.1x) instead of re-billed at full price each turn.
+    rollingCache(messages);
     const res = await anthropic.messages.create({
       model: RESEARCH_MODEL,
       max_tokens: 6000,
-      system: RESEARCH_SYSTEM(opts.brain),
+      system,
       tools: [{ type: "web_search_20250305", name: "web_search" }],
       messages,
     });
-    tokensIn += res.usage.input_tokens;
-    tokensOut += res.usage.output_tokens;
+    const u = res.usage;
+    // Count every input category so COGS telemetry reflects true volume; the $
+    // win comes from cache_read tokens being ~10x cheaper than fresh input.
+    tokensIn += u.input_tokens + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
+    tokensOut += u.output_tokens;
 
     if (res.stop_reason !== "tool_use") {
       const text = res.content
@@ -317,4 +327,23 @@ export const scheduleMonthlyRuns = inngest.createFunction(
 class NonRetriable extends Error {}
 function safeJson(text: string): unknown {
   try { return JSON.parse(text); } catch { return null; }
+}
+
+/**
+ * Keep exactly one rolling ephemeral cache breakpoint on the most recent message.
+ * Anthropic caches the longest matching prefix, so as the search transcript grows,
+ * each turn reads the prior turns from cache instead of reprocessing them. We use
+ * two breakpoints total (the system prompt + this one), well under the limit of 4.
+ */
+function rollingCache(messages: Anthropic.MessageParam[]) {
+  for (const m of messages) {
+    if (Array.isArray(m.content)) {
+      for (const b of m.content as unknown as Array<Record<string, unknown>>) delete b.cache_control;
+    }
+  }
+  const last = messages[messages.length - 1];
+  if (last && Array.isArray(last.content) && last.content.length) {
+    const blocks = last.content as unknown as Array<Record<string, unknown>>;
+    blocks[blocks.length - 1].cache_control = { type: "ephemeral" };
+  }
 }
