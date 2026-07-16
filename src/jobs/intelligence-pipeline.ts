@@ -19,7 +19,7 @@ import { inngest } from "@/lib/inngest";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
 import {
-  brandBrains, intelligenceRuns, keywords, contentIdeas, usageLedger, organizations,
+  brandBrains, intelligenceRuns, keywords, contentIdeas, usageLedger, organizations, runEvents,
 } from "@/db/schema";
 import { brandBrainSchema, type BrandBrain } from "@/lib/brand-brain.zod";
 import { and, eq, sql } from "drizzle-orm";
@@ -60,6 +60,24 @@ function callCostMicros(u: Anthropic.Usage): number {
 
 /* ------------------------- shared research plumbing ------------------------ */
 
+/**
+ * Append one row to the live activity feed. Cosmetic + observability only, so a
+ * failed insert must never break a research stage — swallow everything. Called
+ * from inside step.run bodies (or researchStage, itself inside a step), so it
+ * fires once per successful execution rather than on every Inngest replay.
+ */
+type FeedKind = "search" | "sources" | "synthesize" | "refine" | "stage" | "saved" | "info" | "error";
+async function emit(
+  runId: string, stage: string, kind: FeedKind, message: string,
+  meta?: { query?: string; count?: number; titles?: string[] },
+): Promise<void> {
+  try {
+    await db.insert(runEvents).values({ runId, stage, kind, message, meta: meta ?? null });
+  } catch {
+    /* the feed is disposable — never fail a run because an event didn't persist */
+  }
+}
+
 const RESEARCH_SYSTEM = (brain: BrandBrain) => `You are Wire's SEO & AEO intelligence agent, running a monthly research stage for one brand. Ground every finding in what you actually find via web search — no invented volumes, no invented competitor claims.
 
 <brand_brain>
@@ -85,6 +103,9 @@ async function researchStage<T>(opts: {
   brain: BrandBrain;
   instruction: string;
   schema: z.ZodType<T>;
+  runId: string;       // for the live activity feed
+  stageKey: string;    // run_status stage key, tags each feed event
+  label: string;       // human label, e.g. "Keyword research"
   searchUses?: number; // per-run override (trial runs search less to cut COGS)
 }): Promise<{ data: T; tokensIn: number; tokensOut: number; costUsdMicros: number }> {
   const searchUses = opts.searchUses ?? MAX_SEARCH_USES;
@@ -95,6 +116,8 @@ async function researchStage<T>(opts: {
   ];
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: opts.instruction }];
   let tokensIn = 0, tokensOut = 0, costUsdMicros = 0;
+
+  await emit(opts.runId, opts.stageKey, "stage", opts.label);
 
   for (let turn = 0; turn < maxTurns; turn++) {
     // One moving cache breakpoint on the latest message so the growing search
@@ -117,6 +140,21 @@ async function researchStage<T>(opts: {
     const searches = res.content.filter((b) => b.type === "server_tool_use").length;
     costUsdMicros += Math.round(searches * WEB_SEARCH_USD * 1_000_000);
 
+    // Stream the real work to the live feed: each search query, each batch of
+    // sources read. The queries and page titles are exactly what the agent saw.
+    for (const b of res.content) {
+      const bb = b as { type: string; name?: string; input?: { query?: string }; content?: unknown };
+      if (bb.type === "server_tool_use" && bb.name === "web_search") {
+        const q = String(bb.input?.query ?? "").trim().slice(0, 140);
+        if (q) await emit(opts.runId, opts.stageKey, "search", q, { query: q });
+      } else if (bb.type === "web_search_tool_result" && Array.isArray(bb.content)) {
+        const n = bb.content.length;
+        const titles = (bb.content as Array<{ title?: string }>)
+          .map((r) => r?.title).filter((t): t is string => !!t).slice(0, 4);
+        await emit(opts.runId, opts.stageKey, "sources", `Read ${n} source${n === 1 ? "" : "s"}`, { count: n, titles });
+      }
+    }
+
     if (res.stop_reason !== "tool_use") {
       const text = res.content
         .filter((b): b is Anthropic.TextBlock => b.type === "text")
@@ -125,10 +163,12 @@ async function researchStage<T>(opts: {
       let parsed = opts.schema.safeParse(safeJson(text));
       if (!parsed.success) {
         // one self-repair pass
+        await emit(opts.runId, opts.stageKey, "refine", "Refining the output to fit the schema");
         messages.push({ role: "assistant", content: res.content });
         messages.push({ role: "user", content: `That output failed validation: ${parsed.error.message.slice(0, 600)}. Emit corrected JSON only.` });
         continue;
       }
+      await emit(opts.runId, opts.stageKey, "synthesize", "Structured the findings");
       return { data: parsed.data, tokensIn, tokensOut, costUsdMicros };
     }
     // server-side tool execution (web_search) — append and continue the loop
@@ -231,6 +271,7 @@ export const runIntelligence = inngest.createFunction(
     const kw = await step.run("stage:keywords", () =>
       researchStage({
         brain, searchUses, schema: keywordStage,
+        runId, stageKey: "researching_keywords", label: "Researching keywords",
         instruction: `Research the keywords this brand's ICP is searching this month. Cover: high-intent (ready to act), informational (research phase), and long-tail phrases — with geographic intent for the listed geographies where relevant. 10–15 high-intent, 10–15 informational, 8–12 long-tail. Real phrases people type.`,
       }));
     totals.in += kw.tokensIn; totals.out += kw.tokensOut; totals.cost += kw.costUsdMicros;
@@ -251,6 +292,7 @@ export const runIntelligence = inngest.createFunction(
           set: { runId, rationale: r.rationale, active: true },
         });
       }
+      await emit(runId, "researching_keywords", "saved", `Saved ${rows.length} keywords`, { count: rows.length });
       await mark("analyzing_competitors");
     });
 
@@ -258,25 +300,33 @@ export const runIntelligence = inngest.createFunction(
     const comp = await step.run("stage:competitors", () =>
       researchStage({
         brain, searchUses, schema: competitorStage,
+        runId, stageKey: "analyzing_competitors", label: "Analyzing competitors",
         instruction: `Analyze each competitor listed in the Brand Brain: what topics they publish, what keywords they appear to target, their content formats, and their clearest weakness that is our opportunity. If a site is unreachable, research reviews and mentions of it instead and say so in the weakness note.`,
       }));
     totals.in += comp.tokensIn; totals.out += comp.tokensOut; totals.cost += comp.costUsdMicros;
-    await step.run("save:competitors", () =>
-      mark("finding_gaps", { competitorIntel: comp.data.competitors }));
+    await step.run("save:competitors", async () => {
+      await emit(runId, "analyzing_competitors", "saved", `Mapped ${comp.data.competitors.length} competitors`, { count: comp.data.competitors.length });
+      await mark("finding_gaps", { competitorIntel: comp.data.competitors });
+    });
 
     /* 3. Content gaps */
     const gaps = await step.run("stage:gaps", () =>
       researchStage({
         brain, searchUses, schema: gapStage,
+        runId, stageKey: "finding_gaps", label: "Finding content gaps",
         instruction: `Using the ICP's search behaviour and the competitor picture, identify topics the ICP searches for that ${brain.name} is not covering well (check ${brain.siteUrl} coverage). These are the highest-priority opportunities. 6–10 gaps with a suggested content angle each.`,
       }));
     totals.in += gaps.tokensIn; totals.out += gaps.tokensOut; totals.cost += gaps.costUsdMicros;
-    await step.run("save:gaps", () => mark("finding_aeo"));
+    await step.run("save:gaps", async () => {
+      await emit(runId, "finding_gaps", "saved", `Found ${gaps.data.gaps.length} content gaps`, { count: gaps.data.gaps.length });
+      await mark("finding_aeo");
+    });
 
     /* 4. AEO opportunities */
     const aeo = await step.run("stage:aeo", () =>
       researchStage({
         brain, searchUses, schema: aeoStage,
+        runId, stageKey: "finding_aeo", label: "Finding answer-engine opportunities",
         instruction: `Find Answer-Engine opportunities: People-Also-Ask clusters the ICP asks, featured-snippet questions with no dominant answer, and conversational/voice phrasings. For snippets, recommend the winning format (paragraph / list / table).`,
       }));
     totals.in += aeo.tokensIn; totals.out += aeo.tokensOut; totals.cost += aeo.costUsdMicros;
@@ -294,6 +344,8 @@ export const runIntelligence = inngest.createFunction(
           set: { aeoFormat: s.format, priority: 1, runId },
         });
       }
+      const aeoCount = aeo.data.peopleAlsoAsk.length + aeo.data.featuredSnippets.length;
+      await emit(runId, "finding_aeo", "saved", `Captured ${aeoCount} answer-engine targets`, { count: aeoCount });
       await mark("compiling");
     });
 
@@ -301,6 +353,7 @@ export const runIntelligence = inngest.createFunction(
     const tr = await step.run("stage:trends", () =>
       researchStage({
         brain, searchUses, schema: trendStage,
+        runId, stageKey: "compiling", label: "Scanning trends & best practices",
         instruction: `What is trending in this brand's niche right now (news, viral content, seasonal timing), and what current SEO/AEO best-practice changes affect content formatting, E-E-A-T, or answer-engine visibility? 4–8 trends, 4–8 best practices.`,
       }));
     totals.in += tr.tokensIn; totals.out += tr.tokensOut; totals.cost += tr.costUsdMicros;
@@ -309,6 +362,7 @@ export const runIntelligence = inngest.createFunction(
     const ideas = await step.run("stage:ideas", () =>
       researchStage({
         brain, searchUses, schema: ideasStage,
+        runId, stageKey: "compiling", label: "Compiling your content plan",
         instruction: `Synthesize this month's plan. Findings so far:
 KEYWORDS: ${JSON.stringify(kw.data).slice(0, 6000)}
 GAPS: ${JSON.stringify(gaps.data).slice(0, 4000)}
@@ -331,6 +385,8 @@ Produce 8–12 prioritized content pieces (best opportunity first): title in the
           whyNow: idea.whyNow, rank: rank++,
         });
       }
+      await emit(runId, "compiling", "saved", `Ranked ${ideas.data.ideas.length} content ideas`, { count: ideas.data.ideas.length });
+      await emit(runId, "complete", "info", "Your intelligence report is ready");
       await mark("complete", {
         trends: tr.data.trends, bestPractices: tr.data.bestPractices,
         tokensIn: totals.in, tokensOut: totals.out, completedAt: new Date(),

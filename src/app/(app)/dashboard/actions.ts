@@ -6,11 +6,11 @@
  */
 
 import { auth } from "@clerk/nextjs/server";
-import { count, eq } from "drizzle-orm";
+import { and, asc, count, eq, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { inngest } from "@/lib/inngest";
 import {
-  contentIdeas, brandBrains, organizations, intelligenceRuns, documents, sources, keywords,
+  contentIdeas, brandBrains, organizations, intelligenceRuns, documents, sources, keywords, runEvents,
 } from "@/db/schema";
 
 async function callerOrgId(): Promise<{ clerkOrgId: string; userId: string }> {
@@ -19,33 +19,51 @@ async function callerOrgId(): Promise<{ clerkOrgId: string; userId: string }> {
   return { clerkOrgId, userId };
 }
 
+export type FeedEvent = {
+  seq: number;
+  stage: string;
+  kind: string;
+  message: string;
+  titles?: string[];
+  count?: number;
+};
 type RunProgressSnapshot = {
   status: string;
   startedAt: string | null;
   counts: { keywords: number; competitors: number; ideas: number };
+  events: FeedEvent[];
+  maxSeq: number;
 };
 
 /**
  * Poll target for a run in progress. Returns the current stage (status), the
- * start time (for the elapsed timer) and live result counts so the dashboard
- * can itemize progress — each stage checks off with its real output as it lands.
+ * start time (for the elapsed timer), live result counts, and the tail of the
+ * activity feed after `sinceSeq` — so the dashboard streams a granular,
+ * fast-moving "what's happening right now" feed as the pipeline works.
  */
-export async function getRunStatus(runId: string): Promise<RunProgressSnapshot> {
+export async function getRunStatus(runId: string, sinceSeq = 0): Promise<RunProgressSnapshot> {
   const empty = { keywords: 0, competitors: 0, ideas: 0 };
   const { clerkOrgId } = await callerOrgId();
   const run = await db.query.intelligenceRuns.findFirst({
     where: eq(intelligenceRuns.id, runId),
   });
-  if (!run) return { status: "unknown", startedAt: null, counts: empty };
+  if (!run) return { status: "unknown", startedAt: null, counts: empty, events: [], maxSeq: sinceSeq };
   // Ownership: run → brain → org → clerk org.
   const brain = await db.query.brandBrains.findFirst({ where: eq(brandBrains.id, run.brainId) });
   const org = brain && await db.query.organizations.findFirst({ where: eq(organizations.id, brain.orgId) });
   if (!org || org.clerkOrgId !== clerkOrgId) throw new Error("forbidden");
 
-  const [kw, id] = await Promise.all([
+  const [kw, id, evs] = await Promise.all([
     db.select({ n: count() }).from(keywords).where(eq(keywords.runId, runId)),
     db.select({ n: count() }).from(contentIdeas).where(eq(contentIdeas.runId, runId)),
+    db.select().from(runEvents)
+      .where(and(eq(runEvents.runId, runId), gt(runEvents.seq, sinceSeq)))
+      .orderBy(asc(runEvents.seq)).limit(300),
   ]);
+  const events: FeedEvent[] = evs.map((e) => ({
+    seq: e.seq, stage: e.stage, kind: e.kind, message: e.message,
+    titles: e.meta?.titles, count: e.meta?.count,
+  }));
   return {
     status: run.status,
     startedAt: run.startedAt ? run.startedAt.toISOString() : null,
@@ -54,6 +72,8 @@ export async function getRunStatus(runId: string): Promise<RunProgressSnapshot> 
       competitors: run.competitorIntel?.length ?? 0,
       ideas: id[0]?.n ?? 0,
     },
+    events,
+    maxSeq: events.length ? events[events.length - 1].seq : sinceSeq,
   };
 }
 

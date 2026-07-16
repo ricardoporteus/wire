@@ -1,66 +1,39 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getRunStatus } from "./actions";
+import { getRunStatus, type FeedEvent } from "./actions";
 
 type Counts = { keywords: number; competitors: number; ideas: number };
 
 /**
- * Live, itemized progress for an intelligence run — the pipeline advances its
- * status through these stages in order (see runStatus enum), so we render a
- * checklist that checks each one off as it lands, with real result counts, a
- * progress bar and an elapsed timer. Polls until the run reaches a terminal
- * state, then refreshes the page to pull in the full report.
+ * Live, real-time view of an intelligence run. Polls a fast cursor feed and
+ * streams every real action — each web search, each batch of sources read, each
+ * synthesis/refine, each save — into an auto-scrolling activity log, with a
+ * stage checklist, ticking counters and an elapsed timer. Meant to be watched:
+ * it makes the "lightning-speed research" visible instead of a frozen spinner.
  */
-type Stage = {
-  key: string;
-  title: string;
-  desc: string;
-  count: ((c: Counts) => number) | null;
-  noun: string;
-};
 
-const STAGES: Stage[] = [
-  {
-    key: "researching_keywords",
-    title: "Researching keywords",
-    desc: "Searching the live web for high-intent, informational, long-tail and question keywords.",
-    count: (c) => c.keywords,
-    noun: "keywords",
-  },
-  {
-    key: "analyzing_competitors",
-    title: "Analyzing competitors",
-    desc: "Reading competitor content to map what they rank for — and where they're weak.",
-    count: (c) => c.competitors,
-    noun: "competitors",
-  },
-  {
-    key: "finding_gaps",
-    title: "Finding content gaps",
-    desc: "Cross-referencing competitor coverage against your positioning to find openings.",
-    count: null,
-    noun: "",
-  },
-  {
-    key: "finding_aeo",
-    title: "Finding answer-engine opportunities",
-    desc: "Identifying featured-snippet and AI-answer questions you can own.",
-    count: null,
-    noun: "",
-  },
-  {
-    key: "compiling",
-    title: "Compiling your plan",
-    desc: "Ranking everything into your prioritized content queue.",
-    count: (c) => c.ideas,
-    noun: "ideas",
-  },
+const STAGES = [
+  { key: "researching_keywords", title: "Researching keywords" },
+  { key: "analyzing_competitors", title: "Analyzing competitors" },
+  { key: "finding_gaps", title: "Finding content gaps" },
+  { key: "finding_aeo", title: "Answer-engine opportunities" },
+  { key: "compiling", title: "Compiling your plan" },
 ];
-
 const ORDER = STAGES.map((s) => s.key);
 const TERMINAL = new Set(["complete", "failed", "unknown"]);
+
+const KIND_ICON: Record<string, string> = {
+  search: "🔍",
+  sources: "📄",
+  synthesize: "🧠",
+  refine: "↻",
+  stage: "▸",
+  saved: "✓",
+  info: "✦",
+  error: "⚠",
+};
 
 function fmtElapsed(fromMs: number, nowMs: number) {
   const s = Math.max(0, Math.floor((nowMs - fromMs) / 1000));
@@ -82,91 +55,157 @@ export function RunProgress({
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
   const [counts, setCounts] = useState<Counts>(initialCounts);
+  const [events, setEvents] = useState<FeedEvent[]>([]);
   const [now, setNow] = useState(() => Date.now());
-  const startMs = useRef<number>(startedAt ? new Date(startedAt).getTime() : Date.now());
+  const [lastEventAt, setLastEventAt] = useState(() => Date.now());
 
-  // Poll the run; advance the checklist live; refresh the page when it lands.
-  useEffect(() => {
-    const t = setInterval(async () => {
-      const res = await getRunStatus(runId);
-      setStatus(res.status);
-      setCounts(res.counts);
-      if (res.startedAt) startMs.current = new Date(res.startedAt).getTime();
-      if (TERMINAL.has(res.status)) {
-        clearInterval(t);
-        router.refresh();
-      }
-    }, 2500);
-    return () => clearInterval(t);
+  const seqRef = useRef(0);
+  const startMs = useRef<number>(startedAt ? new Date(startedAt).getTime() : Date.now());
+  const feedRef = useRef<HTMLDivElement>(null);
+  const doneRef = useRef(false);
+
+  const poll = useCallback(async () => {
+    if (doneRef.current) return;
+    const res = await getRunStatus(runId, seqRef.current);
+    setStatus(res.status);
+    setCounts(res.counts);
+    if (res.startedAt) startMs.current = new Date(res.startedAt).getTime();
+    if (res.events.length) {
+      seqRef.current = res.maxSeq;
+      setEvents((prev) => [...prev, ...res.events].slice(-200));
+      setLastEventAt(Date.now());
+    }
+    if (TERMINAL.has(res.status)) {
+      doneRef.current = true;
+      // Let the last "report ready" line land, then reveal the full dashboard.
+      setTimeout(() => router.refresh(), 1400);
+    }
   }, [runId, router]);
 
-  // Tick the elapsed timer once a second.
+  // Fast poll for a lively feed; an immediate first poll avoids an empty beat.
+  useEffect(() => {
+    poll();
+    const t = setInterval(poll, 1200);
+    return () => clearInterval(t);
+  }, [poll]);
+
+  // Tick the elapsed timer / stall detector once a second.
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // Everything before the current stage is done; the current one is active.
+  // Keep the feed pinned to the newest line.
+  useEffect(() => {
+    const el = feedRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [events]);
+
   const activeIdx = status === "complete" ? ORDER.length : ORDER.indexOf(status);
-  const doneCount = Math.max(0, activeIdx);
-  const pct = Math.round((doneCount / ORDER.length) * 100);
+  const pct = Math.round((Math.max(0, activeIdx) / ORDER.length) * 100);
+
+  // Counters derived from the feed the client has already accumulated.
+  const searches = useMemo(() => events.filter((e) => e.kind === "search").length, [events]);
+  const sources = useMemo(
+    () => events.filter((e) => e.kind === "sources").reduce((n, e) => n + (e.count ?? 0), 0),
+    [events],
+  );
+
+  const failed = status === "failed";
+  const secsSinceEvent = Math.floor((now - lastEventAt) / 1000);
+  const stalled = !failed && !doneRef.current && events.length > 0 && secsSinceEvent > 20;
 
   return (
     <div className="card--lg card mt-8">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-accent-strong" />
-          <span className="text-h5 text-ink-green">Building your intelligence report</span>
+          <span className={`h-2.5 w-2.5 rounded-full ${failed ? "bg-negative" : "animate-pulse bg-accent-strong"}`} />
+          <span className="text-h5 text-ink-green">
+            {failed ? "Run stopped" : doneRef.current ? "Report ready — loading…" : "Building your intelligence report"}
+          </span>
         </div>
         <span className="tabular-nums text-caption text-muted">
           {fmtElapsed(startMs.current, now)} · {pct}%
         </span>
       </div>
-      <p className="mt-2 text-body-sm text-muted">
-        Running live on your own domain — each step checks off as it lands. This is the product working.
-      </p>
 
       {/* progress bar */}
-      <div className="mt-4 h-1.5 w-full overflow-hidden rounded-pill bg-line">
+      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-pill bg-line">
         <div
-          className="h-full rounded-pill bg-accent-strong transition-all duration-500"
+          className={`h-full rounded-pill transition-all duration-500 ${failed ? "bg-negative" : "bg-accent-strong"}`}
           style={{ width: `${Math.max(pct, 4)}%` }}
         />
       </div>
 
-      {/* itemized steps */}
-      <ol className="mt-6 grid gap-4">
-        {STAGES.map((s, i) => {
-          const state = i < activeIdx ? "done" : i === activeIdx ? "active" : "pending";
-          const n = s.count ? s.count(counts) : null;
-          return (
-            <li key={s.key} className="flex gap-3">
-              <span className="mt-0.5 flex-none">
-                {state === "done" ? (
-                  <span className="grid h-5 w-5 place-items-center rounded-full bg-accent-strong text-[11px] font-bold text-white">
-                    ✓
-                  </span>
-                ) : state === "active" ? (
-                  <span className="block h-5 w-5 animate-spin rounded-full border-2 border-line border-t-accent-strong" />
-                ) : (
-                  <span className="block h-5 w-5 rounded-full border-2 border-line" />
+      {/* ticking counters */}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Stat n={searches} label="searches" />
+        <Stat n={sources} label="sources read" />
+        <Stat n={counts.keywords} label="keywords" />
+        <Stat n={counts.competitors} label="competitors" />
+        <Stat n={counts.ideas} label="ideas" />
+      </div>
+
+      {/* live activity feed */}
+      <div
+        ref={feedRef}
+        className="mt-4 h-56 overflow-y-auto rounded-md border border-line bg-bg/60 p-3 font-mono text-micro leading-relaxed"
+      >
+        {events.length === 0 ? (
+          <p className="text-muted">Warming up the research agent…</p>
+        ) : (
+          events.map((e) => (
+            <div key={e.seq} className="feed-line flex gap-2 py-0.5">
+              <span className="flex-none opacity-80">{KIND_ICON[e.kind] ?? "·"}</span>
+              <span className="min-w-0">
+                <span className={e.kind === "search" ? "text-ink-green" : e.kind === "saved" ? "text-accent-strong" : "text-ink"}>
+                  {e.message}
+                </span>
+                {e.titles && e.titles.length > 0 && (
+                  <span className="text-muted"> — {e.titles.join(" · ")}</span>
                 )}
               </span>
-              <div className="min-w-0">
-                <p className={`text-body-sm font-medium ${state === "pending" ? "text-muted" : "text-ink-green"}`}>
-                  {s.title}
-                  {state === "done" && n !== null && n > 0 && (
-                    <span className="badge badge--opportunity ml-2">
-                      {n} {s.noun}
-                    </span>
-                  )}
-                </p>
-                {state !== "pending" && <p className="mt-0.5 text-caption text-muted">{s.desc}</p>}
-              </div>
-            </li>
+            </div>
+          ))
+        )}
+      </div>
+
+      <p className="mt-2 text-caption text-muted">
+        {failed
+          ? "The run didn't finish — usually transient. You can re-run it from Settings."
+          : stalled
+            ? `Still working — last activity ${secsSinceEvent}s ago (a deep search stage can take a moment).`
+            : "Running live on your own domain. Every line above is a real action the agent just took."}
+      </p>
+
+      {/* compact stage strip */}
+      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1">
+        {STAGES.map((s, i) => {
+          const state = i < activeIdx ? "done" : i === activeIdx ? "active" : "pending";
+          return (
+            <span
+              key={s.key}
+              className={`text-micro ${state === "done" ? "text-accent-strong" : state === "active" ? "font-medium text-ink-green" : "text-muted"}`}
+            >
+              {state === "done" ? "✓ " : state === "active" ? "▸ " : "○ "}
+              {s.title}
+            </span>
           );
         })}
-      </ol>
+      </div>
+
+      <style>{`
+        .feed-line { animation: feedIn 240ms ease-out; }
+        @keyframes feedIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+      `}</style>
     </div>
+  );
+}
+
+function Stat({ n, label }: { n: number; label: string }) {
+  return (
+    <span className="rounded-pill bg-accent-tint px-3 py-1 text-caption text-ink-green">
+      <span className="tabular-nums font-semibold">{n}</span> <span className="text-muted">{label}</span>
+    </span>
   );
 }

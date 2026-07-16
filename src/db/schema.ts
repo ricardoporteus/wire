@@ -13,7 +13,7 @@
 
 import {
   pgTable, pgEnum, text, varchar, integer, timestamp, jsonb, boolean,
-  uuid, index, uniqueIndex,
+  uuid, index, uniqueIndex, bigserial,
 } from "drizzle-orm/pg-core";
 
 /* ---------------------------------- enums --------------------------------- */
@@ -143,6 +143,25 @@ export const intelligenceRuns = pgTable("intelligence_runs", {
   completedAt: timestamp("completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("runs_brain_idx").on(t.brainId)]);
+
+/* ------------------------------- run events ------------------------------- */
+/**
+ * Append-only live activity feed for an intelligence run. The pipeline emits a
+ * row per real action (each web search, each batch of sources read, each
+ * synthesis/refine, each save) so the dashboard can stream a fast, granular
+ * "what's happening right now" feed. `seq` is a global monotonic cursor the
+ * client polls against ("give me events after N"). Cosmetic + observability
+ * only — emission failures never fail the run.
+ */
+export const runEvents = pgTable("run_events", {
+  seq: bigserial("seq", { mode: "number" }).primaryKey(),
+  runId: uuid("run_id").notNull().references(() => intelligenceRuns.id, { onDelete: "cascade" }),
+  stage: varchar("stage", { length: 32 }).notNull(),   // matches run_status stage keys
+  kind: varchar("kind", { length: 16 }).notNull(),     // search | sources | synthesize | refine | stage | saved | info | error
+  message: text("message").notNull(),
+  meta: jsonb("meta").$type<{ query?: string; count?: number; titles?: string[] }>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("run_events_run_idx").on(t.runId, t.seq)]);
 
 /* --------------------------------- keywords ------------------------------- */
 export const keywords = pgTable("keywords", {
