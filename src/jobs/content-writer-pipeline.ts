@@ -417,7 +417,18 @@ function jsonOf(res: Anthropic.Message): unknown {
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text).join("")
     .replace(/^```json\s*|```\s*$/g, "").trim();
-  try { return JSON.parse(text); } catch { throw new Error("Model returned non-JSON output"); }
+  const tryParse = (s: string): unknown => { try { return JSON.parse(s); } catch { return undefined; } };
+  const direct = tryParse(text);
+  if (direct !== undefined) return direct;
+  // Salvage JSON wrapped in preamble/prose ("Here's the JSON: {…}") — take the
+  // outermost object. Returns null (never throws) so a non-JSON response routes
+  // to the self-repair pass instead of crashing the step.
+  const a = text.indexOf("{"), b = text.lastIndexOf("}");
+  if (a !== -1 && b > a) {
+    const salvaged = tryParse(text.slice(a, b + 1));
+    if (salvaged !== undefined) return salvaged;
+  }
+  return null;
 }
 
 /**
@@ -486,12 +497,16 @@ export async function generateJson<T>(opts: {
       opts.system, opts.maxTokens, messages, attempt === 0 ? opts.onDelta : undefined,
     );
     inTok += res.usage.input_tokens; outTok += res.usage.output_tokens;
-    const parsed = opts.schema.safeParse(jsonOf(res));
+    const candidate = jsonOf(res);
+    const parsed = opts.schema.safeParse(candidate);
     if (parsed.success) return { data: parsed.data, usage: { input_tokens: inTok, output_tokens: outTok } };
+    const why = candidate === null
+      ? "Your previous message was not valid JSON — no parseable object was found."
+      : `Your output failed validation: ${parsed.error.message.slice(0, 700)}.`;
     messages.push({ role: "assistant", content: res.content });
     messages.push({
       role: "user",
-      content: `Your output failed validation: ${parsed.error.message.slice(0, 700)}. Return ONLY corrected JSON with every required field present. Omit optional fields you cannot fill — do not use null.`,
+      content: `${why} Return ONLY a single corrected JSON object with every required field present — no preamble, no markdown fences. Omit optional fields you cannot fill — do not use null.`,
     });
   }
   throw new Error("Model output failed schema validation after one repair attempt");
