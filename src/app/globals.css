@@ -1,0 +1,191 @@
+/* ==========================================================================
+   WIRE DESIGN SYSTEM — Tailwind v4 theme
+   Ported from the SyncMaster template (verified against the uploaded export)
+   Accent: chartreuse #DBFE7A → sky blue family.
+   #0099FF is native to SyncMaster (its link colour) — the sky accent is a
+   promotion of an existing system colour, not an import.
+   ========================================================================== */
+
+@import "tailwindcss";
+
+@theme {
+  /* ---- Color: surfaces -------------------------------------------------- */
+  --color-bg:        #FAF8F4;   /* page — warm off-white */
+  --color-bg-alt:    #F7F6F4;   /* alternating section band */
+  --color-card:      #FFFFFF;   /* cards, inputs */
+  --color-line:      #E7E4DD;   /* hairline borders */
+
+  /* ---- Color: ink -------------------------------------------------------- */
+  --color-ink:       #0A0915;   /* body text, deepest ink */
+  --color-ink-green: #102D23;   /* headings — SyncMaster's deep green */
+  --color-muted:     #52525A;   /* secondary text */
+  --color-navy:      #141B34;   /* dark fills (active tabs, footer panels) */
+
+  /* ---- Color: accent (sky) ---------------------------------------------- */
+  --color-accent:        #A9DBFF; /* light sky fill — pills, tabs, highlights; dark ink sits on it */
+  --color-accent-strong: #0099FF; /* links, focus rings, small emphasis (template-native) */
+  --color-accent-tint:   #EAF5FF; /* washes, hover fills, selected rows */
+
+  /* ---- Color: support ---------------------------------------------------- */
+  --color-cream:     #FFECD3;   /* secondary highlight fill (eyebrows, callouts) */
+  --color-positive:  #60D184;   /* success */
+  --color-negative:  #F93C3F;   /* error / destructive */
+
+  /* ---- Type -------------------------------------------------------------- */
+  --font-display: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --font-body:    "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Scale taken from the export: 64/60/48/42/40/36/28/24/20 → 16/15/14/12 */
+  --text-display-xl: 64px;  --text-display-xl--line-height: 1.05;
+  --text-display:    48px;  --text-display--line-height: 1.1;
+  --text-h2:         42px;  --text-h2--line-height: 1.12;
+  --text-h3:         36px;  --text-h3--line-height: 1.15;
+  --text-h4:         28px;  --text-h4--line-height: 1.25;
+  --text-h5:         20px;  --text-h5--line-height: 1.4;
+  --text-body:       16px;  --text-body--line-height: 1.65;
+  --text-body-sm:    15px;  --text-body-sm--line-height: 1.6;
+  --text-caption:    14px;  --text-caption--line-height: 1.5;
+  --text-micro:      12px;  --text-micro--line-height: 1.4;
+
+  /* Weights: SyncMaster leans semibold-600 for headings, 400/500 body */
+  --font-weight-display: 600;
+  --font-weight-medium:  500;
+  --font-weight-normal:  400;
+
+  /* ---- Radii ------------------------------------------------------------- */
+  --radius-lg:   24px;   /* large cards, hero panels */
+  --radius-md:   16px;   /* cards, tabs, inputs */
+  --radius-sm:   10px;   /* small chips, thumbnails */
+  --radius-xs:   6px;    /* tags */
+  --radius-pill: 100px;  /* buttons, eyebrows, tab pills */
+
+  /* ---- Elevation: the SyncMaster signature ------------------------------ */
+  /* Hard 4px offset shadow — playful "pressed sticker" button treatment */
+  --shadow-offset:         0 4px 0 0 rgb(0 0 0 / 0.15);
+  --shadow-offset-pressed: inset 0 -4px 0 0 rgb(0 0 0 / 0.15);
+  --shadow-card: 0 0.6px 0.42px -1px rgb(0 0 0 / 0.12),
+                 0 2.29px 1.6px -2px rgb(0 0 0 / 0.11);
+
+  /* ---- Spacing rhythm ---------------------------------------------------- */
+  --spacing-section:    110px;
+  --spacing-section-sm: 72px;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+@layer base {
+  body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: var(--text-body);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-weight: var(--font-weight-display);
+    color: var(--color-ink-green);
+    letter-spacing: -0.02em;
+  }
+  a { color: var(--color-accent-strong); text-underline-offset: 3px; }
+  :focus-visible {
+    outline: 2px solid var(--color-accent-strong);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+}
+
+/* ==========================================================================
+   Component recipes (framework-agnostic; mirror these in shadcn overrides)
+   ========================================================================== */
+@layer components {
+  /* Primary button — dark pill with the signature offset shadow */
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--font-display); font-weight: 600; font-size: 15px;
+    background: var(--color-ink-green); color: #fff;
+    padding: 14px 26px; border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-offset);
+    transition: transform .14s ease, box-shadow .14s ease;
+  }
+  .btn-primary:hover  { transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(3px); box-shadow: none; }
+
+  /* Accent button — sky fill, dark ink, same geometry */
+  .btn-accent {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--font-display); font-weight: 600; font-size: 15px;
+    background: var(--color-accent); color: var(--color-ink-green);
+    padding: 14px 26px; border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-offset);
+    transition: transform .14s ease, box-shadow .14s ease;
+  }
+  .btn-accent:hover  { transform: translateY(-1px); }
+  .btn-accent:active { transform: translateY(3px); box-shadow: none; }
+
+  /* Ghost button */
+  .btn-ghost {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--font-display); font-weight: 600; font-size: 15px;
+    background: transparent; color: var(--color-ink-green);
+    padding: 13px 25px; border-radius: var(--radius-pill);
+    border: 1px solid var(--color-line);
+  }
+  .btn-ghost:hover { background: var(--color-accent-tint); }
+
+  /* Eyebrow pill — section label */
+  .eyebrow {
+    display: inline-block;
+    font-family: var(--font-display); font-weight: 600; font-size: 13px;
+    color: var(--color-ink-green); background: var(--color-accent);
+    padding: 7px 14px; border-radius: var(--radius-pill);
+  }
+  .eyebrow--cream { background: var(--color-cream); }
+
+  /* Card */
+  .card {
+    background: var(--color-card);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
+    padding: 28px;
+  }
+  .card--lg { border-radius: var(--radius-lg); padding: 36px; }
+
+  /* Tab pills (SyncMaster "Tab Round" pattern) */
+  .tab {
+    font-family: var(--font-display); font-weight: 500; font-size: 15px;
+    color: var(--color-muted); background: transparent;
+    padding: 10px 20px; border-radius: var(--radius-pill);
+  }
+  .tab[aria-selected="true"] { background: var(--color-accent); color: var(--color-ink-green); }
+  .tab--dark[aria-selected="true"] { background: var(--color-navy); color: #fff; }
+
+  /* Input */
+  .input {
+    width: 100%;
+    background: var(--color-card);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    padding: 13px 16px; font-size: 15px; color: var(--color-ink);
+  }
+  .input::placeholder { color: var(--color-muted); }
+  .input:focus { border-color: var(--color-accent-strong); outline: none;
+                 box-shadow: 0 0 0 3px var(--color-accent-tint); }
+
+  /* Status badges — Wire product language */
+  .badge { display: inline-flex; align-items: center; gap: 6px;
+           font-size: 13px; font-weight: 500;
+           padding: 4px 12px; border-radius: var(--radius-pill); }
+  .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .badge--opportunity { background: var(--color-accent-tint); color: #0B66A8; } /* keyword opportunity */
+  .badge--published   { background: #E9F9EF; color: #1E7A44; }
+  .badge--draft       { background: var(--color-bg-alt); color: var(--color-muted); }
+  .badge--attention   { background: #FEECEC; color: #B42324; }
+  .badge--queued      { background: var(--color-cream); color: #8A5A1B; }
+}

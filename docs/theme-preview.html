@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wire — design system preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FAF8F4; --bg-alt:#F7F6F4; --card:#FFFFFF; --line:#E7E4DD;
+  --ink:#0A0915; --ink-green:#102D23; --muted:#52525A; --navy:#141B34;
+  --accent:#A9DBFF; --accent-strong:#0099FF; --accent-tint:#EAF5FF;
+  --cream:#FFECD3; --positive:#60D184; --negative:#F93C3F;
+  --display:'Figtree',system-ui,sans-serif; --body:'Inter',system-ui,sans-serif;
+  --r-lg:24px; --r-md:16px; --r-pill:100px;
+  --shadow-offset:0 4px 0 0 rgba(0,0,0,.15);
+  --shadow-card:0 .6px .42px -1px rgba(0,0,0,.12),0 2.29px 1.6px -2px rgba(0,0,0,.11);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;padding-bottom:120px}
+a{color:var(--accent-strong)}
+:focus-visible{outline:2px solid var(--accent-strong);outline-offset:3px;border-radius:4px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+h1,h2,h3{font-family:var(--display);font-weight:600;color:var(--ink-green);letter-spacing:-.02em}
+h1{font-size:clamp(38px,5vw,56px);line-height:1.08}
+h2{font-size:28px;margin-bottom:6px}
+.section{padding:56px 0;border-bottom:1px solid var(--line)}
+.section-note{color:var(--muted);font-size:15px;max-width:60ch;margin-top:4px}
+
+/* header */
+header{padding:64px 0 40px;border-bottom:1px solid var(--line)}
+.eyebrow{display:inline-block;font-family:var(--display);font-weight:600;font-size:13px;color:var(--ink-green);background:var(--accent);padding:7px 14px;border-radius:var(--r-pill);margin-bottom:18px}
+.lede{color:var(--muted);font-size:18px;max-width:58ch;margin-top:14px}
+
+/* accent switcher */
+.switcher{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--line);border-radius:var(--r-pill);box-shadow:var(--shadow-card),0 8px 24px rgba(10,9,21,.08);padding:8px 10px;display:flex;align-items:center;gap:8px;z-index:10}
+.switcher span{font-family:var(--display);font-weight:600;font-size:13px;color:var(--muted);padding:0 6px}
+.sw-btn{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:600;font-size:13px;color:var(--ink-green);background:transparent;border:1px solid transparent;border-radius:var(--r-pill);padding:8px 14px;cursor:pointer}
+.sw-btn .dot{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.12)}
+.sw-btn[aria-pressed="true"]{background:var(--accent-tint);border-color:var(--accent-strong)}
+
+/* swatches */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:24px}
+.sw{border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:var(--card)}
+.sw .chip{height:72px}
+.sw .meta{padding:10px 12px}
+.sw .name{font-family:var(--display);font-weight:600;font-size:13px;color:var(--ink-green)}
+.sw .hex{font-size:12px;color:var(--muted)}
+
+/* type */
+.type-row{display:flex;align-items:baseline;gap:20px;padding:14px 0;border-bottom:1px dashed var(--line)}
+.type-row:last-child{border-bottom:none}
+.type-label{font-size:12px;color:var(--muted);min-width:170px}
+.t-display-xl{font-family:var(--display);font-weight:600;font-size:64px;line-height:1.05;color:var(--ink-green);letter-spacing:-.02em}
+.t-display{font-family:var(--display);font-weight:600;font-size:48px;line-height:1.1;color:var(--ink-green);letter-spacing:-.02em}
+.t-h2{font-family:var(--display);font-weight:600;font-size:42px;color:var(--ink-green);letter-spacing:-.02em}
+.t-h3{font-family:var(--display);font-weight:600;font-size:36px;color:var(--ink-green)}
+.t-h5{font-family:var(--display);font-weight:600;font-size:20px;color:var(--ink-green)}
+.t-body{font-size:16px}
+.t-caption{font-size:14px;color:var(--muted)}
+
+/* buttons */
+.row{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:24px}
+.btn-primary,.btn-accent,.btn-ghost{display:inline-flex;align-items:center;gap:8px;font-family:var(--display);font-weight:600;font-size:15px;padding:14px 26px;border-radius:var(--r-pill);border:none;cursor:pointer;transition:transform .14s ease,box-shadow .14s ease}
+.btn-primary{background:var(--ink-green);color:#fff;box-shadow:var(--shadow-offset)}
+.btn-accent{background:var(--accent);color:var(--ink-green);box-shadow:var(--shadow-offset)}
+.btn-primary:hover,.btn-accent:hover{transform:translateY(-1px)}
+.btn-primary:active,.btn-accent:active{transform:translateY(3px);box-shadow:none}
+.btn-ghost{background:transparent;color:var(--ink-green);border:1px solid var(--line);box-shadow:none}
+.btn-ghost:hover{background:var(--accent-tint)}
+
+/* tabs */
+.tabs{display:inline-flex;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-pill);padding:5px;margin-top:24px}
+.tab{font-family:var(--display);font-weight:500;font-size:15px;color:var(--muted);background:transparent;border:none;padding:10px 20px;border-radius:var(--r-pill);cursor:pointer}
+.tab[aria-selected="true"]{background:var(--accent);color:var(--ink-green);font-weight:600}
+
+/* cards + table */
+.grid-2{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-top:24px}
+@media(max-width:840px){.grid-2{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--shadow-card);padding:26px}
+.card h3{font-size:18px;margin-bottom:4px}
+.card .sub{font-size:14px;color:var(--muted);margin-bottom:18px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-family:var(--display);font-weight:600;font-size:12px;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:11px 10px;border-bottom:1px solid var(--bg-alt)}
+tr:hover td{background:var(--accent-tint)}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;padding:4px 12px;border-radius:var(--r-pill)}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.badge--opportunity{background:var(--accent-tint);color:#0B66A8}
+.badge--published{background:#E9F9EF;color:#1E7A44}
+.badge--draft{background:var(--bg-alt);color:var(--muted)}
+.badge--queued{background:var(--cream);color:#8A5A1B}
+.badge--attention{background:#FEECEC;color:#B42324}
+
+/* input */
+label{display:block;font-family:var(--display);font-weight:600;font-size:13px;color:var(--ink-green);margin:16px 0 6px}
+.input{width:100%;background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:13px 16px;font-size:15px;color:var(--ink);font-family:var(--body)}
+.input::placeholder{color:var(--muted)}
+.input:focus{border-color:var(--accent-strong);outline:none;box-shadow:0 0 0 3px var(--accent-tint)}
+
+/* pricing */
+.price-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:30px;position:relative}
+.price-card.hero{border-color:var(--ink-green);box-shadow:var(--shadow-offset)}
+.flag{position:absolute;top:-13px;left:26px;background:var(--accent);font-family:var(--display);font-weight:600;font-size:12px;color:var(--ink-green);padding:5px 12px;border-radius:var(--r-pill)}
+.price{font-family:var(--display);font-weight:600;font-size:44px;color:var(--ink-green);letter-spacing:-.02em}
+.price small{font-size:15px;color:var(--muted);font-weight:500}
+.price-card ul{list-style:none;margin:16px 0 22px}
+.price-card li{font-size:14.5px;color:var(--muted);padding:6px 0;padding-left:22px;position:relative}
+.price-card li::before{content:"";position:absolute;left:0;top:12px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px}
+@media(max-width:840px){.grid-3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="eyebrow">Wire design system · v0.1</span>
+    <h1>SyncMaster geometry, sky&nbsp;blue accent.</h1>
+    <p class="lede">Every token below is verified against the uploaded template export. The accent swap promotes SyncMaster's own link blue (#0099FF) into a family: a light sky fill for the roles chartreuse played, a strong azure for links and focus, a tint for washes. Use the switcher to compare the three fill candidates.</p>
+  </div>
+</header>
+
+<section class="section">
+  <div class="wrap">
+    <h2>Palette</h2>
+    <p class="section-note">Surfaces and ink are untouched SyncMaster. The three accent tokens are the only new decisions.</p>
+    <div class="swatches">
+      <div class="sw"><div class="chip" style="background:#FAF8F4;border-bottom:1px solid var(--line)"></div><div class="meta"><div class="name">bg</div><div class="hex">#FAF8F4</div></div></div>
+      <div class="sw"><div class="chip" style="background:#F7F6F4;border-bottom:1px solid var(--line)"></div><div class="meta"><div class="name">bg-alt</div><div class="hex">#F7F6F4</div></div></div>
+      <div class="sw"><div class="chip" style="background:#102D23"></div><div class="meta"><div class="name">ink-green</div><div class="hex">#102D23</div></div></div>
+      <div class="sw"><div class="chip" style="background:#0A0915"></div><div class="meta"><div class="name">ink</div><div class="hex">#0A0915</div></div></div>
+      <div class="sw"><div class="chip" style="background:#52525A"></div><div class="meta"><div class="name">muted</div><div class="hex">#52525A</div></div></div>
+      <div class="sw"><div class="chip accent-chip" style="background:var(--accent)"></div><div class="meta"><div class="name">accent · sky fill</div><div class="hex" id="accent-hex">#A9DBFF</div></div></div>
+      <div class="sw"><div class="chip" style="background:#0099FF"></div><div class="meta"><div class="name">accent-strong</div><div class="hex">#0099FF</div></div></div>
+      <div class="sw"><div class="chip" style="background:#EAF5FF;border-bottom:1px solid var(--line)"></div><div class="meta"><div class="name">accent-tint</div><div class="hex">#EAF5FF</div></div></div>
+      <div class="sw"><div class="chip" style="background:#FFECD3"></div><div class="meta"><div class="name">cream</div><div class="hex">#FFECD3</div></div></div>
+      <div class="sw"><div class="chip" style="background:#60D184"></div><div class="meta"><div class="name">positive</div><div class="hex">#60D184</div></div></div>
+      <div class="sw"><div class="chip" style="background:#F93C3F"></div><div class="meta"><div class="name">negative</div><div class="hex">#F93C3F</div></div></div>
+      <div class="sw"><div class="chip" style="background:#141B34"></div><div class="meta"><div class="name">navy</div><div class="hex">#141B34</div></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h2>Type</h2>
+    <p class="section-note">Figtree semibold carries every heading — SyncMaster never goes heavier than 600. Inter for reading.</p>
+    <div style="margin-top:20px">
+      <div class="type-row"><span class="type-label">display-xl · 64 / Figtree 600</span><span class="t-display-xl">Content, wired.</span></div>
+      <div class="type-row"><span class="type-label">display · 48</span><span class="t-display">Your engine, not another tool</span></div>
+      <div class="type-row"><span class="type-label">h2 · 42</span><span class="t-h2">This month's opportunities</span></div>
+      <div class="type-row"><span class="type-label">h3 · 36</span><span class="t-h3">Brand Brain</span></div>
+      <div class="type-row"><span class="type-label">h5 · 20</span><span class="t-h5">Priority keywords</span></div>
+      <div class="type-row"><span class="type-label">body · 16 / Inter 400</span><span class="t-body">Wire researches your keywords and competitors monthly, then writes long-form content grounded in what it found.</span></div>
+      <div class="type-row"><span class="type-label">caption · 14</span><span class="t-caption">Last intelligence run: 3 July 2026 · next scheduled 3 August</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h2>Buttons &amp; controls</h2>
+    <p class="section-note">The hard 4px offset shadow is SyncMaster's signature — buttons physically press when clicked. Kept exactly.</p>
+    <div class="row">
+      <button class="btn-primary">Run intelligence report</button>
+      <button class="btn-accent">Write this article</button>
+      <button class="btn-ghost">Export draft</button>
+      <span class="eyebrow">The engine</span>
+      <span class="eyebrow" style="background:var(--cream)">Coming soon</span>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true">Keywords</button>
+      <button class="tab" role="tab" aria-selected="false">Competitors</button>
+      <button class="tab" role="tab" aria-selected="false">Content gaps</button>
+      <button class="tab" role="tab" aria-selected="false">AEO questions</button>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h2>Product surfaces</h2>
+    <p class="section-note">A keyword table and an ingest form — the two screens a customer lives in — rendered in the system.</p>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Priority keywords — July</h3>
+        <p class="sub">From the 3 July intelligence run · 14 opportunities found</p>
+        <table>
+          <thead><tr><th>Keyword</th><th>Intent</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>ai content engine for startups</td><td>High</td><td><span class="badge badge--opportunity">Opportunity</span></td></tr>
+            <tr><td>replace seo agency with ai</td><td>High</td><td><span class="badge badge--queued">Queued</span></td></tr>
+            <tr><td>series a content strategy</td><td>Research</td><td><span class="badge badge--draft">Drafting</span></td></tr>
+            <tr><td>brand voice ai writing</td><td>Research</td><td><span class="badge badge--published">Published</span></td></tr>
+            <tr><td>content marketing roi benchmarks</td><td>Research</td><td><span class="badge badge--attention">Needs review</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3>New source</h3>
+        <p class="sub">Paste, upload, or link — Wire normalizes it.</p>
+        <label for="src">Source URL or paste</label>
+        <input class="input" id="src" placeholder="https://podcast.example/episode-42">
+        <label for="fmt">Output format</label>
+        <input class="input" id="fmt" value="How-to guide · 1,200–1,800 words">
+        <div class="row" style="margin-top:22px">
+          <button class="btn-accent">Diagnose source</button>
+          <button class="btn-ghost">Save for later</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="border-bottom:none">
+  <div class="wrap">
+    <h2>Pricing card</h2>
+    <div class="grid-3">
+      <div class="price-card">
+        <h3 style="font-size:18px">Launch</h3>
+        <div class="price">$299<small>/mo</small></div>
+        <ul><li>1 Brand Brain · 3 seats</li><li>500 credits — ~15 articles</li><li>Monthly intelligence run</li></ul>
+        <button class="btn-ghost" style="width:100%;justify-content:center">Start 14-day trial</button>
+      </div>
+      <div class="price-card hero">
+        <span class="flag">Most teams</span>
+        <h3 style="font-size:18px">Growth</h3>
+        <div class="price">$799<small>/mo</small></div>
+        <ul><li>2 Brand Brains · 10 seats</li><li>1,400 credits — ~45 articles</li><li>On-demand intelligence runs</li></ul>
+        <button class="btn-primary" style="width:100%;justify-content:center">Start 14-day trial</button>
+      </div>
+      <div class="price-card">
+        <h3 style="font-size:18px">Scale</h3>
+        <div class="price">$1,995<small>/mo</small></div>
+        <ul><li>5 Brand Brains · unlimited seats</li><li>4,000 credits — ~130 articles</li><li>Weekly runs · API first</li></ul>
+        <button class="btn-ghost" style="width:100%;justify-content:center">Talk to us</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="switcher" role="group" aria-label="Accent candidate switcher">
+  <span>Sky accent</span>
+  <button class="sw-btn" data-accent="#A9DBFF" aria-pressed="true"><span class="dot" style="background:#A9DBFF"></span>A</button>
+  <button class="sw-btn" data-accent="#8FCBFF" aria-pressed="false"><span class="dot" style="background:#8FCBFF"></span>B</button>
+  <button class="sw-btn" data-accent="#BEE3FF" aria-pressed="false"><span class="dot" style="background:#BEE3FF"></span>C</button>
+</div>
+
+<script>
+const buttons=document.querySelectorAll('.sw-btn');
+buttons.forEach(b=>b.addEventListener('click',()=>{
+  document.documentElement.style.setProperty('--accent',b.dataset.accent);
+  document.getElementById('accent-hex').textContent=b.dataset.accent;
+  buttons.forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
+}));
+// simple tab behaviour for the demo
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  t.closest('.tabs').querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected','false'));
+  t.setAttribute('aria-selected','true');
+}));
+</script>
+</body>
+</html>
