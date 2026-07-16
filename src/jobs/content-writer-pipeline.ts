@@ -208,7 +208,7 @@ export const diagnoseDocument = inngest.createFunction(
 
 /* ═══════════════════════════════ 3. GENERATION ════════════════════════════ */
 
-const generationSchema = z.object({
+export const generationSchema = z.object({
   title: z.string(),
   bodyMarkdown: z.string().min(400),
   brief: z.object({
@@ -222,7 +222,7 @@ const generationSchema = z.object({
   }),
 });
 
-const WRITER_SYSTEM = (brain: BrandBrain, formatRule: BrandBrain["formats"][number]) => `You are Wire's content writer for ${brain.name}. You transform raw source material into polished, on-brand, SEO- and AEO-optimized content ready to publish.
+export const WRITER_SYSTEM = (brain: BrandBrain, formatRule: BrandBrain["formats"][number]) => `You are Wire's content writer for ${brain.name}. You transform raw source material into polished, on-brand, SEO- and AEO-optimized content ready to publish.
 
 <brand_brain>
 Brand: ${brain.name} (${brain.siteUrl}) — ${brain.whatTheyDo}
