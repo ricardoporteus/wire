@@ -6,17 +6,14 @@
  */
 
 import { inngest } from "@/lib/inngest";
-import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
 import { documents, exports as exportsTable } from "@/db/schema";
 import { brandBrainSchema, type BrandBrain } from "@/lib/brand-brain.zod";
 import { brandBrains } from "@/db/schema";
 import { debitCredits, recordUsage } from "@/lib/credits";
+import { generateJson } from "./content-writer-pipeline";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-
-const anthropic = new Anthropic();
-const MODEL = "claude-sonnet-4-6";
 
 export const EXPORT_SPECS: Record<string, string> = {
   linkedin_article: "LinkedIn article: 600–900 words. Rework the piece for a professional feed — sharper opening hook (first 2 lines decide the click-through on 'see more'), shorter paragraphs (1–3 sentences), one clear takeaway per section, end with a discussion question. No hashtag walls; 3 hashtags max at the end.",
@@ -64,29 +61,21 @@ export const repurposeDocument = inngest.createFunction(
     await step.run("debit", () =>
       debitCredits({ orgId, brainId: doc.brainId, reason: "repurpose", refType: "export", refId: documentId }));
 
-    const pack = await step.run("repurpose", async () => {
-      const res = await anthropic.messages.create({
-        model: MODEL, max_tokens: 4000,
+    const pack = await step.run("repurpose", () =>
+      generateJson({
         system: REPURPOSE_SYSTEM(brain),
-        messages: [{
-          role: "user",
-          content: [
-            `Requested kinds and their specs:`,
-            ...kinds.map((k) => `- ${k}: ${EXPORT_SPECS[k]}`),
-            `\n<document title="${doc.title}">\n${bodyMarkdown.slice(0, 30_000)}\n</document>`,
-            `\nProduce the pack.`,
-          ].join("\n"),
-        }],
-      });
-      const text = res.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text).join("")
-        .replace(/^```json\s*|```\s*$/g, "").trim();
-      return { out: packSchema.parse(JSON.parse(text)), usage: res.usage };
-    });
+        userContent: [
+          `Requested kinds and their specs:`,
+          ...kinds.map((k) => `- ${k}: ${EXPORT_SPECS[k]}`),
+          `\n<document title="${doc.title}">\n${bodyMarkdown.slice(0, 30_000)}\n</document>`,
+          `\nProduce the pack.`,
+        ].join("\n"),
+        schema: packSchema,
+        maxTokens: 4000,
+      }));
 
     await step.run("save", async () => {
-      for (const item of pack.out.items) {
+      for (const item of pack.data.items) {
         await db.insert(exportsTable).values({
           documentId, kind: item.kind as never, content: item.content,
         });
@@ -100,7 +89,7 @@ export const repurposeDocument = inngest.createFunction(
         costUsdMicros: Math.round(pack.usage.input_tokens * 3 + pack.usage.output_tokens * 15),
       }));
 
-    return { ok: true, kinds: pack.out.items.map((i) => i.kind) };
+    return { ok: true, kinds: pack.data.items.map((i) => i.kind) };
   },
 );
 

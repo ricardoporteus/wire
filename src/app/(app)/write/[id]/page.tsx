@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { documents, brandBrains, organizations } from "@/db/schema";
+import { documents, brandBrains, organizations, exports as exportsTable } from "@/db/schema";
 import { WriterFlow } from "./WriterFlow";
 
 export default async function DocumentPage({ params }: { params: Promise<{ id: string }> }) {
@@ -17,10 +17,16 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
   const org = brain && (await db.query.organizations.findFirst({ where: eq(organizations.id, brain.orgId) }));
   if (!org || org.clerkOrgId !== clerkOrgId) notFound();
 
+  const exportRows = await db.query.exports.findMany({
+    where: eq(exportsTable.documentId, doc.id),
+    orderBy: [exportsTable.createdAt],
+  });
+
   return (
     <WriterFlow
       documentId={doc.id}
       brainName={brain!.name}
+      initialExports={exportRows.map((r) => ({ id: r.id, kind: r.kind, content: r.content ?? "" }))}
       initial={{
         status: doc.status,
         format: doc.format,

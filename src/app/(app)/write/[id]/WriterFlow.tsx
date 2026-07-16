@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { getDocState, confirmAndGenerate, regenerate } from "../actions";
+import { ExportPanel } from "./ExportPanel";
 
 type Diagnosis = {
   coreMessage: string;
@@ -37,12 +38,13 @@ const fmt = (s: string) => s.replaceAll("_", " ");
 const WORKING = new Set(["diagnosing", "generating"]);
 
 export function WriterFlow({
-  documentId, brainName, initial,
+  documentId, brainName, initial, initialExports,
 }: {
   documentId: string;
   brainName: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   initial: any;
+  initialExports: { id: string; kind: string; content: string }[];
 }) {
   const [s, setS] = useState<State>(initial);
   const [note, setNote] = useState("");
@@ -143,6 +145,7 @@ export function WriterFlow({
 
       {/* Editor + brief */}
       {(s.status === "draft" || s.status === "final") && s.bodyMarkdown && (
+        <>
         <div className="mt-6 grid gap-8 md:grid-cols-[1fr_300px]">
           <article>
             <h1 className="text-h3 text-ink-green">{s.title}</h1>
@@ -166,6 +169,8 @@ export function WriterFlow({
 
           {s.brief && <BriefPanel brief={s.brief} />}
         </div>
+        <ExportPanel documentId={documentId} initialExports={initialExports} />
+        </>
       )}
     </main>
   );

@@ -9,7 +9,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { documents, sources, brandBrains, organizations } from "@/db/schema";
+import { documents, sources, brandBrains, organizations, exports as exportsTable } from "@/db/schema";
 import { inngest } from "@/lib/inngest";
 import { requireOrg } from "@/lib/org";
 import { fetchArticleText } from "@/jobs/content-writer-pipeline";
@@ -129,4 +129,26 @@ export async function regenerate(documentId: string, editorNote: string) {
     data: { documentId, orgId: org.id, regeneration: true, editorNote: editorNote.slice(0, 2000) },
   });
   return { ok: true as const };
+}
+
+/** Fire one repurpose pack for the selected channel kinds (5 credits). */
+export async function createRepurposePack(documentId: string, kinds: string[]) {
+  const { doc, org } = await ownedDoc(documentId);
+  if (!doc.bodyMarkdown) return { ok: false as const, error: "Generate the piece first." };
+  if (!kinds.length) return { ok: false as const, error: "Pick at least one format." };
+  await inngest.send({
+    name: "wire/document.repurpose.requested",
+    data: { documentId, orgId: org.id, kinds },
+  });
+  return { ok: true as const };
+}
+
+/** Current export rows for a document (poll target + display). */
+export async function getExports(documentId: string) {
+  await ownedDoc(documentId);
+  const rows = await db.query.exports.findMany({
+    where: eq(exportsTable.documentId, documentId),
+    orderBy: [exportsTable.createdAt],
+  });
+  return rows.map((r) => ({ id: r.id, kind: r.kind, content: r.content ?? "" }));
 }

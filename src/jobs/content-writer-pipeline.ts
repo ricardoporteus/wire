@@ -371,7 +371,7 @@ function jsonOf(res: Anthropic.Message): unknown {
  * exact validation error back and ask for corrected JSON — the same robustness
  * the research loop and the Brand Brain drafter already have.
  */
-async function generateJson<T>(opts: {
+export async function generateJson<T>(opts: {
   system: string;
   userContent: string;
   schema: z.ZodType<T>;
