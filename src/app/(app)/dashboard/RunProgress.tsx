@@ -65,24 +65,31 @@ export function RunProgress({
   const startMs = useRef<number>(startedAt ? new Date(startedAt).getTime() : Date.now());
   const feedRef = useRef<HTMLDivElement>(null);
   const doneRef = useRef(false);
+  const inFlight = useRef(false);
 
   const poll = useCallback(async () => {
-    if (doneRef.current) return;
-    const res = await getRunStatus(runId, seqRef.current);
-    setStatus(res.status);
-    setCounts(res.counts);
-    if (res.startedAt) startMs.current = new Date(res.startedAt).getTime();
-    if (res.events.length) {
-      seqRef.current = res.maxSeq;
-      setEvents((prev) => [...prev, ...res.events].slice(-200));
-      setLastEventAt(Date.now());
-    }
-    if (TERMINAL.has(res.status)) {
-      doneRef.current = true;
-      // Let the last "report ready" line land, then clear the optimistic run and
-      // reveal the full dashboard. onDone must fire with the refresh so this
-      // component unmounts instead of re-detecting "complete" and looping.
-      setTimeout(() => { onDone?.(); router.refresh(); }, 1400);
+    if (doneRef.current || inFlight.current) return; // no overlapping polls → no dup events
+    inFlight.current = true;
+    try {
+      const since = seqRef.current;
+      const res = await getRunStatus(runId, since);
+      setStatus(res.status);
+      setCounts(res.counts);
+      if (res.startedAt) startMs.current = new Date(res.startedAt).getTime();
+      if (res.events.length && res.maxSeq > since) {
+        seqRef.current = res.maxSeq;
+        setEvents((prev) => [...prev, ...res.events].slice(-200));
+        setLastEventAt(Date.now());
+      }
+      if (TERMINAL.has(res.status)) {
+        doneRef.current = true;
+        // Let the last "report ready" line land, then clear the optimistic run and
+        // reveal the full dashboard. onDone must fire with the refresh so this
+        // component unmounts instead of re-detecting "complete" and looping.
+        setTimeout(() => { onDone?.(); router.refresh(); }, 1400);
+      }
+    } finally {
+      inFlight.current = false;
     }
   }, [runId, router, onDone]);
 

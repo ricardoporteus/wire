@@ -15,6 +15,13 @@
       "when": 1784212131318,
       "tag": "0001_parched_the_liberteens",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784213056007,
+      "tag": "0002_great_hellcat",
+      "breakpoints": true
     }
   ]
 }

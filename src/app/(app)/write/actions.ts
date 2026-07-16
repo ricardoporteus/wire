@@ -7,9 +7,9 @@
  */
 
 import { auth } from "@clerk/nextjs/server";
-import { eq } from "drizzle-orm";
+import { and, asc, eq, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { documents, sources, brandBrains, organizations, exports as exportsTable } from "@/db/schema";
+import { documents, sources, brandBrains, organizations, exports as exportsTable, docEvents } from "@/db/schema";
 import { inngest } from "@/lib/inngest";
 import { requireOrg } from "@/lib/org";
 import { CREDIT_COSTS } from "@/lib/credits";
@@ -106,6 +106,22 @@ export async function getDocState(documentId: string) {
     brief: doc.brief ?? null,
     updatedAt: doc.updatedAt ? doc.updatedAt.toISOString() : null,
   };
+}
+
+export type DocFeedEvent = { seq: number; phase: string; kind: string; message: string; words?: number };
+
+/** Poll target: the document's live activity feed after `sinceSeq`. */
+export async function getDocFeed(documentId: string, sinceSeq = 0): Promise<{
+  status: string; events: DocFeedEvent[]; maxSeq: number;
+}> {
+  const { doc } = await ownedDoc(documentId);
+  const evs = await db.select().from(docEvents)
+    .where(and(eq(docEvents.documentId, documentId), gt(docEvents.seq, sinceSeq)))
+    .orderBy(asc(docEvents.seq)).limit(200);
+  const events: DocFeedEvent[] = evs.map((e) => ({
+    seq: e.seq, phase: e.phase, kind: e.kind, message: e.message, words: e.meta?.words,
+  }));
+  return { status: doc.status, events, maxSeq: events.length ? events[events.length - 1].seq : sinceSeq };
 }
 
 /** Confirm the diagnosis (optionally the alternative) and start generation. */

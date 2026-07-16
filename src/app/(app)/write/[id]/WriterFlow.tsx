@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { getDocState, confirmAndGenerate, regenerate } from "../actions";
 import { ExportPanel } from "./ExportPanel";
+import { WriterProgress } from "./WriterProgress";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
 
 type Diagnosis = {
@@ -103,22 +104,8 @@ export function WriterFlow({
         ? <UpgradeNotice className="mt-4" />
         : err && <p className="mt-4 text-body-sm text-negative">{err}</p>}
 
-      {/* Working states */}
-      {WORKING.has(s.status) && (
-        <div className="card--lg card mt-6">
-          <div className="flex items-center gap-3">
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-accent-strong" />
-            <span className="text-h5 text-ink-green">
-              {s.status === "diagnosing" ? "Reading your source and diagnosing…" : "Writing your draft…"}
-            </span>
-          </div>
-          <p className="mt-2 text-body-sm text-muted">
-            {s.status === "diagnosing"
-              ? "Wire is deciding what this should become before it writes — format, angle, and the keyword to target from your live intelligence."
-              : "Generating on-brand, SEO- and AEO-optimized copy, then running the terminology lint pass."}
-          </p>
-        </div>
-      )}
+      {/* Working states — live progress feed */}
+      {WORKING.has(s.status) && <WriterProgress documentId={documentId} phase={s.status} />}
 
       {/* Diagnosis card */}
       {s.status === "awaiting_confirm" && s.diagnosis && (

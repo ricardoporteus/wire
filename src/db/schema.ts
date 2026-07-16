@@ -163,6 +163,23 @@ export const runEvents = pgTable("run_events", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("run_events_run_idx").on(t.runId, t.seq)]);
 
+/* ------------------------------- doc events ------------------------------- */
+/**
+ * Live activity feed for the writer flow (diagnosis + generation), same idea as
+ * run_events. During generation the pipeline streams the draft and emits a
+ * "writing… N words" row every second or so, so the writer shows visible motion
+ * (a climbing word count + progress bar) instead of a frozen "Writing…" card.
+ */
+export const docEvents = pgTable("doc_events", {
+  seq: bigserial("seq", { mode: "number" }).primaryKey(),
+  documentId: uuid("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  phase: varchar("phase", { length: 16 }).notNull(),   // diagnose | generate
+  kind: varchar("kind", { length: 16 }).notNull(),     // stage | writing | saved | info | error
+  message: text("message").notNull(),
+  meta: jsonb("meta").$type<{ words?: number }>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("doc_events_doc_idx").on(t.documentId, t.seq)]);
+
 /* --------------------------------- keywords ------------------------------- */
 export const keywords = pgTable("keywords", {
   id: uuid("id").defaultRandom().primaryKey(),

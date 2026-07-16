@@ -17,7 +17,7 @@
 import { inngest } from "@/lib/inngest";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
-import { brandBrains, sources, documents, keywords, contentIdeas } from "@/db/schema";
+import { brandBrains, sources, documents, keywords, contentIdeas, docEvents } from "@/db/schema";
 import { brandBrainSchema, type BrandBrain } from "@/lib/brand-brain.zod";
 import { debitCredits, recordUsage } from "@/lib/credits";
 import { and, desc, eq } from "drizzle-orm";
@@ -25,6 +25,23 @@ import { z } from "zod";
 
 const anthropic = new Anthropic();
 const WRITER_MODEL = "claude-sonnet-4-6";   // per bake-off; A/B Opus for long-form later
+
+/**
+ * Append a row to a document's live activity feed (diagnosis + generation).
+ * Cosmetic + observability only — swallow failures so the feed can never break
+ * a write. Call from inside step.run bodies so it fires once, not per replay.
+ */
+type DocFeedKind = "stage" | "writing" | "saved" | "info" | "error";
+async function emitDoc(
+  documentId: string, phase: "diagnose" | "generate", kind: DocFeedKind,
+  message: string, meta?: { words?: number },
+): Promise<void> {
+  try {
+    await db.insert(docEvents).values({ documentId, phase, kind, message, meta: meta ?? null });
+  } catch {
+    /* disposable feed — never fail a write because an event didn't persist */
+  }
+}
 
 /* ════════════════════════════ 1. SOURCE INGESTION ════════════════════════ */
 /* Everything becomes sources.normalizedText — the single truth the writer reads. */
@@ -138,6 +155,7 @@ export const diagnoseDocument = inngest.createFunction(
 
     /* The productized "read seo-intelligence.md": live keywords + this month's plan */
     const intel = await step.run("load-intel", async () => {
+      await emitDoc(documentId, "diagnose", "stage", "Pulling your live keyword & AEO intelligence");
       const kws = await db.query.keywords.findMany({
         where: and(eq(keywords.brainId, doc.brainId), eq(keywords.active, true)),
         orderBy: [keywords.priority], limit: 40,
@@ -154,16 +172,19 @@ export const diagnoseDocument = inngest.createFunction(
       ].join("\n");
     });
 
-    const result = await step.run("diagnose", () =>
-      generateJson({
+    const result = await step.run("diagnose", async () => {
+      await emitDoc(documentId, "diagnose", "stage", "Reading your source and diagnosing the best angle");
+      return generateJson({
         system: DIAGNOSIS_SYSTEM(brain, intel),
         userContent: `<source kind="${source.kind}">\n${source.normalizedText!.slice(0, 30_000)}\n</source>\n\nDiagnose this source.`,
         schema: diagnosisSchema,
         maxTokens: 1200,
-      }));
+      });
+    });
 
-    await step.run("save", () =>
-      db.update(documents).set({
+    await step.run("save", async () => {
+      await emitDoc(documentId, "diagnose", "saved", `Recommended: ${result.data.recommendedTitle}`);
+      return db.update(documents).set({
         status: "awaiting_confirm",
         format: result.data.recommendedFormat,
         diagnosis: {
@@ -176,7 +197,8 @@ export const diagnoseDocument = inngest.createFunction(
         },
         tokensIn: result.usage.input_tokens, tokensOut: result.usage.output_tokens,
         updatedAt: new Date(),
-      }).where(eq(documents.id, documentId)));
+      }).where(eq(documents.id, documentId));
+    });
 
     return { ok: true };
     // UI: the diagnosis card renders with [Write it] (GO) and the alternative
@@ -269,12 +291,23 @@ export const generateDocument = inngest.createFunction(
         reason: regeneration ? "regeneration" : "generation",
         refType: "document", refId: documentId,
       }));
-    await step.run("mark", () =>
-      db.update(documents).set({ status: "generating" }).where(eq(documents.id, documentId)));
+    await step.run("mark", async () => {
+      await db.update(documents).set({ status: "generating" }).where(eq(documents.id, documentId));
+      await emitDoc(documentId, "generate", "stage", "Loaded your Brand Brain & grounded against your intelligence");
+      await emitDoc(documentId, "generate", "stage", regeneration ? "Revising your draft against the note" : "Writing the draft");
+    });
 
-    const gen = await step.run("write", () =>
-      generateJson({
+    const gen = await step.run("write", () => {
+      let lastEmit = 0;
+      return generateJson({
         system: WRITER_SYSTEM(brain, formatRule),
+        onDelta: (acc) => {
+          const now = Date.now();
+          if (now - lastEmit < 1200) return;   // throttle the feed to ~1 update/sec
+          lastEmit = now;
+          const words = acc.split(/\s+/).filter(Boolean).length;
+          void emitDoc(documentId, "generate", "writing", `Writing… ${words} words`, { words });
+        },
         userContent: [
           `Confirmed diagnosis:`,
           `Title: ${doc.diagnosis!.recommendedTitle}`,
@@ -288,13 +321,15 @@ export const generateDocument = inngest.createFunction(
         ].filter(Boolean).join("\n"),
         schema: generationSchema,
         maxTokens: 8000,
-      }));
+      });
+    });
 
     /* Deterministic terminology lint — enforcement pass #2, code not AI */
     const violations = lintTerminology(gen.data.bodyMarkdown + " " + gen.data.title, brain);
 
-    await step.run("save", () =>
-      db.update(documents).set({
+    await step.run("save", async () => {
+      await emitDoc(documentId, "generate", "stage", "Checking terminology & brand voice");
+      await db.update(documents).set({
         status: "draft",
         title: gen.data.title,
         bodyMarkdown: gen.data.bodyMarkdown,
@@ -308,7 +343,9 @@ export const generateDocument = inngest.createFunction(
         tokensIn: doc.tokensIn + gen.usage.input_tokens,
         tokensOut: doc.tokensOut + gen.usage.output_tokens,
         updatedAt: new Date(),
-      }).where(eq(documents.id, documentId)));
+      }).where(eq(documents.id, documentId));
+      await emitDoc(documentId, "generate", "saved", `Draft ready — ${gen.data.brief.wordCount} words`, { words: gen.data.brief.wordCount });
+    });
 
     await step.run("telemetry", () =>
       recordUsage({
@@ -376,13 +413,25 @@ export async function generateJson<T>(opts: {
   userContent: string;
   schema: z.ZodType<T>;
   maxTokens: number;
+  // When set, the first attempt streams and reports the accumulated output text
+  // as it arrives — used to drive the live "writing… N words" feed.
+  onDelta?: (accumulated: string) => void;
 }): Promise<{ data: T; usage: { input_tokens: number; output_tokens: number } }> {
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: opts.userContent }];
   let inTok = 0, outTok = 0;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await anthropic.messages.create({
-      model: WRITER_MODEL, max_tokens: opts.maxTokens, system: opts.system, messages,
-    });
+    let res: Anthropic.Message;
+    if (opts.onDelta && attempt === 0) {
+      const stream = anthropic.messages.stream({
+        model: WRITER_MODEL, max_tokens: opts.maxTokens, system: opts.system, messages,
+      });
+      stream.on("text", (_delta, snapshot) => opts.onDelta!(snapshot));
+      res = await stream.finalMessage();
+    } else {
+      res = await anthropic.messages.create({
+        model: WRITER_MODEL, max_tokens: opts.maxTokens, system: opts.system, messages,
+      });
+    }
     inTok += res.usage.input_tokens; outTok += res.usage.output_tokens;
     const parsed = opts.schema.safeParse(jsonOf(res));
     if (parsed.success) return { data: parsed.data, usage: { input_tokens: inTok, output_tokens: outTok } };
