@@ -344,6 +344,8 @@ export const generateDocument = inngest.createFunction(
 
     /* Deterministic terminology lint — enforcement pass #2, code not AI */
     const violations = lintTerminology(gen.data.bodyMarkdown + " " + gen.data.title, brain);
+    // Trust the rendered body for the word count, not the model's self-report.
+    const actualWords = countWords(gen.data.bodyMarkdown);
 
     await step.run("save", async () => {
       await emitDoc(documentId, "generate", "stage", "Checking terminology & brand voice");
@@ -353,6 +355,7 @@ export const generateDocument = inngest.createFunction(
         bodyMarkdown: gen.data.bodyMarkdown,
         brief: {
           ...gen.data.brief,
+          wordCount: actualWords, // override the model's self-reported count
           terminologyCheckPassed: violations.length === 0,
           voiceChecksPassed: true, // pillar checks surfaced in editor v1.1
           // violations listed for the editor to render inline:
@@ -362,7 +365,7 @@ export const generateDocument = inngest.createFunction(
         tokensOut: doc.tokensOut + gen.usage.output_tokens,
         updatedAt: new Date(),
       }).where(eq(documents.id, documentId));
-      await emitDoc(documentId, "generate", "saved", `Draft ready — ${gen.data.brief.wordCount} words`, { words: gen.data.brief.wordCount });
+      await emitDoc(documentId, "generate", "saved", `Draft ready — ${actualWords} words`, { words: actualWords });
     });
 
     await step.run("telemetry", () =>
@@ -513,6 +516,19 @@ export async function generateJson<T>(opts: {
 }
 
 function wc(t: string) { return t.split(/\s+/).filter(Boolean).length; }
+
+/** Word count of the rendered prose — strips markdown so the number reflects the
+ *  article, not its syntax (the model's self-reported brief.wordCount is unreliable). */
+export function countWords(md: string): number {
+  const text = md
+    .replace(/```[\s\S]*?```/g, " ")          // fenced code blocks
+    .replace(/`[^`]*`/g, " ")                 // inline code
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")    // images
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")  // links → keep the visible text
+    .replace(/^#{1,6}\s+/gm, "")              // heading markers
+    .replace(/[*_>~|]/g, " ");                // emphasis / blockquote / table pipes
+  return text.split(/\s+/).filter(Boolean).length;
+}
 function blobUrl(fileKey: string) { return `${process.env.BLOB_BASE_URL}/${fileKey}`; }
 function costMicros(tin: number, tout: number) {
   // Sonnet 4.6 list pricing — keep in a config table when prices move
