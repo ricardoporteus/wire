@@ -25,6 +25,7 @@ function fmtElapsed(fromMs: number, nowMs: number) {
 export function WriterProgress({ documentId, phase }: { documentId: string; phase: string }) {
   const [events, setEvents] = useState<DocFeedEvent[]>([]);
   const [now, setNow] = useState(() => Date.now());
+  const [lastEventAt, setLastEventAt] = useState(() => Date.now());
   const seqRef = useRef(0);
   const startRef = useRef(Date.now());
   const feedRef = useRef<HTMLDivElement>(null);
@@ -39,6 +40,7 @@ export function WriterProgress({ documentId, phase }: { documentId: string; phas
       if (res.events.length && res.maxSeq > since) {
         seqRef.current = res.maxSeq;
         setEvents((prev) => [...prev, ...res.events].slice(-150));
+        setLastEventAt(Date.now());
       }
     } finally {
       inFlight.current = false;
@@ -65,6 +67,8 @@ export function WriterProgress({ documentId, phase }: { documentId: string; phas
     [events],
   );
   const pct = diagnosing ? 0 : Math.min(95, Math.round((words / TARGET_WORDS) * 100));
+  const secsSinceEvent = Math.floor((now - lastEventAt) / 1000);
+  const stalled = events.length > 0 && secsSinceEvent > 20;
 
   return (
     <div className="card--lg card mt-6">
@@ -112,9 +116,11 @@ export function WriterProgress({ documentId, phase }: { documentId: string; phas
       </div>
 
       <p className="mt-2 text-caption text-muted">
-        {diagnosing
-          ? "Deciding what this should become — format, angle, and the keyword to target from your live intelligence."
-          : "Generating on-brand, SEO- and AEO-optimized copy, then running the terminology lint pass."}
+        {stalled
+          ? `Still working — no update for ${secsSinceEvent}s. A slow model response can stall briefly; it retries automatically.`
+          : diagnosing
+            ? "Deciding what this should become — format, angle, and the keyword to target from your live intelligence."
+            : "Generating on-brand, SEO- and AEO-optimized copy, then running the terminology lint pass."}
       </p>
 
       <style>{`

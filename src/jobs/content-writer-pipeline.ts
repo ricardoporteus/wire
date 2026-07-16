@@ -268,7 +268,22 @@ Rules:
 3. Respond with a single JSON object: { "title", "bodyMarkdown", "brief": { wordCount, primaryKeyword, secondaryKeywords, targetAeoQuestion, metaDescription (150–160 chars), altTexts (exactly 3), valuesReflected } }. No preamble, no fences.`;
 
 export const generateDocument = inngest.createFunction(
-  { id: "document-generate", retries: 1 },
+  {
+    id: "document-generate", retries: 1,
+    // If generation exhausts retries, don't leave the document stuck on
+    // "generating" forever — revert it so the writer shows a recoverable state
+    // (the diagnosis card to retry, or the prior draft) instead of a dead spinner.
+    onFailure: async ({ event }) => {
+      const documentId = (event.data.event.data as { documentId?: string })?.documentId;
+      if (!documentId) return;
+      const d = await db.query.documents.findFirst({ where: eq(documents.id, documentId) });
+      if (!d || d.status !== "generating") return;
+      await db.update(documents)
+        .set({ status: d.bodyMarkdown ? "draft" : "awaiting_confirm", updatedAt: new Date() })
+        .where(eq(documents.id, documentId));
+      await emitDoc(documentId, "generate", "error", "Generation didn't finish — please try writing again.");
+    },
+  },
   { event: "wire/document.generate.requested" },
   async ({ event, step }) => {
     const { documentId, orgId, regeneration = false, editorNote } = event.data as {
@@ -281,6 +296,9 @@ export const generateDocument = inngest.createFunction(
 
     const brain = await loadBrain(doc.brainId);
     const formatRule = brain.formats.find((f) => f.format === doc.format) ?? brain.formats[0];
+    // Bound output to the format's word ceiling (+ room for the JSON brief) rather
+    // than a flat 8k — a runaway 6000-word draft is slow and off-spec.
+    const genMaxTokens = Math.min(8000, Math.round((formatRule?.maxWords ?? 1500) * 1.7) + 1500);
     const source = doc.sourceId
       ? await db.query.sources.findFirst({ where: eq(sources.id, doc.sourceId) })
       : null;
@@ -320,7 +338,7 @@ export const generateDocument = inngest.createFunction(
           `\nWrite the ${formatRule.format} now.`,
         ].filter(Boolean).join("\n"),
         schema: generationSchema,
-        maxTokens: 8000,
+        maxTokens: genMaxTokens,
       });
     });
 
@@ -408,6 +426,50 @@ function jsonOf(res: Anthropic.Message): unknown {
  * exact validation error back and ask for corrected JSON — the same robustness
  * the research loop and the Brand Brain drafter already have.
  */
+const STALL_MS = 45_000;         // abort a stream that has gone silent this long
+const REQ_TIMEOUT_MS = 300_000;  // hard per-request cap (SDK default is 10 min — too long to sit stuck)
+const MODEL_TRIES = 3;           // retry a stalled/timed-out request from scratch
+
+/**
+ * One model call with resilience. Streaming responses occasionally go silent
+ * mid-generation; without a guard the SDK waits the full 10-minute timeout and
+ * the whole write hangs. An inactivity watchdog aborts a stream that stops
+ * producing text for STALL_MS and we retry from scratch. Non-stream calls get
+ * the same request timeout + retry.
+ */
+async function callWriterModel(
+  system: string, maxTokens: number, messages: Anthropic.MessageParam[],
+  onDelta?: (accumulated: string) => void,
+): Promise<Anthropic.Message> {
+  let lastErr: unknown;
+  for (let i = 0; i < MODEL_TRIES; i++) {
+    try {
+      if (onDelta) {
+        const stream = anthropic.messages.stream(
+          { model: WRITER_MODEL, max_tokens: maxTokens, system, messages },
+          { timeout: REQ_TIMEOUT_MS },
+        );
+        let wd: ReturnType<typeof setTimeout> | undefined;
+        const arm = () => { clearTimeout(wd); wd = setTimeout(() => stream.abort(), STALL_MS); };
+        arm();
+        stream.on("text", (_delta, snapshot) => { arm(); onDelta(snapshot); });
+        try { return await stream.finalMessage(); }
+        finally { clearTimeout(wd); }
+      }
+      return await anthropic.messages.create(
+        { model: WRITER_MODEL, max_tokens: maxTokens, system, messages },
+        { timeout: REQ_TIMEOUT_MS },
+      );
+    } catch (e) {
+      lastErr = e;
+      const name = (e as { name?: string })?.name ?? "";
+      const retriable = /Abort|Timeout|Connection|ECONNRESET|socket/i.test(name + " " + (e as Error)?.message);
+      if (!retriable || i === MODEL_TRIES - 1) throw e;
+    }
+  }
+  throw lastErr;
+}
+
 export async function generateJson<T>(opts: {
   system: string;
   userContent: string;
@@ -420,18 +482,9 @@ export async function generateJson<T>(opts: {
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: opts.userContent }];
   let inTok = 0, outTok = 0;
   for (let attempt = 0; attempt < 2; attempt++) {
-    let res: Anthropic.Message;
-    if (opts.onDelta && attempt === 0) {
-      const stream = anthropic.messages.stream({
-        model: WRITER_MODEL, max_tokens: opts.maxTokens, system: opts.system, messages,
-      });
-      stream.on("text", (_delta, snapshot) => opts.onDelta!(snapshot));
-      res = await stream.finalMessage();
-    } else {
-      res = await anthropic.messages.create({
-        model: WRITER_MODEL, max_tokens: opts.maxTokens, system: opts.system, messages,
-      });
-    }
+    const res = await callWriterModel(
+      opts.system, opts.maxTokens, messages, attempt === 0 ? opts.onDelta : undefined,
+    );
     inTok += res.usage.input_tokens; outTok += res.usage.output_tokens;
     const parsed = opts.schema.safeParse(jsonOf(res));
     if (parsed.success) return { data: parsed.data, usage: { input_tokens: inTok, output_tokens: outTok } };
