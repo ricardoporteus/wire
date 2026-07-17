@@ -15,6 +15,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
 import { brandBrains } from "@/db/schema";
 import { brandBrainDraftSchema } from "@/lib/brand-brain.zod";
+import { fence, neutralize, attr } from "@/lib/untrusted";
 import { eq } from "drizzle-orm";
 
 const anthropic = new Anthropic();
@@ -119,22 +120,22 @@ export const draftBrandBrain = inngest.createFunction(
       return { drafted: false, reason: "site_unreachable" };
     }
 
-    /* 2. Assemble fenced, size-capped content */
+    /* 2. Assemble fenced, size-capped content. Page path + text come from the
+       scraped site (untrusted), so sanitize the attribute and neutralize any
+       forged fence tags in the body before embedding. */
     let budget = MAX_TOTAL_CHARS;
     const siteContent = pages
       .map((p) => {
         const slice = p.text.slice(0, Math.max(0, budget));
         budget -= slice.length;
-        return `<page path="${p.path}">\n${slice}\n</page>`;
+        return `<page path="${attr(p.path)}">\n${neutralize(slice)}\n</page>`;
       })
       .join("\n");
 
     const userMessage = [
-      `Site URL: ${siteUrl}`,
+      `Site URL: ${attr(siteUrl)}`,
       `<site_content>\n${siteContent}\n</site_content>`,
-      uploadedDocText
-        ? `<brand_document>\n${uploadedDocText.slice(0, 20_000)}\n</brand_document>`
-        : "",
+      uploadedDocText ? fence("brand_document", uploadedDocText.slice(0, 20_000)) : "",
       "Draft the Brand Brain JSON now.",
     ].join("\n\n");
 

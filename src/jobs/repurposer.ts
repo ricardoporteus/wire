@@ -12,6 +12,7 @@ import { brandBrainSchema, type BrandBrain } from "@/lib/brand-brain.zod";
 import { brandBrains } from "@/db/schema";
 import { debitCredits, recordUsage } from "@/lib/credits";
 import { generateJson, stripEmDashes } from "./content-writer-pipeline";
+import { fence, attr } from "@/lib/untrusted";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -68,7 +69,8 @@ export const repurposeDocument = inngest.createFunction(
         userContent: [
           `Requested kinds and their specs:`,
           ...kinds.map((k) => `- ${k}: ${EXPORT_SPECS[k]}`),
-          `\n<document title="${doc.title}">\n${bodyMarkdown.slice(0, 30_000)}\n</document>`,
+          `\nDocument title: ${attr(doc.title ?? "")}`,
+          fence("document", bodyMarkdown.slice(0, 30_000)),
           `\nProduce the pack.`,
         ].join("\n"),
         schema: packSchema,
