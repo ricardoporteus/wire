@@ -239,9 +239,10 @@ ${brain.voice.personality.map((p) => `- ${p.is}, but not ${p.notBut}`).join("\n"
 PRINCIPLES (non-negotiable):
 ${brain.voice.principles.map((p) => `- ${p}`).join("\n")}
 
-MANDATORY TERMINOLOGY — always the left term, never the right:
-${brain.vocabulary.terminology.map((t) => `- "${t.use}" — never: ${t.never.join(", ")}`).join("\n") || "- (none defined)"}
-${brain.vocabulary.banned.length ? `BANNED WORDS: ${brain.vocabulary.banned.join(", ")}` : ""}
+MANDATORY TERMINOLOGY (absolute — these words must never appear in the title, body, or brief, in any form or casing):
+${brain.vocabulary.terminology.map((t) => `- Use "${t.use}". NEVER write: ${t.never.join(", ")}`).join("\n") || "- (none defined)"}
+${brain.vocabulary.banned.length ? `- BANNED WORDS, never use even once: ${brain.vocabulary.banned.join(", ")}` : ""}
+If you are about to use a banned or "never" word, stop and rephrase. This is a brand-safety rule, not a preference.
 Preferred vocabulary (use naturally, never force): ${[...brain.vocabulary.preferredVerbs, ...brain.vocabulary.preferredNouns, ...brain.vocabulary.preferredAdjectives].slice(0, 40).join(", ") || "—"}
 
 VALUES (reflect at least two, name them in the brief):
@@ -344,11 +345,17 @@ export const generateDocument = inngest.createFunction(
       });
     });
 
-    // Guarantee no em dashes ship, whatever the model did (code, not AI).
-    const title = stripEmDashes(gen.data.title);
-    const body = stripEmDashes(gen.data.bodyMarkdown);
+    // Guarantee no em dashes ship, and no banned/forbidden terminology — the
+    // repair pass rewrites the piece if the lint finds any. Inside a step so the
+    // extra model call is memoized, not re-run on every Inngest replay.
+    const clean = await step.run("enforce-terminology", async () => {
+      const t = stripEmDashes(gen.data.title);
+      const b = stripEmDashes(gen.data.bodyMarkdown);
+      return enforceTerminology(brain, t, b);
+    });
+    const { title, body } = clean;
 
-    /* Deterministic terminology lint — enforcement pass #2, code not AI */
+    /* Final lint of what actually remains, surfaced in the brief for the editor */
     const violations = lintTerminology(body + " " + title, brain);
     // Trust the rendered body for the word count, not the model's self-report.
     const actualWords = countWords(body);
@@ -550,6 +557,38 @@ export function countWords(md: string): number {
     .replace(/[*_>~|]/g, " ");                // emphasis / blockquote / table pipes
   return text.split(/\s+/).filter(Boolean).length;
 }
+/**
+ * Guarantee no banned or forbidden terminology ships. Banned words have no fixed
+ * substitute (they need context-aware rephrasing), so if the deterministic lint
+ * finds any, run one targeted editor pass that rewrites ONLY to remove them, then
+ * return the corrected copy. Brand-safety critical (e.g. "guaranteed" for a lender).
+ * If the repair itself fails, return the original — the violations stay flagged in
+ * the brief, which beats losing the draft.
+ */
+export async function enforceTerminology(
+  brain: BrandBrain, title: string, body: string,
+): Promise<{ title: string; body: string }> {
+  const violations = lintTerminology(body + " " + title, brain);
+  if (!violations.length) return { title, body };
+  const forbidden = [...new Set(violations.map((v) => v.found))];
+  const prefer = brain.vocabulary.terminology
+    .filter((t) => t.never.some((n) => forbidden.map((f) => f.toLowerCase()).includes(n.toLowerCase())))
+    .map((t) => `prefer "${t.use}"`).join("; ");
+  try {
+    const fixed = await generateJson({
+      system: `You are a precise copy editor. Rewrite the piece ONLY to remove these forbidden words/phrases, replacing each with natural, on-brand wording. Change nothing else: keep the structure, length, facts, headings, and voice identical.
+Forbidden (must not appear at all, any casing or form): ${forbidden.join(", ")}${prefer ? `\nWhere relevant, ${prefer}.` : ""}
+Do not use em dashes. Return a single JSON object { "title", "bodyMarkdown" }. No preamble, no fences.`,
+      userContent: `TITLE: ${title}\n\nBODY:\n${body}`,
+      schema: z.object({ title: z.string(), bodyMarkdown: z.string().min(200) }),
+      maxTokens: Math.min(8000, Math.round(countWords(body) * 1.8) + 1200),
+    });
+    return { title: stripEmDashes(fixed.data.title), body: stripEmDashes(fixed.data.bodyMarkdown) };
+  } catch {
+    return { title, body };
+  }
+}
+
 function blobUrl(fileKey: string) { return `${process.env.BLOB_BASE_URL}/${fileKey}`; }
 function costMicros(tin: number, tout: number) {
   // Sonnet 4.6 list pricing — keep in a config table when prices move

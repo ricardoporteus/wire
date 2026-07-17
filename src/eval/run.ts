@@ -17,6 +17,8 @@
  *       npx tsx src/eval/run.ts --threshold=0.9
  */
 import { loadEnvFile } from "node:process";
+import type { BrandBrain } from "../lib/brand-brain.zod";
+import type { EvalTask } from "./tenants";
 try { loadEnvFile(".env.local"); } catch { /* rely on ambient env */ }
 
 const argNum = (flag: string, dflt: number) => {
@@ -38,9 +40,10 @@ async function main() {
   const { z } = await import("zod");
   const anthropic = new Anthropic();
 
+  const tenantArg = process.argv.find((x) => x.startsWith("--tenant="))?.split("=")[1];
   const limit = argNum("tasks", TASKS.length);
   const threshold = argNum("threshold", 0.9);
-  const tasks = TASKS.slice(0, limit);
+  const tasks = TASKS.filter((t) => !tenantArg || t.tenant === tenantArg).slice(0, limit);
 
   const judgeSchema = z.object({
     voice: z.number().int().min(1).max(5),
@@ -74,6 +77,7 @@ async function main() {
 
     let checks: Check[] = [];
     let judge: Judge | null = null;
+    let title = "", body = "";
     try {
       const gen = await pipeline.generateJson({
         system: pipeline.WRITER_SYSTEM(brain, formatRule),
@@ -81,32 +85,37 @@ async function main() {
         schema: pipeline.generationSchema,
         maxTokens,
       });
-      const title = pipeline.stripEmDashes(gen.data.title);
-      const body = pipeline.stripEmDashes(gen.data.bodyMarkdown);
+      // Same post-processing the real pipeline applies before saving.
+      const enforced = await pipeline.enforceTerminology(
+        brain,
+        pipeline.stripEmDashes(gen.data.title),
+        pipeline.stripEmDashes(gen.data.bodyMarkdown),
+      );
+      title = enforced.title;
+      body = enforced.body;
       const brief = gen.data.brief;
       const words = pipeline.countWords(body);
       const intro = body.slice(0, 700).toLowerCase();
       const kw = task.targetKeyword.toLowerCase();
+      const banned = pipeline.lintTerminology(body + " " + title, brain).map((v) => v.found);
 
       checks = [
         { name: "no_em_dashes", pass: !(title + body).includes("—") },
         { name: "word_count", pass: words >= formatRule.minWords * 0.7 && words <= formatRule.maxWords * 1.3, detail: `${words} (want ${formatRule.minWords}–${formatRule.maxWords})` },
-        { name: "no_banned_terms", pass: pipeline.lintTerminology(body + " " + title, brain).length === 0, detail: pipeline.lintTerminology(body + " " + title, brain).map((v) => v.found).join(", ") || undefined },
+        { name: "no_banned_terms", pass: banned.length === 0, detail: banned.join(", ") || undefined },
         { name: "keyword_present", pass: title.toLowerCase().includes(kw) || intro.includes(kw), detail: kw },
         { name: "meta_length", pass: brief.metaDescription.length >= 80 && brief.metaDescription.length <= 180, detail: `${brief.metaDescription.length} chars` },
         { name: "alt_texts", pass: brief.altTexts.length === 3 },
         { name: "values_reflected", pass: brief.valuesReflected.length >= 2 },
       ];
-
-      const jr = await anthropic.messages.create({
-        model: JUDGE_MODEL, max_tokens: 700,
-        system: judgeSystem(brain),
-        messages: [{ role: "user", content: `Judge this ${task.format} for ${brain.name}.\n\nTITLE: ${title}\n\nBODY:\n${body.slice(0, 12000)}\n\nReturn ONLY the JSON verdict.` }],
-      });
-      const raw = jr.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("").replace(/^```json\s*|```\s*$/g, "").trim();
-      judge = judgeSchema.parse(JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)));
     } catch (e) {
       checks = [{ name: "generation", pass: false, detail: (e as Error).message.slice(0, 120) }];
+    }
+
+    // Judge separately (with retry) so a flaky judge response can't sink a good
+    // generation — and give it the source so sourced facts aren't miscalled.
+    if (body) {
+      judge = await runJudge(anthropic, judgeSchema, brain, task, title, body);
     }
 
     const detPass = checks.every((c) => c.pass);
@@ -139,27 +148,56 @@ async function main() {
   process.exit(gate ? 0 : 1);
 }
 
-function judgeSystem(brain: { name: string; whatTheyDo: string; voice: { pillars: { name: string; description: string }[]; personality: { is: string; notBut: string }[] }; vocabulary: { banned: string[]; terminology: { use: string; never: string[] }[] }; approvedFacts?: { fact: string }[] }): string {
+function judgeSystem(brain: BrandBrain): string {
   return `You are a strict content-quality judge for the brand "${brain.name}". Score one generated piece against the brand's standards and return a single JSON object. Be exacting — this is a launch gate.
 
 BRAND: ${brain.name} — ${brain.whatTheyDo}
+DIFFERENTIATOR (brand-authored, so its claims are allowed): ${brain.differentiator ?? "—"}
 VOICE PILLARS: ${brain.voice.pillars.map((p) => `${p.name} (${p.description})`).join("; ")}
 PERSONALITY: ${brain.voice.personality.map((p) => `${p.is}, not ${p.notBut}`).join("; ")}
 BANNED WORDS (must not appear): ${brain.vocabulary.banned.join(", ")}
 MANDATORY TERMINOLOGY: ${brain.vocabulary.terminology.map((t) => `use "${t.use}", never ${t.never.map((n) => `"${n}"`).join("/")}`).join("; ")}
-APPROVED FACTS (the ONLY specific claims allowed about ${brain.name}):
+APPROVED FACTS:
 ${(brain.approvedFacts ?? []).map((f) => `- ${f.fact}`).join("\n") || "- (none)"}
 
 Judge on:
 - voice (1–5): how well it matches the pillars and personality.
 - onBrand: does it read like ${brain.name}, not generic marketing?
-- hallucinationFree: does it state NO specific fact about ${brain.name} beyond the approved facts? Any invented metric, feature, or claim = false.
+- hallucinationFree: does it state any SPECIFIC fact about ${brain.name} — a metric, feature, integration, timeframe, count, or comparison — that is NOT supported by the approved facts, the brand description, the differentiator above, OR the <source_material> provided with the piece? If everything specific traces to one of those, hallucinationFree is TRUE. Only genuinely invented specifics (a number or feature that appears nowhere) make it FALSE.
 - terminologyOk: banned words absent AND mandatory terminology respected?
 - formatFit: does it fit the requested format?
 - verdict: "pass" only if voice ≥ 3 AND onBrand AND hallucinationFree AND terminologyOk AND formatFit.
 - notes: one sentence, the main issue if any.
 
 Return ONLY: {"voice":n,"onBrand":bool,"hallucinationFree":bool,"terminologyOk":bool,"formatFit":bool,"verdict":"pass"|"fail","notes":"..."}`;
+}
+
+type AnthropicClient = InstanceType<(typeof import("@anthropic-ai/sdk"))["default"]>;
+
+/** Run the judge with retries — a flaky judge JSON response should never sink a
+ *  good generation. Returns null only if it fails to produce valid JSON 3 times. */
+async function runJudge(
+  anthropic: AnthropicClient,
+  schema: import("zod").ZodType<Judge>,
+  brain: BrandBrain,
+  task: EvalTask,
+  title: string,
+  body: string,
+): Promise<Judge | null> {
+  const user = `Judge this ${task.format} for ${brain.name}.\n\n<source_material>\n${task.source}\n</source_material>\n\nTITLE: ${title}\n\nBODY:\n${body.slice(0, 12000)}\n\nReturn ONLY the JSON verdict.`;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const jr = await anthropic.messages.create({
+        model: JUDGE_MODEL, max_tokens: 700, system: judgeSystem(brain),
+        messages: [{ role: "user", content: user }],
+      });
+      const raw = jr.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("");
+      const a = raw.indexOf("{"), z = raw.lastIndexOf("}");
+      if (a === -1 || z <= a) continue;
+      return schema.parse(JSON.parse(raw.slice(a, z + 1)));
+    } catch { /* retry */ }
+  }
+  return null;
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
