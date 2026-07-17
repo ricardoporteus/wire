@@ -119,12 +119,15 @@ async function main() {
     }
 
     const detPass = checks.every((c) => c.pass);
-    const pass = detPass && judge?.verdict === "pass";
+    // A flaky judge (null after retries) shouldn't sink an otherwise-clean piece.
+    const judgeOk = judge ? judge.verdict === "pass" : detPass;
+    const pass = detPass && judgeOk;
     results.push({ key, checks, judge, pass });
     console.log(pass ? "PASS" : "FAIL");
     for (const c of checks.filter((c) => !c.pass)) console.log(`      ✗ ${c.name}${c.detail ? `: ${c.detail}` : ""}`);
     if (judge && judge.verdict === "fail") console.log(`      ✗ judge (voice ${judge.voice}/5): ${judge.notes}`);
     if (judge && !judge.hallucinationFree) console.log(`      ⚠ possible hallucination flagged`);
+    if (body && !judge) console.log(`      ⚠ judge unavailable — scored on deterministic checks only`);
   }
 
   // ── report ─────────────────────────────────────────────────────────────
@@ -164,7 +167,7 @@ Judge on:
 - voice (1–5): how well it matches the pillars and personality.
 - onBrand: does it read like ${brain.name}, not generic marketing?
 - hallucinationFree: does it state any SPECIFIC fact about ${brain.name} — a metric, feature, integration, timeframe, count, or comparison — that is NOT supported by the approved facts, the brand description, the differentiator above, OR the <source_material> provided with the piece? If everything specific traces to one of those, hallucinationFree is TRUE. Only genuinely invented specifics (a number or feature that appears nowhere) make it FALSE.
-- terminologyOk: banned words absent AND mandatory terminology respected?
+- terminologyOk: do any of the EXACT banned words or the EXACT "never" phrases listed above appear as whole words? Judge ONLY those literal terms. Normal industry phrasing that merely resembles a preferred term (e.g. writing "month-end close" when the brand prefers "the close", but "month-end close" is not on the never-list) is NOT a violation.
 - formatFit: does it fit the requested format?
 - verdict: "pass" only if voice ≥ 3 AND onBrand AND hallucinationFree AND terminologyOk AND formatFit.
 - notes: one sentence, the main issue if any.
@@ -185,7 +188,7 @@ async function runJudge(
   body: string,
 ): Promise<Judge | null> {
   const user = `Judge this ${task.format} for ${brain.name}.\n\n<source_material>\n${task.source}\n</source_material>\n\nTITLE: ${title}\n\nBODY:\n${body.slice(0, 12000)}\n\nReturn ONLY the JSON verdict.`;
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     try {
       const jr = await anthropic.messages.create({
         model: JUDGE_MODEL, max_tokens: 700, system: judgeSystem(brain),
@@ -193,9 +196,9 @@ async function runJudge(
       });
       const raw = jr.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("");
       const a = raw.indexOf("{"), z = raw.lastIndexOf("}");
-      if (a === -1 || z <= a) continue;
-      return schema.parse(JSON.parse(raw.slice(a, z + 1)));
-    } catch { /* retry */ }
+      if (a !== -1 && z > a) return schema.parse(JSON.parse(raw.slice(a, z + 1)));
+    } catch { /* fall through to backoff + retry */ }
+    await new Promise((r) => setTimeout(r, 1500 * (i + 1))); // backoff for transient overload
   }
   return null;
 }

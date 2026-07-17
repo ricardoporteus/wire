@@ -415,7 +415,17 @@ export function lintTerminology(text: string, brain: BrandBrain) {
   }
   for (const banned of brain.vocabulary.banned) {
     const needle = banned.toLowerCase();
-    if (haystack.includes(needle)) violations.push({ found: banned, useInstead: "(remove)", index: haystack.indexOf(needle) });
+    let i = haystack.indexOf(needle);
+    while (i !== -1) {
+      // whole-word match so "cure" doesn't fire inside "secure"/"procure"/"cured"
+      const before = haystack[i - 1] ?? " ";
+      const after = haystack[i + needle.length] ?? " ";
+      if (!/[a-z0-9]/.test(before) && !/[a-z0-9]/.test(after)) {
+        violations.push({ found: banned, useInstead: "(remove)", index: i });
+        break; // one report per banned word is enough
+      }
+      i = haystack.indexOf(needle, i + needle.length);
+    }
   }
   return violations;
 }
