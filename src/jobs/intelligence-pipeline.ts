@@ -11,8 +11,9 @@
  *
  * Credit charge: 100 (INTELLIGENCE_RUN_CREDITS), debited up front in a
  * transaction that refuses to start the run on insufficient balance.
- * Model: Opus 4.8 for research stages (the agentic loop that earned the
- * premium in the bake-off); swap to claude-fable-5 per-stage to A/B.
+ * Model: Haiku 4.5 for research stages (COST KNOB #1, keeps runs under $1).
+ * Stage outputs are parsed leniently (prose salvage + enum/number coercion) so
+ * model slips coerce to valid data instead of triggering slow self-repair loops.
  */
 
 import { inngest } from "@/lib/inngest";
@@ -158,14 +159,17 @@ async function researchStage<T>(opts: {
     if (res.stop_reason !== "tool_use") {
       const text = res.content
         .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text).join("")
-        .replace(/^```json\s*|```\s*$/g, "").trim();
-      let parsed = opts.schema.safeParse(safeJson(text));
+        .map((b) => b.text).join("");
+      const parsed = opts.schema.safeParse(parseJson(text));
       if (!parsed.success) {
-        // one self-repair pass
+        // Repair pass — only reached now if the response was not parseable JSON,
+        // since the schemas coerce enum/number/optional slips rather than fail.
         await emit(opts.runId, opts.stageKey, "refine", "Refining the output to fit the schema");
         messages.push({ role: "assistant", content: res.content });
-        messages.push({ role: "user", content: `That output failed validation: ${parsed.error.message.slice(0, 600)}. Emit corrected JSON only.` });
+        messages.push({
+          role: "user",
+          content: `Your previous message did not validate: ${parsed.error.message.slice(0, 500)}. Reply with ONLY a single valid JSON object matching the schema — no prose, no markdown fences. Include every required field, use exact allowed values, and omit any optional field you cannot fill (never use null).`,
+        });
         continue;
       }
       await emit(opts.runId, opts.stageKey, "synthesize", "Structured the findings");
@@ -177,11 +181,43 @@ async function researchStage<T>(opts: {
   throw new Error("Stage exceeded search budget without producing valid JSON");
 }
 
+/* ---------------------- lenient parsing + schema helpers ------------------- */
+
+/** Parse model JSON tolerantly: strip fences, then salvage the outermost object.
+ *  Returns null (never throws) so only genuinely non-JSON routes to a repair pass. */
+export function parseJson(text: string): unknown {
+  const clean = text.replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
+  const tryParse = (s: string): unknown => { try { return JSON.parse(s); } catch { return undefined; } };
+  const direct = tryParse(clean);
+  if (direct !== undefined) return direct;
+  const a = clean.indexOf("{"), b = clean.lastIndexOf("}");
+  if (a !== -1 && b > a) { const s = tryParse(clean.slice(a, b + 1)); if (s !== undefined) return s; }
+  return null;
+}
+
+/** Enum that never fails: normalizes casing/spacing and falls back on anything
+ *  unknown, so an enum slip (e.g. "How-To", "Medium") coerces instead of looping. */
+function looseEnum<V extends string>(values: readonly V[], fallback: V) {
+  const set = new Set<string>(values);
+  return z.any().transform((v): V => {
+    const s = String(v ?? "").toLowerCase().replace(/[\s-]+/g, "_").trim();
+    return set.has(s) ? (s as V) : fallback;
+  });
+}
+
+/** Priority 1–3 that never fails: coerce a string/number, clamp, default to 2. */
+const loosePriority = z.any().transform((v) => {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) ? Math.min(3, Math.max(1, n)) : 2;
+});
+
 /* ------------------------------ stage schemas ------------------------------ */
 
-const keywordStage = z.object({
-  highIntent: z.array(z.object({ phrase: z.string(), intent: z.string(), difficulty: z.enum(["high", "medium", "low"]), priority: z.number().int().min(1).max(3), rationale: z.string() })),
-  informational: z.array(z.object({ phrase: z.string(), intent: z.string(), difficulty: z.enum(["high", "medium", "low"]), priority: z.number().int().min(1).max(3), rationale: z.string() })),
+const DIFFICULTY = looseEnum(["high", "medium", "low"] as const, "medium");
+
+export const keywordStage = z.object({
+  highIntent: z.array(z.object({ phrase: z.string(), intent: z.string(), difficulty: DIFFICULTY, priority: loosePriority, rationale: z.string() })),
+  informational: z.array(z.object({ phrase: z.string(), intent: z.string(), difficulty: DIFFICULTY, priority: loosePriority, rationale: z.string() })),
   longTail: z.array(z.object({ phrase: z.string(), rationale: z.string() })),
 });
 
@@ -198,9 +234,9 @@ const gapStage = z.object({
   gaps: z.array(z.object({ topic: z.string(), whyItMatters: z.string(), suggestedAngle: z.string() })),
 });
 
-const aeoStage = z.object({
+export const aeoStage = z.object({
   peopleAlsoAsk: z.array(z.object({ question: z.string(), angle: z.string() })),
-  featuredSnippets: z.array(z.object({ question: z.string(), format: z.enum(["paragraph", "list", "table"]) })),
+  featuredSnippets: z.array(z.object({ question: z.string(), format: looseEnum(["paragraph", "list", "table"] as const, "paragraph") })),
 });
 
 const trendStage = z.object({
@@ -208,14 +244,16 @@ const trendStage = z.object({
   bestPractices: z.array(z.string()),
 });
 
-const ideasStage = z.object({
+export const ideasStage = z.object({
+  // .min(1): accept whatever the model returns rather than failing on 7 or 13;
+  // the model is still asked for 8–12 in the prompt.
   ideas: z.array(z.object({
     title: z.string(),
-    format: z.enum(["article", "listicle", "how_to", "lesson", "tutorial", "testimonial", "faq_page"]),
+    format: looseEnum(["article", "listicle", "how_to", "lesson", "tutorial", "testimonial", "faq_page"] as const, "article"),
     targetKeyword: z.string(),
-    targetAeoQuestion: z.string().optional(),
+    targetAeoQuestion: z.string().nullish(),
     whyNow: z.string(),
-  })).min(8).max(12),
+  })).min(1),
 });
 
 /* --------------------------------- the run -------------------------------- */
@@ -428,9 +466,6 @@ export const scheduleMonthlyRuns = inngest.createFunction(
 );
 
 class NonRetriable extends Error {}
-function safeJson(text: string): unknown {
-  try { return JSON.parse(text); } catch { return null; }
-}
 
 /**
  * Keep exactly one rolling ephemeral cache breakpoint on the most recent message.
