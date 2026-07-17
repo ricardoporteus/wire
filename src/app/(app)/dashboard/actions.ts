@@ -11,6 +11,7 @@ import { and, asc, count, desc, eq, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { inngest } from "@/lib/inngest";
 import { CREDIT_COSTS } from "@/lib/credits";
+import { limit } from "@/lib/rate-limit";
 import {
   contentIdeas, brandBrains, organizations, intelligenceRuns, documents, sources, keywords, runEvents,
 } from "@/db/schema";
@@ -90,9 +91,9 @@ export async function getRunStatus(runId: string, sinceSeq = 0): Promise<RunProg
  */
 export async function rerunIntelligence(): Promise<
   | { ok: true; runId: string }
-  | { ok: false; error: "insufficient_credits" | "already_running" | "not_ready"; runId?: string }
+  | { ok: false; error: "insufficient_credits" | "already_running" | "not_ready" | "rate_limited"; runId?: string; retryAfterSec?: number }
 > {
-  const { clerkOrgId } = await callerOrgId();
+  const { clerkOrgId, userId } = await callerOrgId();
   const org = await db.query.organizations.findFirst({ where: eq(organizations.clerkOrgId, clerkOrgId) });
   if (!org) throw new Error("no_active_org");
   const brain = await db.query.brandBrains.findFirst({ where: eq(brandBrains.orgId, org.id) });
@@ -106,6 +107,14 @@ export async function rerunIntelligence(): Promise<
   if (latest && RUNNING_STATES.has(latest.status)) {
     return { ok: false, error: "already_running", runId: latest.id };
   }
+
+  // Rate limit: per-org (burst) and per-user (trial-abuse across orgs). A run is
+  // ~$2.51 of real spend and a new org gets a free trial run, so both matter.
+  const [orgRl, userRl] = await Promise.all([limit("intel_org", org.id), limit("intel_user", userId)]);
+  if (!orgRl.ok || !userRl.ok) {
+    return { ok: false, error: "rate_limited", retryAfterSec: Math.max(orgRl.retryAfterSec, userRl.retryAfterSec) };
+  }
+
   if (org.creditsBalance < CREDIT_COSTS.intelligence_run) {
     return { ok: false, error: "insufficient_credits" };
   }

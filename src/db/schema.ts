@@ -308,3 +308,16 @@ export const usageLedger = pgTable("usage_ledger", {
  *   intelligence_run        100
  * Plan grants: launch 500 / growth 1400 / scale 4000 per month.
  */
+
+/* ------------------------------ rate limits ------------------------------- */
+/**
+ * Fixed-window rate-limit counters. One row per (scope, id, action) key, e.g.
+ * "org:<uuid>:generate" or "user:<clerkUserId>:intel". Abuse/cost protection on
+ * the expensive actions (credits cap total spend per org, but not the rate, and
+ * not free trial-run abuse via mass org creation — the per-user keys cover that).
+ */
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull().default(0),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull().defaultNow(),
+});

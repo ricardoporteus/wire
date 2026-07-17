@@ -18,6 +18,7 @@ import { db } from "@/lib/db";
 import { requireOrg } from "@/lib/org";
 import { inngest } from "@/lib/inngest";
 import { PLAN_GRANTS } from "@/lib/credits";
+import { limit } from "@/lib/rate-limit";
 import {
   brandBrains, organizations, intelligenceRuns, usageLedger,
 } from "@/db/schema";
@@ -173,6 +174,12 @@ export async function approveBrain(brainId: string) {
     where: and(eq(usageLedger.orgId, org.id), eq(usageLedger.reason, "plan_grant")),
   });
 
+  // Trial-abuse guard: cap free intelligence runs per user across all their orgs
+  // (a run is ~$2.51 of real spend and each new org grants a free one). If the
+  // user is over the daily cap we still finish onboarding, just don't fire the
+  // run — the workspace is ready and they can start one when the window resets.
+  const { userId } = await auth();
+  const runAllowed = userId ? (await limit("intel_user", userId)).ok : true;
   const runId = randomUUID();
 
   await db.transaction(async (tx) => {
@@ -190,10 +197,16 @@ export async function approveBrain(brainId: string) {
         .where(eq(organizations.id, org.id));
     }
 
-    await tx.insert(intelligenceRuns).values({
-      id: runId, brainId, trigger: "onboarding", status: "queued",
-    });
+    if (runAllowed) {
+      await tx.insert(intelligenceRuns).values({
+        id: runId, brainId, trigger: "onboarding", status: "queued",
+      });
+    }
   });
+
+  if (!runAllowed) {
+    return { ok: true as const, runId: null, rateLimited: true as const };
+  }
 
   await inngest.send({
     name: "wire/intelligence.run.requested",

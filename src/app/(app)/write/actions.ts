@@ -13,10 +13,13 @@ import { documents, sources, brandBrains, organizations, exports as exportsTable
 import { inngest } from "@/lib/inngest";
 import { requireOrg } from "@/lib/org";
 import { CREDIT_COSTS } from "@/lib/credits";
+import { limit, type RateLimitResult } from "@/lib/rate-limit";
 import { fetchArticleText } from "@/jobs/content-writer-pipeline";
 
 /** Sentinel the UI recognizes to show the upgrade prompt. */
 const NO_CREDITS = "insufficient_credits" as const;
+
+const rateMsg = (r: RateLimitResult) => `Too many requests — please wait about ${r.retryAfterSec}s and try again.`;
 
 async function ownedDoc(documentId: string) {
   const { orgId: clerkOrgId } = await auth();
@@ -129,6 +132,8 @@ export async function confirmAndGenerate(documentId: string, useAlternative = fa
   const { doc, org } = await ownedDoc(documentId);
   if (!doc.diagnosis) return { ok: false as const, error: "Not diagnosed yet." };
   if (org.creditsBalance < CREDIT_COSTS.generation) return { ok: false as const, error: NO_CREDITS };
+  const genRl = await limit("generate_org", org.id);
+  if (!genRl.ok) return { ok: false as const, error: rateMsg(genRl) };
 
   if (useAlternative && doc.diagnosis.alternative) {
     const alt = doc.diagnosis.alternative;
@@ -148,6 +153,8 @@ export async function regenerate(documentId: string, editorNote: string) {
   const { doc, org } = await ownedDoc(documentId);
   if (!doc.diagnosis) return { ok: false as const, error: "Nothing to regenerate yet." };
   if (org.creditsBalance < CREDIT_COSTS.regeneration) return { ok: false as const, error: NO_CREDITS };
+  const regenRl = await limit("generate_org", org.id);
+  if (!regenRl.ok) return { ok: false as const, error: rateMsg(regenRl) };
   await inngest.send({
     name: "wire/document.generate.requested",
     data: { documentId, orgId: org.id, regeneration: true, editorNote: editorNote.slice(0, 2000) },
@@ -161,6 +168,8 @@ export async function createRepurposePack(documentId: string, kinds: string[]) {
   if (!doc.bodyMarkdown) return { ok: false as const, error: "Generate the piece first." };
   if (!kinds.length) return { ok: false as const, error: "Pick at least one format." };
   if (org.creditsBalance < CREDIT_COSTS.repurpose) return { ok: false as const, error: NO_CREDITS };
+  const repRl = await limit("repurpose_org", org.id);
+  if (!repRl.ok) return { ok: false as const, error: rateMsg(repRl) };
   await inngest.send({
     name: "wire/document.repurpose.requested",
     data: { documentId, orgId: org.id, kinds },

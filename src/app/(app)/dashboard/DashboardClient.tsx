@@ -52,7 +52,8 @@ export function DashboardClient({
   const [rerunning, startRerun] = useTransition();
   // Optimistically show progress the instant a run starts, before the next fetch.
   const [started, setStarted] = useState<{ runId: string; at: string } | null>(null);
-  const [rerunErr, setRerunErr] = useState<"insufficient_credits" | "other" | null>(null);
+  // "insufficient_credits" shows the upgrade notice; any other string is shown as-is.
+  const [rerunErr, setRerunErr] = useState<string | null>(null);
 
   const serverRunning = !!runStatus && RUNNING.has(runStatus);
   // Effective progress source: an optimistic just-started run wins over the server snapshot.
@@ -70,8 +71,10 @@ export function DashboardClient({
         setStarted({ runId: res.runId!, at: new Date().toISOString() });
       } else if (res.error === "insufficient_credits") {
         setRerunErr("insufficient_credits");
+      } else if (res.error === "rate_limited") {
+        setRerunErr(`Too many runs right now — try again in about ${res.retryAfterSec ?? 60}s.`);
       } else {
-        setRerunErr("other");
+        setRerunErr("Couldn't start a run — finish onboarding first, then try again.");
       }
     });
 
@@ -106,10 +109,9 @@ export function DashboardClient({
         </div>
       </div>
 
-      {rerunErr === "insufficient_credits" && <UpgradeNotice className="mt-4" />}
-      {rerunErr === "other" && (
-        <p className="mt-4 text-body-sm text-negative">Couldn&apos;t start a run — finish onboarding first, then try again.</p>
-      )}
+      {rerunErr === "insufficient_credits"
+        ? <UpgradeNotice className="mt-4" />
+        : rerunErr && <p className="mt-4 text-body-sm text-negative">{rerunErr}</p>}
 
       {/* Live, itemized run progress (optimistic on start, else the server snapshot) */}
       {progress && (
