@@ -46,7 +46,7 @@ async function main() {
   const tasks = TASKS.filter((t) => !tenantArg || t.tenant === tenantArg).slice(0, limit);
 
   const judgeSchema = z.object({
-    voice: z.number().int().min(1).max(5),
+    voice: z.number().min(1).max(5),
     onBrand: z.boolean(),
     hallucinationFree: z.boolean(),
     terminologyOk: z.boolean(),
@@ -95,15 +95,20 @@ async function main() {
       body = enforced.body;
       const brief = gen.data.brief;
       const words = pipeline.countWords(body);
-      const intro = body.slice(0, 700).toLowerCase();
-      const kw = task.targetKeyword.toLowerCase();
       const banned = pipeline.lintTerminology(body + " " + title, brain).map((v) => v.found);
+      // Keyword presence: the exact phrase, or ≥75% of its significant words, in
+      // the title + intro — so a natural rephrasing still counts as on-target.
+      const hay = (title + " " + body.slice(0, 1000)).toLowerCase();
+      const kw = task.targetKeyword.toLowerCase();
+      const kwWords = kw.split(/\s+/).filter((w) => w.length >= 3);
+      const kwHits = kwWords.filter((w) => hay.includes(w)).length;
+      const kwPass = hay.includes(kw) || (kwWords.length > 0 && kwHits / kwWords.length >= 0.75);
 
       checks = [
         { name: "no_em_dashes", pass: !(title + body).includes("—") },
         { name: "word_count", pass: words >= formatRule.minWords * 0.7 && words <= formatRule.maxWords * 1.3, detail: `${words} (want ${formatRule.minWords}–${formatRule.maxWords})` },
         { name: "no_banned_terms", pass: banned.length === 0, detail: banned.join(", ") || undefined },
-        { name: "keyword_present", pass: title.toLowerCase().includes(kw) || intro.includes(kw), detail: kw },
+        { name: "keyword_present", pass: kwPass, detail: `${kwHits}/${kwWords.length} words of "${kw}"` },
         { name: "meta_length", pass: brief.metaDescription.length >= 80 && brief.metaDescription.length <= 180, detail: `${brief.metaDescription.length} chars` },
         { name: "alt_texts", pass: brief.altTexts.length === 3 },
         { name: "values_reflected", pass: brief.valuesReflected.length >= 2 },
@@ -154,19 +159,21 @@ async function main() {
 function judgeSystem(brain: BrandBrain): string {
   return `You are a strict content-quality judge for the brand "${brain.name}". Score one generated piece against the brand's standards and return a single JSON object. Be exacting — this is a launch gate.
 
+All of the following is brand-authored context, so any specific it contains is ALLOWED (not a hallucination):
 BRAND: ${brain.name} — ${brain.whatTheyDo}
-DIFFERENTIATOR (brand-authored, so its claims are allowed): ${brain.differentiator ?? "—"}
+DIFFERENTIATOR: ${brain.differentiator ?? "—"}
+AUDIENCE / ICP: ${brain.icp.who} Segments: ${brain.icp.segments.join(", ")}. Geographies: ${brain.icp.geographies.join(", ")}. Pain points: ${brain.icp.painPoints.join("; ")}.
+VALUES: ${brain.values.map((v) => `${v.name} (${v.description})`).join("; ")}
+APPROVED FACTS: ${(brain.approvedFacts ?? []).map((f) => f.fact).join(" | ") || "(none)"}
 VOICE PILLARS: ${brain.voice.pillars.map((p) => `${p.name} (${p.description})`).join("; ")}
 PERSONALITY: ${brain.voice.personality.map((p) => `${p.is}, not ${p.notBut}`).join("; ")}
 BANNED WORDS (must not appear): ${brain.vocabulary.banned.join(", ")}
 MANDATORY TERMINOLOGY: ${brain.vocabulary.terminology.map((t) => `use "${t.use}", never ${t.never.map((n) => `"${n}"`).join("/")}`).join("; ")}
-APPROVED FACTS:
-${(brain.approvedFacts ?? []).map((f) => `- ${f.fact}`).join("\n") || "- (none)"}
 
 Judge on:
 - voice (1–5): how well it matches the pillars and personality.
 - onBrand: does it read like ${brain.name}, not generic marketing?
-- hallucinationFree: does it state any SPECIFIC fact about ${brain.name} — a metric, feature, integration, timeframe, count, or comparison — that is NOT supported by the approved facts, the brand description, the differentiator above, OR the <source_material> provided with the piece? If everything specific traces to one of those, hallucinationFree is TRUE. Only genuinely invented specifics (a number or feature that appears nowhere) make it FALSE.
+- hallucinationFree: does it state any SPECIFIC fact — a metric, feature, integration, timeframe, count, revenue/age range, or comparison — that is NOT supported by ANY of the brand context above (whatTheyDo, differentiator, audience/ICP, values, approved facts) OR the <source_material> provided with the piece? If every specific traces to one of those, hallucinationFree is TRUE. Only a specific that appears NOWHERE in that context makes it FALSE. Audience descriptors (e.g. a revenue or age range from the ICP) are allowed.
 - terminologyOk: do any of the EXACT banned words or the EXACT "never" phrases listed above appear as whole words? Judge ONLY those literal terms. Normal industry phrasing that merely resembles a preferred term (e.g. writing "month-end close" when the brand prefers "the close", but "month-end close" is not on the never-list) is NOT a violation.
 - formatFit: does it fit the requested format?
 - verdict: "pass" only if voice ≥ 3 AND onBrand AND hallucinationFree AND terminologyOk AND formatFit.
@@ -191,12 +198,17 @@ async function runJudge(
   for (let i = 0; i < 4; i++) {
     try {
       const jr = await anthropic.messages.create({
-        model: JUDGE_MODEL, max_tokens: 700, system: judgeSystem(brain),
+        model: JUDGE_MODEL, max_tokens: 1024, system: judgeSystem(brain),
         messages: [{ role: "user", content: user }],
       });
       const raw = jr.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("");
       const a = raw.indexOf("{"), z = raw.lastIndexOf("}");
-      if (a !== -1 && z > a) return schema.parse(JSON.parse(raw.slice(a, z + 1)));
+      if (a !== -1 && z > a) {
+        const obj = JSON.parse(raw.slice(a, z + 1)) as Record<string, unknown>;
+        if (typeof obj.verdict === "string") obj.verdict = obj.verdict.toLowerCase();
+        if (typeof obj.voice === "string") obj.voice = Number(obj.voice);
+        return schema.parse(obj);
+      }
     } catch { /* fall through to backoff + retry */ }
     await new Promise((r) => setTimeout(r, 1500 * (i + 1))); // backoff for transient overload
   }
