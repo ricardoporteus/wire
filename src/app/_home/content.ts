@@ -68,6 +68,29 @@ export const HERO = {
 };
 
 /**
+ * Hero feed panel. Representative lines, not a recording, but every shape here is
+ * one the real run feed emits: search issued, source read, stage complete with
+ * counts, refinement pass.
+ */
+export const FEED = {
+  title: "Intelligence run",
+  status: "live",
+  meta: "Stage 4 of 6 · 18 sources read",
+  lines: [
+    { t: "search", s: "Searching: competitor content velocity" },
+    { t: "source", s: "Read: competitor blog, 42 posts indexed" },
+    { t: "ok", s: "Competitor stage complete: 5 profiled" },
+    { t: "search", s: "Searching: People Also Ask, activation metrics" },
+    { t: "ok", s: "AEO stage complete: 18 questions, 6 snippet targets" },
+    { t: "refine", s: "Refining: tightening idea titles to target keywords" },
+    { t: "search", s: "Searching: \"B2B onboarding benchmarks 2026\"" },
+    { t: "source", s: "Read: Forrester, State of B2B Onboarding" },
+    { t: "ok", s: "Keyword stage complete: 34 phrases, 11 high-intent" },
+    { t: "ok", s: "Ideas ranked: 12 briefs queued" },
+  ],
+};
+
+/**
  * Replaces the template's customer logo wall. Wire has no customers to name yet,
  * so this states what a sweep contains instead of implying social proof.
  */

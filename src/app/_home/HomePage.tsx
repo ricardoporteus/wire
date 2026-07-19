@@ -20,6 +20,7 @@ import {
   PRICING, STATS, CHANNELS, CTA, FOOTER,
 } from "./content";
 import { FeatureTabs, PricingToggle, Stats } from "./Interactive";
+import { FeedPanel } from "./FeedPanel";
 
 export function HomePage({ appUrl }: { appUrl: string }) {
   const app = `${appUrl}/dashboard`;
@@ -93,15 +94,12 @@ export function HomePage({ appUrl }: { appUrl: string }) {
             </div>
           </div>
 
-          {/* Layered product art. Decorative, hence empty alt throughout. */}
-          <div className="relative mx-auto h-[420px] w-full max-w-[560px] lg:h-[500px]">
-            <Image src={ASSETS.heroSearch} alt="" width={520} height={110} className="absolute right-0 top-0 w-[78%] rounded-md shadow-card" priority />
-            <Image src={ASSETS.heroMail} alt="" width={520} height={430} className="absolute right-0 top-[110px] w-[78%] rounded-md shadow-card" priority />
-            <Image src={ASSETS.heroContact} alt="" width={420} height={150} className="absolute right-[6%] top-[210px] w-[68%] rounded-md shadow-card" />
-            {/* The template floated Notion and Gmail marks here. Removed: Wire has
-                no such integrations, so the logos would have implied a lie. */}
-            <Image src={ASSETS.arrowDown} alt="" width={60} height={90} className="absolute left-[12%] top-[130px] hidden h-16 w-auto opacity-80 md:block" />
-            <Image src={ASSETS.arrowCurve} alt="" width={90} height={70} className="absolute bottom-[6%] left-[4%] hidden h-14 w-auto opacity-80 md:block" />
+          {/* The live run feed, replacing the template's email-app composite: it
+              shows Wire's actual product rather than a stock screenshot. The
+              template's doodle arrows are gone; against a single clean card they
+              read as artefacts rather than decoration. */}
+          <div className="mx-auto w-full max-w-[560px]">
+            <FeedPanel />
           </div>
         </section>
       </div>
