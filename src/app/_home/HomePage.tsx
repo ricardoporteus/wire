@@ -151,7 +151,11 @@ export function HomePage({ appUrl }: { appUrl: string }) {
           {TOOLS.cards.map((c, i) => (
             <a key={c.title} href={app} className="group relative block overflow-hidden rounded-lg">
               <Image src={c.img} alt="" width={640} height={760} sizes="(max-width: 768px) 94vw, 384px" className="h-[420px] w-full object-cover transition duration-500 group-hover:scale-105" />
-              <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/15 to-black/50" />
+              {/* Scrim, not decoration: the title and CTA are white text sitting on
+                  arbitrary photography, so the gradient has to guarantee contrast
+                  even where the image behind it is bright. axe cannot compute a
+                  ratio through a gradient, so this errs dark on purpose. */}
+              <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/40 to-black/70" />
               <span className="absolute left-7 top-7 flex h-9 w-9 items-center justify-center rounded-pill bg-lime font-display font-semibold text-ink-green">
                 {i + 1}
               </span>

@@ -98,6 +98,8 @@ function Marketing() {
     <div className="bg-bg">
       <SiteHeader />
 
+      {/* header / main / footer as sibling landmarks, matching the live homepage. */}
+      <main>
       {/* ---- Hero ---------------------------------------------------------- */}
       <section className="mx-auto max-w-6xl px-6 pt-16 pb-section-sm md:pt-24">
         <div className="grid items-center gap-12 md:grid-cols-2">
@@ -302,6 +304,7 @@ function Marketing() {
         </p>
         <a href={`${APP}/dashboard`} className="btn-primary mt-8">Start free →</a>
       </section>
+      </main>
 
       <SiteFooter />
     </div>
