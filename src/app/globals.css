@@ -26,6 +26,14 @@
   --color-accent-strong: #0099FF; /* links, focus rings, small emphasis (template-native) */
   --color-accent-tint:   #EAF5FF; /* washes, hover fills, selected rows */
 
+  /* ---- Color: SyncMaster marketing palette ------------------------------ */
+  /* The template's native chartreuse, used by the marketing homepage only. The
+     app keeps the sky accent above; these are additive so nothing in-product
+     changes colour. */
+  --color-lime:      #DBFE7A;   /* primary CTA fill, dark ink sits on it */
+  --color-lime-soft: #E8FF9E;   /* hover */
+  --color-hero:      #102D23;   /* dark hero / footer field (= ink-green) */
+
   /* ---- Color: support ---------------------------------------------------- */
   --color-cream:     #FFECD3;   /* secondary highlight fill (eyebrows, callouts) */
   --color-positive:  #60D184;   /* success */
