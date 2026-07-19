@@ -47,6 +47,7 @@ export function FeatureTabs() {
             alt=""
             width={620}
             height={420}
+            sizes="(max-width: 768px) 94vw, 560px"
             className="w-full rounded-md shadow-card"
           />
 
@@ -218,6 +219,7 @@ function StatRow({ stat, flip }: { stat: (typeof STATS.items)[number]; flip: boo
           alt=""
           width={900}
           height={520}
+          sizes="(max-width: 768px) 94vw, 560px"
           className="h-[300px] w-full rounded-lg object-cover md:h-[390px]"
         />
       </div>

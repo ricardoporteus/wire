@@ -4,17 +4,13 @@
  * throws NonRetriableCreditError on insufficient balance so Inngest fails the
  * job cleanly instead of retrying into the same wall.
  *
- * Price list (application constants — keep in sync with plan copy):
+ * The price list itself lives in lib/credit-costs, which imports nothing, so
+ * client components can quote the numbers without pulling Drizzle and the Neon
+ * driver into the browser bundle. Re-exported here so existing server callers
+ * keep working unchanged.
  */
-export const CREDIT_COSTS = {
-  intelligence_run: 100,
-  diagnosis: 1,
-  generation: 20,
-  regeneration: 2,
-  repurpose: 5, // one export pack (all requested kinds for one document)
-} as const;
-
-export const PLAN_GRANTS = { launch: 500, growth: 1400, scale: 4000, trial: 150 } as const;
+export { CREDIT_COSTS, PLAN_GRANTS } from "@/lib/credit-costs";
+import { CREDIT_COSTS } from "@/lib/credit-costs";
 
 import { db } from "@/lib/db";
 import { organizations, usageLedger } from "@/db/schema";

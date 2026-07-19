@@ -4,6 +4,7 @@
  * Server-fetches the run's structured output; the client shell handles intent
  * tabs, live run polling, and the "Write this" handoff to the writer flow.
  */
+import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -19,17 +20,11 @@ export default async function DashboardPage() {
   });
   if (!org) return <main className="p-10 text-muted">Setting up your workspace…</main>;
 
+  // "/" on the app host now redirects straight here, so this carries the guard
+  // that used to live in the root page: a Brand Brain that exists but has not
+  // finished the wizard means the wizard, not a half-populated dashboard.
   const brain = await db.query.brandBrains.findFirst({ where: eq(brandBrains.orgId, org.id) });
-  if (!brain) {
-    return (
-      <main className="mx-auto max-w-5xl px-6 py-12">
-        <span className="eyebrow">Wire</span>
-        <h1 className="mt-4 text-h2 text-ink-green">This month&apos;s opportunities</h1>
-        <p className="mt-2 text-muted">Finish onboarding to build your Brand Brain and fire your first run.</p>
-        <a href="/onboarding" className="btn-accent mt-6 inline-block">Start onboarding →</a>
-      </main>
-    );
-  }
+  if (!brain?.wizardCompletedAt) redirect("/onboarding");
 
   const run = await db.query.intelligenceRuns.findFirst({
     where: eq(intelligenceRuns.brainId, brain.id),

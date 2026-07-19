@@ -25,6 +25,9 @@
   --color-accent:        #A9DBFF; /* light sky fill — pills, tabs, highlights; dark ink sits on it */
   --color-accent-strong: #0099FF; /* links, focus rings, small emphasis (template-native) */
   --color-accent-tint:   #EAF5FF; /* washes, hover fills, selected rows */
+  /* Accessible accent for small text: accent-strong on white is only 3.1:1 and
+     fails WCAG AA. This is the same blue already used by badge--opportunity. */
+  --color-accent-ink:    #0B66A8;
 
   /* ---- Color: SyncMaster marketing palette ------------------------------ */
   /* The template's native chartreuse, used by the marketing homepage only. The

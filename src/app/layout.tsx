@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
 import { Figtree, Inter } from "next/font/google";
 import "./globals.css";
 
@@ -18,12 +17,15 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
+/**
+ * ClerkProvider deliberately does not live here. It wraps the (app) route group
+ * instead, so the marketing homepage and the legal pages ship no Clerk
+ * JavaScript: they are public and have nothing to authenticate.
+ */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider>
-      <html lang="en" className={`${figtree.variable} ${inter.variable}`}>
-        <body>{children}</body>
-      </html>
-    </ClerkProvider>
+    <html lang="en" className={`${figtree.variable} ${inter.variable}`}>
+      <body>{children}</body>
+    </html>
   );
 }

@@ -16,7 +16,9 @@
  * (stock photography and email-app screenshots). They are placeholders and need
  * replacing with real Wire product shots before launch.
  */
-import { CREDIT_COSTS, PLAN_GRANTS } from "@/lib/credits";
+// From lib/credit-costs, not lib/credits: the latter imports Drizzle and the
+// Neon driver, and this file is reached from a client component.
+import { CREDIT_COSTS, PLAN_GRANTS } from "@/lib/credit-costs";
 
 const IMG = "/syncmaster";
 

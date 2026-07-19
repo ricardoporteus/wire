@@ -113,7 +113,7 @@ export function HomePage({ appUrl }: { appUrl: string }) {
               key={s}
               className="inline-flex items-center gap-2 rounded-pill border border-line bg-card px-5 py-2.5 text-body-sm text-ink-green"
             >
-              <span className="font-display text-caption font-semibold text-accent-strong">
+              <span className="font-display text-caption font-semibold text-accent-ink">
                 {String(i + 1).padStart(2, "0")}
               </span>
               {s}
@@ -143,7 +143,7 @@ export function HomePage({ appUrl }: { appUrl: string }) {
         <div className="mt-12 grid gap-6 md:grid-cols-3">
           {TOOLS.cards.map((c, i) => (
             <a key={c.title} href={app} className="group relative block overflow-hidden rounded-lg">
-              <Image src={c.img} alt="" width={640} height={760} className="h-[420px] w-full object-cover transition duration-500 group-hover:scale-105" />
+              <Image src={c.img} alt="" width={640} height={760} sizes="(max-width: 768px) 94vw, 384px" className="h-[420px] w-full object-cover transition duration-500 group-hover:scale-105" />
               <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/15 to-black/50" />
               <span className="absolute left-7 top-7 flex h-9 w-9 items-center justify-center rounded-pill bg-lime font-display font-semibold text-ink-green">
                 {i + 1}
@@ -163,8 +163,8 @@ export function HomePage({ appUrl }: { appUrl: string }) {
           <div className="grid items-center gap-12 rounded-lg bg-bg-alt p-8 md:grid-cols-2 md:p-14">
             <div className={s.flip ? "md:order-2" : ""}>
               <div className="relative">
-                <Image src={s.img} alt="" width={620} height={420} className="w-full rounded-md shadow-card" />
-                <Image src={s.imgAlt} alt="" width={300} height={130} className="absolute -bottom-6 -right-4 w-[52%] rounded-md shadow-card" />
+                <Image src={s.img} alt="" width={620} height={420} sizes="(max-width: 768px) 94vw, 560px" className="w-full rounded-md shadow-card" />
+                <Image src={s.imgAlt} alt="" width={300} height={130} sizes="(max-width: 768px) 48vw, 290px" className="absolute -bottom-6 -right-4 w-[52%] rounded-md shadow-card" />
               </div>
             </div>
 
