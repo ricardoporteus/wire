@@ -27,11 +27,14 @@ export function HomePage({ appUrl }: { appUrl: string }) {
 
   return (
     <div className="bg-bg">
-      {/* ================= Hero (dark field, carries the header) ============ */}
-      <div className="relative overflow-hidden bg-hero">
-        <div aria-hidden className="hero-grid pointer-events-none absolute inset-0" />
-
-        <header className="relative z-10 border-b border-white/10">
+      {/*
+        Landmarks: header / main / footer are siblings, so assistive tech can skip
+        straight to the content. The dark field used to be one wrapper div around
+        both the header and the hero, which left the document with no <main> at
+        all. It is now split: the header carries its own dark background, and the
+        hero opens <main>.
+      */}
+      <header className="relative z-10 border-b border-white/10 bg-hero">
           <div className="mx-auto flex max-w-[1200px] items-center gap-10 px-6 py-5">
             {/* Text wordmark, matching the app shell. The template's logo asset is
                 SyncMaster's own branding and cannot be used here. */}
@@ -53,9 +56,13 @@ export function HomePage({ appUrl }: { appUrl: string }) {
               </a>
             </div>
           </div>
-        </header>
+      </header>
 
-        <section className="relative z-10 mx-auto grid max-w-[1200px] items-center gap-12 px-6 pb-20 pt-16 lg:grid-cols-2 lg:pb-28 lg:pt-24">
+      <main>
+        {/* ================= Hero (dark field) ============================= */}
+        <section className="relative overflow-hidden bg-hero">
+          <div aria-hidden className="hero-grid pointer-events-none absolute inset-0" />
+          <div className="relative z-10 mx-auto grid max-w-[1200px] items-center gap-12 px-6 pb-20 pt-16 lg:grid-cols-2 lg:pb-28 lg:pt-24">
           <div>
             <a href="#features" className="inline-flex items-center gap-3 rounded-pill bg-white/10 p-1.5 pr-4 backdrop-blur">
               <span className="rounded-pill bg-lime px-3 py-1 font-display text-[13px] font-semibold text-ink-green">
@@ -101,8 +108,8 @@ export function HomePage({ appUrl }: { appUrl: string }) {
           <div className="mx-auto w-full max-w-[560px]">
             <FeedPanel />
           </div>
+          </div>
         </section>
-      </div>
 
       {/* ========= Stage strip (was: fabricated customer logo wall) ========= */}
       <section className="mx-auto max-w-[1200px] px-6 py-section-sm">
@@ -234,9 +241,9 @@ export function HomePage({ appUrl }: { appUrl: string }) {
         </div>
       </section>
 
-      {/* ================= Closing CTA + footer (dark field) =============== */}
-      <div className="bg-hero">
-        <section className="mx-auto max-w-[1200px] px-6 py-section-sm text-center">
+      {/* ================= Closing CTA (dark field, closes main) =========== */}
+      <section className="bg-hero">
+        <div className="mx-auto max-w-[1200px] px-6 py-section-sm text-center">
           <h2 className="mx-auto max-w-xl text-h4 text-white md:text-h2">{CTA.title}</h2>
           <p className="mx-auto mt-4 max-w-md text-body-sm text-white/70">{CTA.body}</p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
@@ -247,9 +254,11 @@ export function HomePage({ appUrl }: { appUrl: string }) {
               {CTA.secondary} <span aria-hidden>›</span>
             </a>
           </div>
-        </section>
+        </div>
+      </section>
+      </main>
 
-        <footer className="border-t border-white/10">
+      <footer className="border-t border-white/10 bg-hero">
           <div className="mx-auto grid max-w-[1200px] gap-12 px-6 py-16 md:grid-cols-2 lg:grid-cols-4">
             <div>
               <p className="font-display text-h5 font-semibold text-white">Wire</p>
@@ -278,8 +287,7 @@ export function HomePage({ appUrl }: { appUrl: string }) {
           <div className="mx-auto max-w-[1200px] border-t border-white/10 px-6 py-6">
             <p className="text-caption text-white/50">© {new Date().getFullYear()} {FOOTER.copyright}</p>
           </div>
-        </footer>
-      </div>
+      </footer>
 
       <style>{`
         .hero-grid {

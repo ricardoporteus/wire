@@ -15,14 +15,16 @@ const DOCS = [
 export default function LegalLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="legal mx-auto max-w-3xl px-6 py-12">
-      <div className="flex items-center justify-between gap-4">
+      {/* header / main / footer as sibling landmarks, so screen reader users can
+          skip the nav and the disclaimer and land on the document itself. */}
+      <header className="flex items-center justify-between gap-4">
         <Link href="/" className="font-display text-h5 font-semibold text-ink-green">Wire</Link>
         <nav className="flex flex-wrap gap-x-4 gap-y-1 text-caption">
           {DOCS.map((d) => (
             <Link key={d.href} href={d.href} className="text-muted hover:text-ink-green">{d.label}</Link>
           ))}
         </nav>
-      </div>
+      </header>
 
       <div className="mt-6 rounded-md border border-line bg-accent-tint px-4 py-3 text-caption text-ink">
         <strong>Template, not legal advice.</strong> These documents are a good-faith starting point tailored to how
@@ -30,6 +32,8 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
         on them or take paying customers.
       </div>
 
+      {/* No <main> wrapper here: each legal page supplies its own, and two would
+          be a second main landmark rather than a fix. */}
       {children}
 
       <footer className="mt-16 border-t border-line pt-6 text-caption text-muted">
