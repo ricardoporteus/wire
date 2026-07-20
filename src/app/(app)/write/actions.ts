@@ -111,7 +111,7 @@ export async function getDocState(documentId: string) {
   };
 }
 
-export type DocFeedEvent = { seq: number; phase: string; kind: string; message: string; words?: number };
+export type DocFeedEvent = { seq: number; phase: string; kind: string; message: string; words?: number; stage?: string };
 
 /** Poll target: the document's live activity feed after `sinceSeq`. */
 export async function getDocFeed(documentId: string, sinceSeq = 0): Promise<{
@@ -122,7 +122,7 @@ export async function getDocFeed(documentId: string, sinceSeq = 0): Promise<{
     .where(and(eq(docEvents.documentId, documentId), gt(docEvents.seq, sinceSeq)))
     .orderBy(asc(docEvents.seq)).limit(200);
   const events: DocFeedEvent[] = evs.map((e) => ({
-    seq: e.seq, phase: e.phase, kind: e.kind, message: e.message, words: e.meta?.words,
+    seq: e.seq, phase: e.phase, kind: e.kind, message: e.message, words: e.meta?.words, stage: e.meta?.stage,
   }));
   return { status: doc.status, events, maxSeq: events.length ? events[events.length - 1].seq : sinceSeq };
 }

@@ -16,6 +16,25 @@ const KIND_ICON: Record<string, string> = {
 };
 const TARGET_WORDS = 1200; // rough denominator for the generation bar (asymptotic, capped < 100%)
 
+/**
+ * The steps each phase actually walks through, keyed to the `stage` the pipeline
+ * stamps on its events. Keys rather than message text, so rewording a status
+ * line cannot silently break the strip.
+ */
+const PHASE_STAGES: Record<"diagnose" | "generate", { key: string; title: string }[]> = {
+  diagnose: [
+    { key: "intel", title: "Pulling intelligence" },
+    { key: "angle", title: "Diagnosing the angle" },
+    { key: "ready", title: "Plan ready" },
+  ],
+  generate: [
+    { key: "grounding", title: "Grounding in your brand" },
+    { key: "writing", title: "Writing the draft" },
+    { key: "checking", title: "Checking terminology & voice" },
+    { key: "ready", title: "Draft ready" },
+  ],
+};
+
 function fmtElapsed(fromMs: number, nowMs: number) {
   const s = Math.max(0, Math.floor((nowMs - fromMs) / 1000));
   const m = Math.floor(s / 60);
@@ -70,6 +89,21 @@ export function WriterProgress({ documentId, phase }: { documentId: string; phas
   const secsSinceEvent = Math.floor((now - lastEventAt) / 1000);
   const stalled = events.length > 0 && secsSinceEvent > 20;
 
+  // Furthest stage reached. A "saved" event means the phase finished, which is
+  // the only way the final step lights up: the pipeline has no "ready" stage
+  // event of its own.
+  const stages = PHASE_STAGES[diagnosing ? "diagnose" : "generate"];
+  const activeIdx = useMemo(() => {
+    if (events.some((e) => e.kind === "saved")) return stages.length - 1;
+    let idx = 0;
+    for (const e of events) {
+      if (!e.stage) continue;
+      const i = stages.findIndex((s) => s.key === e.stage);
+      if (i > idx) idx = i;
+    }
+    return idx;
+  }, [events, stages]);
+
   return (
     <div className="card--lg card mt-6">
       <div className="flex items-center justify-between gap-3">
@@ -113,6 +147,26 @@ export function WriterProgress({ documentId, phase }: { documentId: string; phas
             </div>
           ))
         )}
+      </div>
+
+      {/* compact stage strip — mirrors the intelligence run's, so both feeds read the same way */}
+      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1">
+        {stages.map((s, i) => {
+          const state = i < activeIdx ? "done" : i === activeIdx ? "active" : "pending";
+          return (
+            <span
+              key={s.key}
+              className={`text-micro ${
+                state === "done" ? "text-accent-strong"
+                : state === "active" ? "font-medium text-ink-green"
+                : "text-muted"
+              }`}
+            >
+              {state === "done" ? "✓ " : state === "active" ? "▸ " : "○ "}
+              {s.title}
+            </span>
+          );
+        })}
       </div>
 
       <p className="mt-2 text-caption text-muted">

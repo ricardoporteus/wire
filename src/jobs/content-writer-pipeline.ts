@@ -35,7 +35,8 @@ const WRITER_MODEL = "claude-sonnet-4-6";   // per bake-off; A/B Opus for long-f
 type DocFeedKind = "stage" | "writing" | "saved" | "info" | "error";
 async function emitDoc(
   documentId: string, phase: "diagnose" | "generate", kind: DocFeedKind,
-  message: string, meta?: { words?: number },
+  // `stage` keys the step for the progress strip; `words` drives the counter.
+  message: string, meta?: { words?: number; stage?: string },
 ): Promise<void> {
   try {
     await db.insert(docEvents).values({ documentId, phase, kind, message, meta: meta ?? null });
@@ -156,7 +157,7 @@ export const diagnoseDocument = inngest.createFunction(
 
     /* The productized "read seo-intelligence.md": live keywords + this month's plan */
     const intel = await step.run("load-intel", async () => {
-      await emitDoc(documentId, "diagnose", "stage", "Pulling your live keyword & AEO intelligence");
+      await emitDoc(documentId, "diagnose", "stage", "Pulling your live keyword & AEO intelligence", { stage: "intel" });
       const kws = await db.query.keywords.findMany({
         where: and(eq(keywords.brainId, doc.brainId), eq(keywords.active, true)),
         orderBy: [keywords.priority], limit: 40,
@@ -174,7 +175,7 @@ export const diagnoseDocument = inngest.createFunction(
     });
 
     const result = await step.run("diagnose", async () => {
-      await emitDoc(documentId, "diagnose", "stage", "Reading your source and diagnosing the best angle");
+      await emitDoc(documentId, "diagnose", "stage", "Reading your source and diagnosing the best angle", { stage: "angle" });
       return generateJson({
         system: DIAGNOSIS_SYSTEM(brain, intel),
         userContent: `Source kind: ${source.kind}\n${fence("source", source.normalizedText!.slice(0, 30_000))}\n\nDiagnose this source.`,
@@ -315,8 +316,8 @@ export const generateDocument = inngest.createFunction(
       }));
     await step.run("mark", async () => {
       await db.update(documents).set({ status: "generating" }).where(eq(documents.id, documentId));
-      await emitDoc(documentId, "generate", "stage", "Loaded your Brand Brain & grounded against your intelligence");
-      await emitDoc(documentId, "generate", "stage", regeneration ? "Revising your draft against the note" : "Writing the draft");
+      await emitDoc(documentId, "generate", "stage", "Loaded your Brand Brain & grounded against your intelligence", { stage: "grounding" });
+      await emitDoc(documentId, "generate", "stage", regeneration ? "Revising your draft against the note" : "Writing the draft", { stage: "writing" });
     });
 
     const gen = await step.run("write", () => {
@@ -362,7 +363,7 @@ export const generateDocument = inngest.createFunction(
     const actualWords = countWords(body);
 
     await step.run("save", async () => {
-      await emitDoc(documentId, "generate", "stage", "Checking terminology & brand voice");
+      await emitDoc(documentId, "generate", "stage", "Checking terminology & brand voice", { stage: "checking" });
       await db.update(documents).set({
         status: "draft",
         title,

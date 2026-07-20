@@ -176,7 +176,8 @@ export const docEvents = pgTable("doc_events", {
   phase: varchar("phase", { length: 16 }).notNull(),   // diagnose | generate
   kind: varchar("kind", { length: 16 }).notNull(),     // stage | writing | saved | info | error
   message: text("message").notNull(),
-  meta: jsonb("meta").$type<{ words?: number }>(),
+  /** `stage` keys the step for the progress strip; `words` drives the counter. */
+  meta: jsonb("meta").$type<{ words?: number; stage?: string }>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("doc_events_doc_idx").on(t.documentId, t.seq)]);
 
