@@ -13,6 +13,10 @@ type Keyword = {
 type Idea = {
   id: string; title: string; format: string;
   whyNow: string | null; targetAeoQuestion: string | null; rank: number; status: string;
+  /** From the linked keyword; drives P1 > P2 > P3 ordering. */
+  priority: number;
+  /** The piece started from this idea, if there is one. */
+  doc: { id: string; status: string; done: boolean } | null;
 };
 type CompetitorIntel = { competitor: string; topics: string[]; targetKeywords: string[]; weakness: string };
 type Trend = { trend: string; opportunity: string };
@@ -85,7 +89,10 @@ export function DashboardClient({
     });
 
   const shown = keywords.filter((k) => k.intent === tab);
-  const freshIdeas = ideas.filter((i) => i.status === "suggested");
+  // Everything except dismissed stays on the list. Filtering to "suggested" used
+  // to make a piece disappear the moment you started it, leaving no way back to
+  // the draft short of knowing its URL.
+  const freshIdeas = ideas;
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
@@ -147,10 +154,8 @@ export function DashboardClient({
             {freshIdeas.map((i) => (
               <div key={i.id} className="card flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="grid h-6 w-6 flex-none place-items-center rounded-pill bg-accent text-micro font-medium text-ink-green">
-                      {i.rank}
-                    </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`badge ${PRIORITY_BADGE(i.priority)}`}>P{i.priority}</span>
                     <h3 className="text-h5 text-ink-green">{i.title}</h3>
                   </div>
                   <p className="mt-2 text-caption text-muted">
@@ -161,9 +166,24 @@ export function DashboardClient({
                     <p className="mt-1 text-micro text-muted">Answers: “{i.targetAeoQuestion}”</p>
                   )}
                 </div>
-                <button className="btn-accent flex-none" disabled={writing} onClick={() => write(i.id)}>
-                  {writing ? "Opening…" : "Write this"}
-                </button>
+                {/* Three states: not started, in flight, done. The last two link
+                    straight back to the draft so leaving the page never loses it. */}
+                {i.doc === null ? (
+                  <button className="btn-accent flex-none" disabled={writing} onClick={() => write(i.id)}>
+                    {writing ? "Opening…" : "Write this"}
+                  </button>
+                ) : i.doc.done ? (
+                  <a
+                    href={`/write/${i.doc.id}`}
+                    className="flex-none rounded-pill bg-positive px-6 py-3.5 font-display text-[15px] font-semibold text-ink-green"
+                  >
+                    Completed
+                  </a>
+                ) : (
+                  <a href={`/write/${i.doc.id}`} className="btn-ghost flex-none whitespace-nowrap">
+                    In progress →
+                  </a>
+                )}
               </div>
             ))}
           </div>
