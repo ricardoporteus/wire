@@ -23,7 +23,7 @@ import {
   brandBrains, intelligenceRuns, keywords, contentIdeas, usageLedger, organizations, runEvents,
 } from "@/db/schema";
 import { brandBrainSchema, type BrandBrain } from "@/lib/brand-brain.zod";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 const anthropic = new Anthropic();
@@ -345,6 +345,9 @@ export const runIntelligence = inngest.createFunction(
         }).onConflictDoUpdate({
           target: [keywords.brainId, keywords.phrase],
           set: { runId, rationale: r.rationale, active: true },
+          // Never overwrite a row a human has touched. Without this, an edited
+          // rationale or a deliberate deactivation is reverted by the next run.
+          setWhere: isNull(keywords.userModifiedAt),
         });
       }
       await emit(runId, "researching_keywords", "saved", `Saved ${rows.length} keywords`, { count: rows.length });
@@ -397,6 +400,7 @@ export const runIntelligence = inngest.createFunction(
         }).onConflictDoUpdate({
           target: [keywords.brainId, keywords.phrase],
           set: { aeoFormat: s.format, priority: 1, runId },
+          setWhere: isNull(keywords.userModifiedAt),
         });
       }
       const aeoCount = aeo.data.peopleAlsoAsk.length + aeo.data.featuredSnippets.length;

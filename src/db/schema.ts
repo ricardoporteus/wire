@@ -192,6 +192,23 @@ export const keywords = pgTable("keywords", {
   rationale: text("rationale"),
   aeoFormat: varchar("aeo_format", { length: 24 }),         // paragraph | list | table (snippet target)
   active: boolean("active").notNull().default(true),
+
+  /**
+   * Ownership. Keywords accumulate across runs (upsert on brand + phrase), so a
+   * row the research found in March can still be here in September. Without
+   * these three columns a re-run overwrites whatever a human did to it.
+   *
+   * source        — where the row came from. Display and filtering only.
+   * pinned        — user wants this always considered by research, never dropped.
+   * userModifiedAt — the actual guard. Any user write stamps it, and the
+   *                 pipeline's upsert refuses to touch rows where it is set, so
+   *                 an edited rationale or a deliberate deactivation survives the
+   *                 next run. Null means "nobody has touched this, AI owns it".
+   */
+  source: varchar("source", { length: 8 }).notNull().default("ai"),  // ai | user | import
+  pinned: boolean("pinned").notNull().default(false),
+  userModifiedAt: timestamp("user_modified_at", { withTimezone: true }),
+
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("keywords_brain_idx").on(t.brainId),
