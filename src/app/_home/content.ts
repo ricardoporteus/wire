@@ -62,9 +62,9 @@ export const NAV = [
 
 export const HERO = {
   tagNew: "NEW",
-  tagText: "Answer Engine Optimisation, built in",
-  title: "Your content engine researches before it writes",
-  body: "Wire learns your brand, sweeps your market for what is genuinely worth writing, then drafts it in your voice and reshapes it for every channel.",
+  tagText: "Increase traffic and sales using SEO and AEO-optimised content",
+  title: "Convert any source of content into traffic and business growth opportunity",
+  body: "Add voice notes, YouTube podcasts, and blog posts and automatically repurpose them into keyword-researched, new trend and gap opportunities for fast growth content instantly.",
   primary: "Start free",
   secondary: "See how it works",
 };
@@ -103,11 +103,31 @@ export const STAGE_STRIP = {
 
 export const FEATURES = {
   eyebrow: "How Wire works",
-  title: "Brand first, research second, writing last",
+  title: "Brand Guidelines First, Research and Repurpose Second, Writing Last",
+  // Tab order mirrors the title: Repurpose leads, so it is also the tab that
+  // opens by default.
   tabs: [
     {
+      label: "Repurpose",
+      panelTitle: "One piece, reshaped for where it lands",
+      img: ASSETS.panelSearch,
+      imgAlt: ASSETS.panelList,
+      items: [
+        {
+          icon: ASSETS.iconGrowth,
+          title: "A brief per channel",
+          body: "A LinkedIn post is not the article with shorter paragraphs. Each format gets its own spec, hook and length.",
+        },
+        {
+          icon: ASSETS.iconBranch,
+          title: "The whole pack in one pass",
+          body: "Request every format you need and Wire generates them together, so the piece ships everywhere the same day.",
+        },
+      ],
+    },
+    {
       label: "Research",
-      panelTitle: "Six stages of live research, minutes not weeks",
+      panelTitle: "Deep Dive Keyword and Market Trend Research in Minutes",
       img: ASSETS.panelDash,
       imgAlt: ASSETS.cardStats,
       items: [
@@ -118,8 +138,8 @@ export const FEATURES = {
         },
         {
           icon: ASSETS.iconBranch,
-          title: "Gaps your competitors left open",
-          body: "Who ranks in your space, the topics they own, and the questions your market asks that nobody has answered well.",
+          title: "SEO opportunities your competition left open",
+          body: "Market trends and SEO gap opportunity gets compiled instantly and your content is repurposed to match, giving you a faster and higher success chance of growing traffic utilising real-time opportunities.",
         },
       ],
     },
@@ -138,24 +158,6 @@ export const FEATURES = {
           icon: ASSETS.iconBranch,
           title: "Guardrails that actually hold",
           body: "Banned terms are enforced on whole words, so blocking \"cure\" never mangles \"secure\", and a repair pass catches anything that slips.",
-        },
-      ],
-    },
-    {
-      label: "Repurpose",
-      panelTitle: "One piece, reshaped for where it lands",
-      img: ASSETS.panelSearch,
-      imgAlt: ASSETS.panelList,
-      items: [
-        {
-          icon: ASSETS.iconGrowth,
-          title: "A brief per channel",
-          body: "A LinkedIn post is not the article with shorter paragraphs. Each format gets its own spec, hook and length.",
-        },
-        {
-          icon: ASSETS.iconBranch,
-          title: "The whole pack in one pass",
-          body: "Request every format you need and Wire generates them together, so the piece ships everywhere the same day.",
         },
       ],
     },
