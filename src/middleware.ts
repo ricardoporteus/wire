@@ -5,6 +5,7 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 // rather than bouncing to sign-in. Folded in here with the rest of the app.
 const isProtected = createRouteMatcher([
   "/onboarding(.*)", "/dashboard(.*)", "/brains(.*)", "/write(.*)", "/settings(.*)", "/billing(.*)",
+  "/audit(.*)", "/keywords(.*)",
 ]);
 
 /**
