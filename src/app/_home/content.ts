@@ -104,8 +104,13 @@ export const STAGE_STRIP = {
 export const FEATURES = {
   eyebrow: "How Wire works",
   title: "Brand Guidelines First, Research and Repurpose Second, Writing Last",
-  // Tab order mirrors the title: Repurpose leads, so it is also the tab that
-  // opens by default.
+  /**
+   * Which tab opens first, by label. Only the active panel is server-rendered,
+   * so this decides which copy search engines actually index. Research leads
+   * because that panel carries the keyword and market-trend pitch, even though
+   * Repurpose sits first in the row.
+   */
+  defaultTab: "Research",
   tabs: [
     {
       label: "Repurpose",

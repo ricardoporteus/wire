@@ -13,8 +13,15 @@ import { FEATURES, PRICING, STATS, ASSETS } from "./content";
 /* Feature tabs                                                               */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Opening tab is chosen by label rather than index, so reordering the row in
+ * content.ts cannot silently change which panel gets indexed. Falls back to the
+ * first tab if the label is ever mistyped.
+ */
+const DEFAULT_TAB = Math.max(0, FEATURES.tabs.findIndex((t) => t.label === FEATURES.defaultTab));
+
 export function FeatureTabs() {
-  const [active, setActive] = useState(0);
+  const [active, setActive] = useState(DEFAULT_TAB);
   const tab = FEATURES.tabs[active];
 
   return (
