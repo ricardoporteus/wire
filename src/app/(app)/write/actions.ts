@@ -12,7 +12,7 @@ import { db } from "@/lib/db";
 import { documents, sources, brandBrains, organizations, exports as exportsTable, docEvents } from "@/db/schema";
 import { inngest } from "@/lib/inngest";
 import { requireOrg } from "@/lib/org";
-import { CREDIT_COSTS } from "@/lib/credits";
+import { CREDIT_COSTS, debitCredits } from "@/lib/credits";
 import { limit, type RateLimitResult } from "@/lib/rate-limit";
 import { fetchArticleText } from "@/jobs/content-writer-pipeline";
 
@@ -95,6 +95,63 @@ export async function createFromUrl(url: string) {
   }
   const documentId = await startDoc({ brainId: brain.id, orgId: org.id, userId, kind: "web_url", normalizedText: text, originalUrl: u });
   return { ok: true as const, documentId };
+}
+
+/**
+ * Audio / video / podcast link. Unlike paste and URL, transcription is slow, so
+ * this cannot run inline: it creates the source and document, charges the
+ * transcription credit up front, and hands off to the async ingest pipeline,
+ * which transcribes, refunds on failure, and chains into diagnosis when ready.
+ * The writer page then streams the transcription and diagnosis feed as usual.
+ */
+export async function createFromMediaLink(url: string) {
+  let u = url.trim();
+  if (!/^https?:\/\//i.test(u)) u = `https://${u}`;
+  try {
+    new URL(u);
+  } catch {
+    return { ok: false as const, error: "That doesn't look like a valid link." };
+  }
+
+  const { org, brain, userId } = await brainAndUser();
+  // Needs the transcription charge now, plus diagnosis afterwards.
+  if (org.creditsBalance < CREDIT_COSTS.transcription + CREDIT_COSTS.diagnosis) {
+    return { ok: false as const, error: NO_CREDITS };
+  }
+
+  // video_link for YouTube (routed to the caption/API path), audio_link
+  // otherwise. Both resolve inside lib/transcription; the distinction is only for
+  // the record and light UI hinting.
+  const isYouTube = /(?:youtube\.com\/|youtu\.be\/)/i.test(u);
+  const kind = isYouTube ? "video_link" : "audio_link";
+
+  const [src] = await db.insert(sources).values({
+    brainId: brain.id, kind, status: "pending", originalUrl: u,
+    createdByClerkUserId: userId,
+  }).returning({ id: sources.id });
+
+  const [doc] = await db.insert(documents).values({
+    brainId: brain.id, sourceId: src.id, format: "article",
+    status: "diagnosing", createdByClerkUserId: userId,
+  }).returning({ id: documents.id });
+
+  // Charge up front so transcription can never run for free; ingest refunds if it
+  // fails. If the balance slipped between the check above and here, undo cleanly.
+  try {
+    await debitCredits({
+      orgId: org.id, brainId: brain.id, reason: "transcription",
+      refType: "document", refId: doc.id,
+    });
+  } catch {
+    await db.update(documents).set({ status: "archived" }).where(eq(documents.id, doc.id));
+    return { ok: false as const, error: NO_CREDITS };
+  }
+
+  await inngest.send({
+    name: "wire/source.ingest.requested",
+    data: { sourceId: src.id, documentId: doc.id, orgId: org.id },
+  });
+  return { ok: true as const, documentId: doc.id };
 }
 
 /** Poll target: the document's current state. */

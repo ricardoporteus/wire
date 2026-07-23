@@ -14,6 +14,11 @@ export const CREDIT_COSTS = {
   generation: 20,
   regeneration: 2,
   repurpose: 5, // one export pack (all requested kinds for one document)
+  // Flat, charged up front before AssemblyAI runs and refunded if it fails.
+  // Deliberately flat rather than per-minute: predictable for the user, and 3
+  // credits (~a repurpose pack) comfortably covers the real AssemblyAI cost even
+  // at the 4-hour ceiling. Diagnosis and generation are billed separately after.
+  transcription: 3,
 } as const;
 
 export const PLAN_GRANTS = { launch: 500, growth: 1400, scale: 4000, trial: 150 } as const;

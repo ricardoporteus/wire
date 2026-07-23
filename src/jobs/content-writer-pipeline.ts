@@ -19,7 +19,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
 import { brandBrains, sources, documents, keywords, contentIdeas, docEvents } from "@/db/schema";
 import { brandBrainSchema, type BrandBrain } from "@/lib/brand-brain.zod";
-import { debitCredits, recordUsage } from "@/lib/credits";
+import { debitCredits, recordUsage, refundCredits } from "@/lib/credits";
+import { transcribeMedia } from "@/lib/transcription";
 import { fence } from "@/lib/untrusted";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -52,7 +53,12 @@ export const ingestSource = inngest.createFunction(
   { id: "source-ingest", retries: 2 },
   { event: "wire/source.ingest.requested" },
   async ({ event, step }) => {
-    const { sourceId } = event.data as { sourceId: string };
+    // documentId + orgId are present for the async media flow: the source is
+    // prepared here, then diagnosis is chained once it is ready. They are absent
+    // for the synchronous flows (paste/URL) that never route through here.
+    const { sourceId, documentId, orgId } = event.data as {
+      sourceId: string; documentId?: string; orgId?: string;
+    };
     const src = await step.run("load", () =>
       db.query.sources.findFirst({ where: eq(sources.id, sourceId) }));
     if (!src) return { ok: false };
@@ -63,8 +69,7 @@ export const ingestSource = inngest.createFunction(
     try {
       switch (src.kind) {
         case "pasted_text":
-          // normalizedText was written at creation; nothing to do
-          await set({ status: "ready" });
+          await set({ status: "ready" }); // normalizedText was written at creation
           break;
 
         case "web_url": {
@@ -76,7 +81,6 @@ export const ingestSource = inngest.createFunction(
 
         case "file_upload": {
           await set({ status: "fetching" });
-          // PDF/docx extraction service reads from blob storage by fileKey.
           const text = await step.run("extract-file", () => extractFileText(src.fileKey!));
           await set({ status: "ready", normalizedText: text, meta: { wordCount: wc(text) } });
           break;
@@ -86,19 +90,45 @@ export const ingestSource = inngest.createFunction(
         case "video_link":
         case "voice_note": {
           await set({ status: "transcribing" });
-          // AssemblyAI pattern proven in prior builds: submit by URL, poll, return text.
+          if (documentId) {
+            await emitDoc(documentId, "diagnose", "stage",
+              "Transcribing the recording (this can take a few minutes for long audio)…",
+              { stage: "transcribe" });
+          }
           const transcript = await step.run("transcribe", () =>
-            transcribeWithAssemblyAI(src.originalUrl ?? blobUrl(src.fileKey!)));
+            transcribeMedia(src.originalUrl ?? blobUrl(src.fileKey!)));
           await set({
             status: "ready", normalizedText: transcript.text,
             meta: { durationSec: transcript.durationSec, wordCount: wc(transcript.text) },
           });
+          if (documentId) {
+            await emitDoc(documentId, "diagnose", "info",
+              `Transcribed ${wc(transcript.text)} words`, { stage: "transcribe" });
+          }
           break;
         }
       }
+
+      // Hand off to diagnosis now the source is ready. Only the async media flow
+      // sets these; paste/URL already sent diagnose themselves at creation.
+      if (documentId && orgId) {
+        await step.run("start-diagnosis", () =>
+          inngest.send({ name: "wire/document.diagnose.requested", data: { documentId, orgId } }));
+      }
       return { ok: true };
     } catch (e) {
-      await set({ status: "failed", error: (e as Error).message.slice(0, 500) });
+      const message = (e as Error).message.slice(0, 500);
+      await set({ status: "failed", error: message });
+      // Surface the failure on the document and refund the up-front transcription
+      // charge, so a failed transcription never silently costs credits.
+      if (documentId) {
+        await db.update(documents).set({ status: "archived" }).where(eq(documents.id, documentId));
+        await emitDoc(documentId, "diagnose", "error", message, { stage: "transcribe" });
+      }
+      if (documentId && orgId) {
+        await refundCredits({ orgId, reason: "transcription", refType: "document", refId: documentId })
+          .catch(() => { /* refund is best-effort; never mask the original error */ });
+      }
       throw e;
     }
   },
@@ -632,11 +662,9 @@ export async function fetchArticleText(url: string): Promise<string> {
   return text.slice(0, 60_000);
 }
 
-// Not yet wired up — these need blob storage + AssemblyAI. Fail with a clear
-// message (rather than a ReferenceError) so the UI can steer users to paste/URL.
+// File upload is still stubbed: it needs Vercel Blob configured (BLOB_* are
+// placeholders) plus a PDF/docx extractor. Audio/video transcription is live
+// via lib/transcription; this remains the one unbuilt ingestion path.
 async function extractFileText(_fileKey: string): Promise<string> {
   throw new Error("File upload isn't available yet — paste the text or use a URL for now.");
-}
-async function transcribeWithAssemblyAI(_url: string): Promise<{ text: string; durationSec: number }> {
-  throw new Error("Audio/video ingestion isn't available yet — paste the text or use a URL for now.");
 }

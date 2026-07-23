@@ -1,0 +1,1 @@
+ALTER TYPE "public"."ledger_reason" ADD VALUE 'transcription' BEFORE 'top_up';

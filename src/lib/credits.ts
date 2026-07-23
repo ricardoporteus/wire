@@ -48,6 +48,31 @@ export async function debitCredits(opts: {
   });
 }
 
+/**
+ * Return credits already debited. Used when a step that was charged up front
+ * fails after the debit — transcription in particular, which is billed before
+ * AssemblyAI runs so it cannot be run for free, then refunded if it errors.
+ */
+export async function refundCredits(opts: {
+  orgId: string;
+  brainId?: string;
+  reason: keyof typeof CREDIT_COSTS;
+  refType: "run" | "document" | "export";
+  refId: string;
+}) {
+  const credits = CREDIT_COSTS[opts.reason];
+  await db.transaction(async (tx) => {
+    await tx.insert(usageLedger).values({
+      orgId: opts.orgId, brainId: opts.brainId ?? null,
+      reason: opts.reason, credits, // positive = grant back
+      refType: opts.refType, refId: opts.refId,
+    });
+    await tx.update(organizations)
+      .set({ creditsBalance: sql`${organizations.creditsBalance} + ${credits}` })
+      .where(eq(organizations.id, opts.orgId));
+  });
+}
+
 /** Record token telemetry after the fact (COGS), without touching credits. */
 export async function recordUsage(opts: {
   orgId: string; brainId?: string;

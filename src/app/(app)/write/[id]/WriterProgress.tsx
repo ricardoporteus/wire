@@ -23,6 +23,9 @@ const TARGET_WORDS = 1200; // rough denominator for the generation bar (asymptot
  */
 const PHASE_STAGES: Record<"diagnose" | "generate", { key: string; title: string }[]> = {
   diagnose: [
+    // "transcribe" only fires for audio/video sources; text sources skip it and
+    // the strip simply starts at "Pulling intelligence".
+    { key: "transcribe", title: "Transcribing" },
     { key: "intel", title: "Pulling intelligence" },
     { key: "angle", title: "Diagnosing the angle" },
     { key: "ready", title: "Plan ready" },
@@ -92,7 +95,11 @@ export function WriterProgress({ documentId, phase }: { documentId: string; phas
   // Furthest stage reached. A "saved" event means the phase finished, which is
   // the only way the final step lights up: the pipeline has no "ready" stage
   // event of its own.
-  const stages = PHASE_STAGES[diagnosing ? "diagnose" : "generate"];
+  const hasTranscribe = events.some((e) => e.stage === "transcribe");
+  const stages = (diagnosing ? PHASE_STAGES.diagnose : PHASE_STAGES.generate)
+    // The transcribe step only belongs to audio/video sources. Drop it for text
+    // sources so they do not show a "done" step that never ran.
+    .filter((s) => s.key !== "transcribe" || hasTranscribe);
   const activeIdx = useMemo(() => {
     if (events.some((e) => e.kind === "saved")) return stages.length - 1;
     let idx = 0;

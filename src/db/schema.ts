@@ -52,7 +52,7 @@ export const exportKind = pgEnum("export_kind", [
 
 export const ledgerReason = pgEnum("ledger_reason", [
   "intelligence_run", "diagnosis", "generation", "regeneration",
-  "repurpose", "top_up", "plan_grant", "adjustment",
+  "repurpose", "transcription", "top_up", "plan_grant", "adjustment",
 ]);
 
 /* ------------------------------ organizations ----------------------------- */
