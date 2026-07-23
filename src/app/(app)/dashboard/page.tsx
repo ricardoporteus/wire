@@ -8,21 +8,20 @@ import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { organizations, brandBrains, contentIdeas, documents, intelligenceRuns, keywords } from "@/db/schema";
+import { brandBrains, contentIdeas, documents, intelligenceRuns, keywords } from "@/db/schema";
+import { requireOrg } from "@/lib/org";
 import { DashboardClient } from "./DashboardClient";
 
 export default async function DashboardPage() {
   const { orgId: clerkOrgId } = await auth();
-  if (!clerkOrgId) return null;
+  if (!clerkOrgId) redirect("/onboarding"); // no active workspace → pick or create one
 
-  const org = await db.query.organizations.findFirst({
-    where: eq(organizations.clerkOrgId, clerkOrgId),
-  });
-  if (!org) return <main className="p-10 text-muted">Setting up your workspace…</main>;
+  // requireOrg upserts the org mirror from the active Clerk org, so a session
+  // whose org has not been mirrored yet (webhook not landed, or a freshly created
+  // org) self-heals instead of dead-ending on "Setting up your workspace…". "/"
+  // redirects here, so this is also the guard that used to live in the root page.
+  const { org } = await requireOrg();
 
-  // "/" on the app host now redirects straight here, so this carries the guard
-  // that used to live in the root page: a Brand Brain that exists but has not
-  // finished the wizard means the wizard, not a half-populated dashboard.
   const brain = await db.query.brandBrains.findFirst({ where: eq(brandBrains.orgId, org.id) });
   if (!brain?.wizardCompletedAt) redirect("/onboarding");
 

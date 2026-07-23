@@ -15,16 +15,19 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { organizations, brandBrains, keywords } from "@/db/schema";
+import { brandBrains, keywords } from "@/db/schema";
+import { requireOrg } from "@/lib/org";
 import { KeywordsClient } from "./KeywordsClient";
 
 export default async function KeywordsPage() {
   const { orgId: clerkOrgId } = await auth();
-  if (!clerkOrgId) return null;
 
-  const org = await db.query.organizations.findFirst({ where: eq(organizations.clerkOrgId, clerkOrgId) });
-  if (!org) return <main className="p-10 text-muted">Setting up your workspace…</main>;
-  const brain = await db.query.brandBrains.findFirst({ where: eq(brandBrains.orgId, org.id) });
+  // requireOrg self-heals a missing org mirror instead of dead-ending; the
+  // no-brain branch below then routes to onboarding.
+  const brain = clerkOrgId
+    ? await requireOrg().then(({ org }) =>
+        db.query.brandBrains.findFirst({ where: eq(brandBrains.orgId, org.id) }))
+    : null;
 
   if (!brain) {
     return (

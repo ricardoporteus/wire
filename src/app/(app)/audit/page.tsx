@@ -13,7 +13,8 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { organizations, brandBrains, intelligenceRuns, keywords, contentIdeas } from "@/db/schema";
+import { brandBrains, intelligenceRuns, keywords, contentIdeas } from "@/db/schema";
+import { requireOrg } from "@/lib/org";
 import {
   INTENT_LABEL, PRIORITY_BADGE, RUN_STATUS_BADGE, RUN_STATUS_LABEL,
   TRIGGER_LABEL, formatDateTime, formatDuration, RUNNING_STATUSES,
@@ -27,10 +28,10 @@ export default async function AuditPage({
 }) {
   const { run: runParam } = await searchParams;
   const { orgId: clerkOrgId } = await auth();
-  if (!clerkOrgId) return null;
+  if (!clerkOrgId) return <Empty />;
 
-  const org = await db.query.organizations.findFirst({ where: eq(organizations.clerkOrgId, clerkOrgId) });
-  if (!org) return <main className="p-10 text-muted">Setting up your workspace…</main>;
+  // requireOrg self-heals a missing org mirror instead of dead-ending.
+  const { org } = await requireOrg();
   const brain = await db.query.brandBrains.findFirst({ where: eq(brandBrains.orgId, org.id) });
   if (!brain) return <Empty />;
 
