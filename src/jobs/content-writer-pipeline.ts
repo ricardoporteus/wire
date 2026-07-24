@@ -122,7 +122,7 @@ export const ingestSource = inngest.createFunction(
       // Surface the failure on the document and refund the up-front transcription
       // charge, so a failed transcription never silently costs credits.
       if (documentId) {
-        await db.update(documents).set({ status: "archived" }).where(eq(documents.id, documentId));
+        await db.update(documents).set({ status: "failed" }).where(eq(documents.id, documentId));
         await emitDoc(documentId, "diagnose", "error", message, { stage: "transcribe" });
       }
       if (documentId && orgId) {

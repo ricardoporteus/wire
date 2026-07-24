@@ -43,6 +43,13 @@
       "when": 1784781257993,
       "tag": "0005_lying_praxagora",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784872290250,
+      "tag": "0006_flippant_black_bolt",
+      "breakpoints": true
     }
   ]
 }

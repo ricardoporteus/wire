@@ -34,6 +34,8 @@ type State = {
   bodyMarkdown: string | null;
   brief: Brief | null;
   updatedAt: string | null;
+  sourceStatus?: string | null;
+  sourceError?: string | null;
 };
 
 const fmt = (s: string) => s.replaceAll("_", " ");
@@ -173,6 +175,36 @@ export function WriterFlow({
         </div>
         <ExportPanel documentId={documentId} initialExports={initialExports} />
         </>
+      )}
+
+      {/* Failure — source prep (e.g. transcription) or generation errored. Shows
+          the reason and a way out, instead of the blank page it used to be. */}
+      {(s.status === "failed" || s.sourceStatus === "failed") && (
+        <div className="card--lg card mt-6 border-negative/30">
+          <span className="badge badge--attention">Couldn&apos;t process this</span>
+          <h1 className="mt-3 text-h4 text-ink-green">This piece didn&apos;t get off the ground</h1>
+          <p className="mt-3 text-body-sm text-ink">
+            {s.sourceError ?? "Something went wrong preparing your source."}
+          </p>
+          <p className="mt-2 text-caption text-muted">
+            Any credits charged for this have been refunded.
+          </p>
+          <a href="/write" className="btn-accent mt-5 inline-block">Start a new piece →</a>
+        </div>
+      )}
+
+      {/* Catch-all: never render a blank page. Covers "archived" and any status
+          without a branch above. */}
+      {!WORKING.has(s.status)
+        && s.status !== "awaiting_confirm"
+        && s.status !== "draft" && s.status !== "final"
+        && s.status !== "failed" && s.sourceStatus !== "failed" && (
+        <div className="card mt-6">
+          <p className="text-body-sm text-muted">
+            This piece isn&apos;t available to view right now.
+          </p>
+          <a href="/write" className="btn-ghost mt-4 inline-block">Back to Write</a>
+        </div>
       )}
     </main>
   );

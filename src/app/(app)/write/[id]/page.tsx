@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { documents, brandBrains, organizations, exports as exportsTable } from "@/db/schema";
+import { documents, brandBrains, organizations, sources as sourcesTable, exports as exportsTable } from "@/db/schema";
 import { WriterFlow } from "./WriterFlow";
 
 export default async function DocumentPage({ params }: { params: Promise<{ id: string }> }) {
@@ -16,6 +16,12 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
   const brain = await db.query.brandBrains.findFirst({ where: eq(brandBrains.id, doc.brainId) });
   const org = brain && (await db.query.organizations.findFirst({ where: eq(organizations.id, brain.orgId) }));
   if (!org || org.clerkOrgId !== clerkOrgId) notFound();
+
+  // Source failure detail (e.g. a transcription error) so the writer can show
+  // why a piece stalled instead of rendering nothing.
+  const src = doc.sourceId
+    ? await db.query.sources.findFirst({ where: eq(sourcesTable.id, doc.sourceId) })
+    : null;
 
   const exportRows = await db.query.exports.findMany({
     where: eq(exportsTable.documentId, doc.id),
@@ -35,6 +41,8 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
         bodyMarkdown: doc.bodyMarkdown ?? null,
         brief: doc.brief ?? null,
         updatedAt: doc.updatedAt ? doc.updatedAt.toISOString() : null,
+        sourceStatus: src?.status ?? null,
+        sourceError: src?.error ?? null,
       }}
     />
   );

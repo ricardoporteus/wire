@@ -20,11 +20,13 @@ const STATUS_LABEL: Record<string, string> = {
   draft: "Draft ready",
   final: "Final",
   archived: "Archived",
+  failed: "Failed",
 };
 
 const STATUS_BADGE = (s: string) =>
   s === "draft" || s === "final" ? "badge--published"
   : s === "awaiting_confirm" ? "badge--attention"
+  : s === "failed" ? "badge--attention"
   : s === "archived" ? "badge--draft"
   : "badge--queued";
 

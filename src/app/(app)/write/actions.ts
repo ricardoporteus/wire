@@ -113,6 +113,18 @@ export async function createFromMediaLink(url: string) {
     return { ok: false as const, error: "That doesn't look like a valid link." };
   }
 
+  // Streaming player pages expose no downloadable media, so reject them up front
+  // with guidance rather than charging, failing, and refunding. Spotify and
+  // Apple in particular are where people paste from.
+  if (/(?:open\.spotify\.com|spotify\.link|podcasts\.apple\.com|music\.apple\.com)/i.test(u)) {
+    return {
+      ok: false as const,
+      error:
+        "Spotify and Apple links are player pages we can't download. Use the show's RSS feed or a direct episode MP3 " +
+        "(most podcasts link one in their show notes), or a YouTube link.",
+    };
+  }
+
   const { org, brain, userId } = await brainAndUser();
   // Needs the transcription charge now, plus diagnosis afterwards.
   if (org.creditsBalance < CREDIT_COSTS.transcription + CREDIT_COSTS.diagnosis) {
@@ -157,6 +169,11 @@ export async function createFromMediaLink(url: string) {
 /** Poll target: the document's current state. */
 export async function getDocState(documentId: string) {
   const { doc } = await ownedDoc(documentId);
+  // The source carries the failure reason (e.g. a transcription error); the
+  // document only carries the "failed" status, so read both.
+  const src = doc.sourceId
+    ? await db.query.sources.findFirst({ where: eq(sources.id, doc.sourceId) })
+    : null;
   return {
     status: doc.status,
     format: doc.format,
@@ -165,6 +182,8 @@ export async function getDocState(documentId: string) {
     bodyMarkdown: doc.bodyMarkdown ?? null,
     brief: doc.brief ?? null,
     updatedAt: doc.updatedAt ? doc.updatedAt.toISOString() : null,
+    sourceStatus: src?.status ?? null,
+    sourceError: src?.error ?? null,
   };
 }
 

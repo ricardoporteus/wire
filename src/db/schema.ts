@@ -43,6 +43,9 @@ export const docFormat = pgEnum("doc_format", [
 
 export const docStatus = pgEnum("doc_status", [
   "diagnosing", "awaiting_confirm", "generating", "draft", "final", "archived",
+  // Source prep (transcription/fetch) or generation errored. Distinct from
+  // "archived", which is a piece the user deliberately shelved.
+  "failed",
 ]);
 
 export const exportKind = pgEnum("export_kind", [

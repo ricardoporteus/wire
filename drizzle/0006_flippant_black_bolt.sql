@@ -1,0 +1,1 @@
+ALTER TYPE "public"."doc_status" ADD VALUE 'failed';
