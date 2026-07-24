@@ -167,7 +167,26 @@ Rules:
 4. Respond with a single JSON object matching the diagnosis schema. No preamble, no fences.`;
 
 export const diagnoseDocument = inngest.createFunction(
-  { id: "document-diagnose", retries: 1 },
+  {
+    id: "document-diagnose", retries: 1,
+    // Without this, a failed diagnosis left the document on "diagnosing"
+    // forever — a spinner that never resolves. Mark it failed so the writer
+    // shows the recoverable failure card, and refund the diagnosis credit.
+    onFailure: async ({ event }) => {
+      const data = event.data.event.data as { documentId?: string; orgId?: string };
+      if (!data.documentId) return;
+      const d = await db.query.documents.findFirst({ where: eq(documents.id, data.documentId) });
+      if (!d || d.status !== "diagnosing") return;
+      await db.update(documents).set({ status: "failed", updatedAt: new Date() })
+        .where(eq(documents.id, data.documentId));
+      await emitDoc(data.documentId, "diagnose", "error",
+        "Diagnosis didn't finish. Please try starting the piece again.", { stage: "angle" });
+      if (data.orgId) {
+        await refundCredits({ orgId: data.orgId, brainId: d.brainId, reason: "diagnosis", refType: "document", refId: data.documentId })
+          .catch(() => {});
+      }
+    },
+  },
   { event: "wire/document.diagnose.requested" },
   async ({ event, step }) => {
     const { documentId, orgId } = event.data as { documentId: string; orgId: string };
@@ -211,6 +230,11 @@ export const diagnoseDocument = inngest.createFunction(
         userContent: `Source kind: ${source.kind}\n${fence("source", source.normalizedText!.slice(0, 30_000))}\n\nDiagnose this source.`,
         schema: diagnosisSchema,
         maxTokens: 1200,
+        // Stream even though the output is JSON we don't render incrementally:
+        // a non-streaming request sat silent and got killed by an idle-connection
+        // timeout in the Inngest/Vercel path (generation streams and survives).
+        // Streaming keeps the connection warm and arms the stall watchdog.
+        onDelta: () => {},
       });
     });
 
