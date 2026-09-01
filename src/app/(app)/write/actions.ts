@@ -68,8 +68,24 @@ async function brainAndUser() {
   return { org, brain, userId };
 }
 
+/** A single bare link with no surrounding prose — someone pasted a URL, not an article. */
+const BARE_URL = /^https?:\/\/\S+$/i;
+/** Links that should be transcribed/handled as media rather than fetched as an article. */
+const MEDIA_URL = /(?:youtube\.com|youtu\.be|open\.spotify\.com|spotify\.link|podcasts\.apple\.com|music\.apple\.com)/i;
+const MEDIA_FILE = /\.(?:mp3|m4a|mp4|wav|aac|ogg|flac|webm|mov)(?:$|\?|#)/i;
+
 export async function createFromPaste(text: string) {
   const clean = text.trim();
+
+  // A pasted bare link is not article text. Route it to the handler the user
+  // meant, so "paste a YouTube link" transcribes instead of being stored as a
+  // 43-character "article" and rejected as having no content.
+  if (BARE_URL.test(clean)) {
+    return MEDIA_URL.test(clean) || MEDIA_FILE.test(clean)
+      ? createFromMediaLink(clean)   // YouTube / podcast / audio-video file → transcribe
+      : createFromUrl(clean);        // any other web page → fetch the article text
+  }
+
   if (clean.length < 40) return { ok: false as const, error: "Paste a bit more to work with (at least a few sentences)." };
   const { org, brain, userId } = await brainAndUser();
   if (org.creditsBalance < CREDIT_COSTS.diagnosis) return { ok: false as const, error: NO_CREDITS };

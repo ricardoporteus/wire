@@ -162,6 +162,9 @@ const diagnosisOffTopic = z.object({
 });
 const diagnosisSchema = z.union([diagnosisOffTopic, diagnosisOk]);
 
+/** A source that is nothing but a bare link — no content to diagnose. */
+const BARE_URL_RE = /^https?:\/\/\S+$/i;
+
 const DIAGNOSIS_SYSTEM = (brain: BrandBrain, intel: string) => `You are Wire's content diagnostician for ${brain.name}. You read raw source material and recommend what it should become — before anything is written.
 
 <brand_brain>
@@ -221,6 +224,27 @@ export const diagnoseDocument = inngest.createFunction(
       : null;
     if (!source?.normalizedText) throw new Error("Source not ready");
 
+    // Too little to diagnose (a stray link, an empty fetch, a near-empty
+    // transcript). Catch it here with an accurate message instead of charging a
+    // diagnosis and having the model reject it as "off-topic". Diagnosis is not
+    // debited yet, so nothing to refund there; a media source already paid for
+    // transcription, so refund that.
+    const sourceText = source.normalizedText.trim();
+    if (sourceText.length < 120 || BARE_URL_RE.test(sourceText)) {
+      await step.run("thin-source", async () => {
+        const msg = BARE_URL_RE.test(sourceText)
+          ? "That's a link on its own, not content. Paste it into the Web URL tab for an article, or the Audio / video / podcast tab for a video or podcast, and Wire will pull the content for you."
+          : "There wasn't enough content here to work with. Paste the full text (or a URL / video link) and Wire will take it from there.";
+        await db.update(sources).set({ error: msg }).where(eq(sources.id, source.id));
+        await db.update(documents).set({ status: "failed", updatedAt: new Date() }).where(eq(documents.id, documentId));
+        await emitDoc(documentId, "diagnose", "error", msg, { stage: "angle" });
+        if (["audio_link", "video_link", "voice_note"].includes(source.kind)) {
+          await refundCredits({ orgId, brainId: doc.brainId, reason: "transcription", refType: "document", refId: documentId }).catch(() => {});
+        }
+      });
+      return { ok: false, thin: true };
+    }
+
     await step.run("debit", () =>
       debitCredits({ orgId, brainId: doc.brainId, reason: "diagnosis", refType: "document", refId: documentId }));
 
@@ -259,13 +283,17 @@ export const diagnoseDocument = inngest.createFunction(
       });
     });
 
-    // Off-topic source: the model judged it unrelated to the brand. Not a
-    // technical failure — communicate it plainly, refund everything charged for
-    // this piece (transcription too, for a media source), and stop here.
+    // Off-topic / unusable source: the model couldn't build an on-brand brief.
+    // Not a technical failure — present the model's own reason (which may be
+    // "off-brand" OR "no usable content"), refund everything charged for this
+    // piece (transcription too, for a media source), and stop here.
     if (result.data.offTopic === true) {
       const reason = (result.data as { reason: string }).reason;
       await step.run("off-topic", async () => {
-        const msg = `This source doesn't relate to ${brain.name}: ${reason} Try a source about your own topics and Wire will run with it.`;
+        // Lead with the actual reason rather than forcing an "off-brand" framing:
+        // a bare link or empty source is a different problem from truly off-topic
+        // content, and the reason text distinguishes them.
+        const msg = `Wire couldn't build a brief from this source. ${reason} Paste your material, or a link, about ${brain.name}'s topics and it will run with it.`;
         await db.update(sources).set({ error: msg }).where(eq(sources.id, source.id));
         await db.update(documents).set({ status: "failed", updatedAt: new Date() }).where(eq(documents.id, documentId));
         await emitDoc(documentId, "diagnose", "error", msg, { stage: "angle" });
