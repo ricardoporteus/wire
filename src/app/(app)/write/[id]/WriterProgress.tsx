@@ -33,6 +33,7 @@ const PHASE_STAGES: Record<"diagnose" | "generate", { key: string; title: string
   generate: [
     { key: "grounding", title: "Grounding in your brand" },
     { key: "writing", title: "Writing the draft" },
+    { key: "factcheck", title: "Fact-checking claims" },
     { key: "checking", title: "Checking terminology & voice" },
     { key: "ready", title: "Draft ready" },
   ],

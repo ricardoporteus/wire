@@ -25,6 +25,11 @@ type Brief = {
   terminologyCheckPassed: boolean;
   voiceChecksPassed: boolean;
   terminologyViolations?: { found: string; useInstead: string }[];
+  factCheck?: {
+    checkedCount: number;
+    removed: { claim: string; type: string; verdict: string; note?: string }[];
+    flagged: { claim: string; type: string; note?: string }[];
+  };
 };
 type State = {
   status: string;
@@ -150,6 +155,7 @@ export function WriterFlow({
       {/* Editor + brief */}
       {(s.status === "draft" || s.status === "final") && s.bodyMarkdown && (
         <>
+        {s.brief?.factCheck && <FactCheckPanel fc={s.brief.factCheck} />}
         <div className="mt-6 grid gap-8 md:grid-cols-[1fr_300px]">
           <article>
             <h1 className="text-h3 text-ink-green">{s.title}</h1>
@@ -207,6 +213,63 @@ export function WriterFlow({
         </div>
       )}
     </main>
+  );
+}
+
+function FactCheckPanel({ fc }: { fc: NonNullable<Brief["factCheck"]> }) {
+  const nothing = fc.removed.length === 0 && fc.flagged.length === 0;
+  return (
+    <div className="card mt-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="eyebrow eyebrow--cream">Fact check</span>
+        <span className="text-caption text-muted">
+          {fc.checkedCount} specific claim{fc.checkedCount === 1 ? "" : "s"} verified against the web and your site
+        </span>
+      </div>
+
+      {nothing ? (
+        <p className="mt-3 text-body-sm text-ink">Every specific claim checked out. Still worth a human read before publishing.</p>
+      ) : (
+        <div className="mt-4 grid gap-5">
+          {fc.removed.length > 0 && (
+            <div>
+              <h3 className="text-h5 text-ink-green">
+                Removed from the draft <span className="badge badge--attention ml-1">{fc.removed.length}</span>
+              </h3>
+              <p className="mt-1 text-caption text-muted">
+                These were fabricated or out of date, so Wire took them out. Add a verified figure back if you have one.
+              </p>
+              <ul className="mt-3 space-y-2">
+                {fc.removed.map((c, i) => (
+                  <li key={i} className="border-l-2 border-negative pl-3 text-body-sm">
+                    <span className="text-ink">{c.claim}</span>
+                    {c.note && <span className="block text-caption text-muted">{c.note}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {fc.flagged.length > 0 && (
+            <div>
+              <h3 className="text-h5 text-ink-green">
+                Check before publishing <span className="badge badge--queued ml-1">{fc.flagged.length}</span>
+              </h3>
+              <p className="mt-1 text-caption text-muted">
+                Wire could not confirm these either way. They are still in the draft, verify or cut them.
+              </p>
+              <ul className="mt-3 space-y-2">
+                {fc.flagged.map((c, i) => (
+                  <li key={i} className="border-l-2 border-line pl-3 text-body-sm">
+                    <span className="text-ink">{c.claim}</span>
+                    {c.note && <span className="block text-caption text-muted">{c.note}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

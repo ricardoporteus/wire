@@ -21,6 +21,7 @@ import { brandBrains, sources, documents, keywords, contentIdeas, docEvents } fr
 import { brandBrainSchema, type BrandBrain } from "@/lib/brand-brain.zod";
 import { debitCredits, recordUsage, refundCredits } from "@/lib/credits";
 import { transcribeMedia } from "@/lib/transcription";
+import { factCheck, stripClaims, STRIP_VERDICTS } from "@/jobs/fact-check";
 import { fence } from "@/lib/untrusted";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -480,7 +481,40 @@ export const generateDocument = inngest.createFunction(
       const b = stripEmDashes(gen.data.bodyMarkdown);
       return enforceTerminology(brain, t, b);
     });
-    const { title, body } = clean;
+    const { title: cleanTitle, body: cleanBody } = clean;
+
+    /*
+     * Fact-check pass — the accuracy backstop. Verifies every specific claim
+     * against the web and the brand's live site, strips fabricated/contradicted
+     * specifics from the body, and returns the full claim report for the editor.
+     * The writer is closed-book, so this is what catches invented prices and
+     * stale visa/law figures before they ship.
+     */
+    const checked = await step.run("fact-check", async () => {
+      await emitDoc(documentId, "generate", "stage", "Fact-checking every claim against the web and your site", { stage: "factcheck" });
+      const fc = await factCheck({
+        brain, title: cleanTitle, body: cleanBody,
+        source: source?.normalizedText ?? null,
+        onSearch: (q) => { void emitDoc(documentId, "generate", "info", `Verifying: ${q}`); },
+      });
+      const toStrip = fc.claims.filter((c) => STRIP_VERDICTS.includes(c.verdict));
+      let outTitle = cleanTitle, outBody = cleanBody, stripIn = 0, stripOut = 0;
+      if (toStrip.length) {
+        await emitDoc(documentId, "generate", "info",
+          `Removing ${toStrip.length} unverifiable claim${toStrip.length === 1 ? "" : "s"} from the draft`);
+        const s = await stripClaims({ model: WRITER_MODEL, title: cleanTitle, body: cleanBody, toStrip });
+        outTitle = stripEmDashes(s.title); outBody = stripEmDashes(s.body);
+        stripIn = s.tokensIn; stripOut = s.tokensOut;
+      }
+      return {
+        title: outTitle, body: outBody, claims: fc.claims,
+        // fc.costUsdMicros already includes Opus tokens + web-search fees; add the
+        // strip rewrite at the writer-model rate.
+        costUsdMicros: fc.costUsdMicros + costMicros(stripIn, stripOut),
+        tokensIn: fc.tokensIn + stripIn, tokensOut: fc.tokensOut + stripOut,
+      };
+    });
+    const title = checked.title, body = checked.body;
 
     /* Final lint of what actually remains, surfaced in the brief for the editor */
     const violations = lintTerminology(body + " " + title, brain);
@@ -501,6 +535,16 @@ export const generateDocument = inngest.createFunction(
           voiceChecksPassed: true, // pillar checks surfaced in editor v1.1
           // violations listed for the editor to render inline:
           ...(violations.length ? { terminologyViolations: violations } : {}),
+          // Fact-check report: everything not cleanly "supported", for the editor
+          // to review. "removed" claims were stripped from the body; the rest are
+          // flags to check before publishing.
+          factCheck: {
+            checkedCount: checked.claims.length,
+            removed: checked.claims.filter((c) => STRIP_VERDICTS.includes(c.verdict))
+              .map((c) => ({ claim: c.claim, type: c.type, verdict: c.verdict, note: c.note })),
+            flagged: checked.claims.filter((c) => c.verdict === "unverified")
+              .map((c) => ({ claim: c.claim, type: c.type, note: c.note })),
+          },
         } as never,
         tokensIn: doc.tokensIn + gen.usage.input_tokens,
         tokensOut: doc.tokensOut + gen.usage.output_tokens,
@@ -512,8 +556,11 @@ export const generateDocument = inngest.createFunction(
     await step.run("telemetry", () =>
       recordUsage({
         orgId, brainId: doc.brainId, refType: "document", refId: documentId,
-        tokensIn: gen.usage.input_tokens, tokensOut: gen.usage.output_tokens,
-        costUsdMicros: costMicros(gen.usage.input_tokens, gen.usage.output_tokens),
+        tokensIn: gen.usage.input_tokens + checked.tokensIn,
+        tokensOut: gen.usage.output_tokens + checked.tokensOut,
+        // Writer tokens at the writer rate, plus the fact-check's own (Opus +
+        // web-search) cost, which checked.costUsdMicros already carries.
+        costUsdMicros: costMicros(gen.usage.input_tokens, gen.usage.output_tokens) + checked.costUsdMicros,
       }));
 
     return { ok: true, violations: violations.length };
