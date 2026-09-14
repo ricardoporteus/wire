@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { OrganizationProfile } from "@clerk/nextjs";
 import { savePartial } from "../onboarding/actions";
+import { requestFactsRefresh, getApprovedFacts } from "./actions";
 import { CompanyIcpStep } from "../onboarding/steps/CompanyIcpStep";
 import { CompetitorsStep } from "../onboarding/steps/CompetitorsStep";
 import { VoiceStep } from "../onboarding/steps/VoiceStep";
@@ -31,6 +32,43 @@ export function SettingsClient({
   const [pending, start] = useTransition();
 
   const patch = (p: Partial<WizardDraft>) => { setDraft((d) => ({ ...d, ...p })); setSaved(false); };
+
+  // "Refresh facts from live site" — fires the web-search job, then polls until
+  // the approved-fact list changes (or times out) and folds it into the draft.
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMsg, setRefreshMsg] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const refreshFacts = async () => {
+    if (refreshing) return;
+    const baseline = JSON.stringify(draft.approvedFacts ?? []);
+    setRefreshing(true);
+    setRefreshMsg("Reading your live site — this takes a minute or two…");
+    try {
+      await requestFactsRefresh(brainId);
+    } catch {
+      setRefreshing(false);
+      setRefreshMsg("Couldn’t start the refresh. Try again in a moment.");
+      return;
+    }
+    const startedAt = Date.now();
+    pollRef.current = setInterval(async () => {
+      // Give up after 4 minutes rather than poll forever.
+      if (Date.now() - startedAt > 240_000) {
+        if (pollRef.current) clearInterval(pollRef.current);
+        setRefreshing(false);
+        setRefreshMsg("Still running. Reload this page shortly to see the updated facts.");
+        return;
+      }
+      const { approvedFacts } = await getApprovedFacts(brainId);
+      if (JSON.stringify(approvedFacts) !== baseline) {
+        if (pollRef.current) clearInterval(pollRef.current);
+        patch({ approvedFacts });
+        setRefreshing(false);
+        setRefreshMsg(`Updated — ${approvedFacts.length} verified fact${approvedFacts.length === 1 ? "" : "s"} pulled from your site. Review below, then Save.`);
+      }
+    }, 4000);
+  };
 
   const save = () =>
     start(async () => {
@@ -64,6 +102,25 @@ export function SettingsClient({
           <p className="text-body-sm text-muted">
             This is what both agents read at runtime. Edits apply to the next intelligence run and every new piece.
           </p>
+
+          <section className="card">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-xl">
+                <h2 className="text-h4 text-ink-green">Approved facts</h2>
+                <p className="mt-1 text-body-sm text-muted">
+                  The writer may only state specifics — prices, program names, ages, awards — that appear in this list.
+                  Refresh it to pull the current figures straight from your live site so nothing goes out of date.
+                </p>
+              </div>
+              <button className="btn-primary shrink-0" disabled={refreshing} onClick={refreshFacts}>
+                {refreshing ? "Refreshing…" : "Refresh facts from live site"}
+              </button>
+            </div>
+            {refreshMsg && (
+              <p className="mt-3 text-caption text-ink">{refreshMsg}</p>
+            )}
+          </section>
+
           {SECTIONS.map(({ title, Step }) => (
             <section key={title}>
               <h2 className="mb-4 text-h4 text-ink-green">{title}</h2>

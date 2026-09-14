@@ -4,6 +4,7 @@ import { draftBrandBrain } from "@/jobs/brand-brain-drafter";
 import { runIntelligence, scheduleMonthlyRuns } from "@/jobs/intelligence-pipeline";
 import { ingestSource, diagnoseDocument, generateDocument } from "@/jobs/content-writer-pipeline";
 import { repurposeDocument } from "@/jobs/repurposer";
+import { refreshBrandFactsJob, scheduleBrandFactsRefresh } from "@/jobs/brand-facts";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -15,5 +16,7 @@ export const { GET, POST, PUT } = serve({
     diagnoseDocument,
     generateDocument,
     repurposeDocument,
+    refreshBrandFactsJob,
+    scheduleBrandFactsRefresh,
   ],
 });
