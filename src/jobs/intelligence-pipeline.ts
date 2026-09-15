@@ -236,7 +236,7 @@ const gapStage = z.object({
 
 export const aeoStage = z.object({
   peopleAlsoAsk: z.array(z.object({ question: z.string(), angle: z.string() })),
-  featuredSnippets: z.array(z.object({ question: z.string(), format: looseEnum(["paragraph", "list", "table"] as const, "paragraph") })),
+  featuredSnippets: z.array(z.object({ question: z.string(), format: looseEnum(["paragraph", "list", "table"] as const, "paragraph"), angle: z.string().optional() })),
 });
 
 const trendStage = z.object({
@@ -266,7 +266,7 @@ const SHAPES = {
   keywords: `{"highIntent":[{"phrase":"...","intent":"...","difficulty":"high|medium|low","priority":1,"rationale":"..."}],"informational":[{"phrase":"...","intent":"...","difficulty":"high|medium|low","priority":2,"rationale":"..."}],"longTail":[{"phrase":"...","rationale":"..."}]}`,
   competitors: `{"competitors":[{"competitor":"...","topics":["..."],"targetKeywords":["..."],"weakness":"..."}]}`,
   gaps: `{"gaps":[{"topic":"...","whyItMatters":"...","suggestedAngle":"..."}]}`,
-  aeo: `{"peopleAlsoAsk":[{"question":"...","angle":"..."}],"featuredSnippets":[{"question":"...","format":"paragraph|list|table"}]}`,
+  aeo: `{"peopleAlsoAsk":[{"question":"...","angle":"..."}],"featuredSnippets":[{"question":"...","format":"paragraph|list|table","angle":"one line: why this snippet matters and how to win it"}]}`,
   trends: `{"trends":[{"trend":"...","opportunity":"..."}],"bestPractices":["..."]}`,
   ideas: `{"ideas":[{"title":"...","format":"article|listicle|how_to|lesson|tutorial|testimonial|faq_page","targetKeyword":"...","targetAeoQuestion":"... (optional, omit if none)","whyNow":"..."}]}`,
 } as const;
@@ -385,7 +385,7 @@ export const runIntelligence = inngest.createFunction(
       researchStage({
         brain, searchUses, schema: aeoStage,
         runId, stageKey: "finding_aeo", label: "Finding answer-engine opportunities",
-        instruction: `Find Answer-Engine opportunities: People-Also-Ask clusters the ICP asks, featured-snippet questions with no dominant answer, and conversational/voice phrasings. For snippets, recommend the winning format (paragraph / list / table).${shapeHint(SHAPES.aeo)}`,
+        instruction: `Find Answer-Engine opportunities: People-Also-Ask clusters the ICP asks, featured-snippet questions with no dominant answer, and conversational/voice phrasings. For snippets, recommend the winning format (paragraph / list / table) and a one-line "angle" — why the snippet matters for this brand and how to win it.${shapeHint(SHAPES.aeo)}`,
       }));
     totals.in += aeo.tokensIn; totals.out += aeo.tokensOut; totals.cost += aeo.costUsdMicros;
     await step.run("save:aeo", async () => {
@@ -396,10 +396,10 @@ export const runIntelligence = inngest.createFunction(
       }
       for (const s of aeo.data.featuredSnippets) {
         await db.insert(keywords).values({
-          brainId, runId, phrase: s.question, intent: "aeo_question", aeoFormat: s.format, priority: 1,
+          brainId, runId, phrase: s.question, intent: "aeo_question", aeoFormat: s.format, rationale: s.angle ?? null, priority: 1,
         }).onConflictDoUpdate({
           target: [keywords.brainId, keywords.phrase],
-          set: { aeoFormat: s.format, priority: 1, runId },
+          set: { aeoFormat: s.format, rationale: s.angle ?? null, priority: 1, runId },
           setWhere: isNull(keywords.userModifiedAt),
         });
       }

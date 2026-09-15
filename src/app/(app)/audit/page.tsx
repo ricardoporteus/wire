@@ -127,8 +127,8 @@ export default async function AuditPage({
                     <td className="py-2.5 pr-4">
                       <span className={`badge ${PRIORITY_BADGE(k.priority)}`}>P{k.priority}</span>
                     </td>
-                    <td className="py-2.5 pr-4 text-muted">{k.difficulty ?? "—"}</td>
-                    <td className="py-2.5 text-muted">{k.rationale ?? "—"}</td>
+                    <td className="py-2.5 pr-4 text-muted">{k.difficulty ?? (k.intent === "aeo_question" ? "n/a" : "—")}</td>
+                    <td className="py-2.5 text-muted">{whyItMatters(k)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -255,6 +255,22 @@ export default async function AuditPage({
 }
 
 /* -------------------------------------------------------------------------- */
+
+/**
+ * "Why it matters" cell text. Prefer the model's rationale/angle. For
+ * answer-engine questions that predate the angle field (or where the model
+ * omitted it), fall back to the captured snippet format so the highest-priority
+ * rows still say something actionable instead of a bare dash.
+ */
+function whyItMatters(k: { rationale: string | null; intent: string; aeoFormat: string | null }): string {
+  if (k.rationale) return k.rationale;
+  if (k.intent === "aeo_question") {
+    return k.aeoFormat
+      ? `Featured-snippet target — win it with a ${k.aeoFormat}.`
+      : "Answer-engine target — write a direct, structured answer to win the AI/snippet result.";
+  }
+  return "—";
+}
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
