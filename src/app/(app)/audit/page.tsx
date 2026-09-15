@@ -283,7 +283,7 @@ function InfoTip({ text, align = "left" }: { text: string; align?: "left" | "rig
       </button>
       <span
         role="tooltip"
-        className={`pointer-events-none absolute top-[calc(100%_+_6px)] z-20 w-64 rounded-md border border-line bg-card p-3 text-left text-caption font-normal normal-case leading-relaxed tracking-normal text-ink opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${align === "right" ? "right-0" : "left-0"}`}
+        className={`pointer-events-none absolute top-[calc(100%_+_6px)] z-20 w-64 whitespace-normal rounded-md border border-line bg-card p-3 text-left text-caption font-normal normal-case leading-relaxed tracking-normal text-ink opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${align === "right" ? "right-0" : "left-0"}`}
       >
         {text}
       </span>
