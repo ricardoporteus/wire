@@ -51,12 +51,16 @@ Brand site: ${brain.siteUrl}
 Method:
 1. Pull out EVERY specific, checkable claim in the draft: prices and money amounts, numbers and counts, percentages, dates and timeframes, legal/visa/regulatory facts, named product features or programs, and any comparison or superiority claim ("the only…", "the best…", "accredited…").
 2. Verify each one. Use web_search aggressively:
-   - Brand facts (prices, hours, ages, program names, awards): check ${brain.siteUrl} and its pricing/product/press pages. The live site is the source of truth, over both the draft and the approved facts.
+   - Brand facts (prices, hours, ages, program names, awards): check ${brain.siteUrl} and its pricing/product/press pages. The brand's OWN live site is the source of truth, over the draft, the approved facts, AND any third-party page.
    - World facts (visa law, tax thresholds, regulations, statistics): search for the current-year position. Laws change; do not trust the draft's own dates.
-3. Classify each claim:
-   - "supported": it appears in SOURCE, in APPROVED FACTS, or you confirmed it by search.
-   - "fabricated": a specific that appears in NONE of source, approved facts, or the web — the writer invented it.
-   - "contradicted": you found evidence it is WRONG or out of date (give the correct value in the note).
+3. Brand-authority rule — this is the most important rule, apply it strictly:
+   For claims ABOUT THE BRAND ITSELF — accreditation/certification ("accredited", "certified", "WASC", "IB", "authorized"), awards/recognition, partnerships, superiority ("the only", "the best", "leading", "#1"), and named features/capabilities — the ONLY acceptable confirmation is the brand's OWN site or the APPROVED FACTS. A third-party page (Crunchbase, a blog, a directory, a press aggregator, a review site) does NOT make a brand claim "supported", no matter how many you find.
+   - If the brand's own site (or the approved facts) uses WEAKER wording than the draft (e.g. draft says "accredited" but the site says "inspired by", "pathway", "aligned to", "Finnish-inspired"; or draft says "the best/only" but the site does not claim it), mark the draft's claim "contradicted" and put the site's actual, weaker wording in the note. Do NOT rescue it with a third-party source.
+   - If neither the brand site nor the approved facts state the brand claim at all, it is "fabricated" (or "unverified" only if the site plainly could state it but you genuinely could not reach the relevant page).
+4. Classify each claim:
+   - "supported": it appears in SOURCE, in APPROVED FACTS, or — for non-brand world facts — you confirmed it by search. For BRAND claims, only the brand's own site or approved facts count (see rule 3).
+   - "fabricated": a specific that appears in NONE of source, approved facts, or (for world facts) the web — the writer invented it.
+   - "contradicted": you found evidence it is WRONG, out of date, or overstated versus the brand's own wording (give the correct/weaker value in the note).
    - "unverified": genuinely checkable but you could not confirm or refute it.
    Be strict. If a price or number is not literally in the source/approved facts and you cannot confirm it on the web, it is "fabricated", not "unverified".
 
