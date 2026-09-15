@@ -28,7 +28,7 @@ export function FeatureTabs() {
     <>
       <div
         role="tablist"
-        aria-label="How Wire works"
+        aria-label="How Mavrix works"
         className="inline-flex rounded-pill border border-line bg-card p-1.5"
       >
         {FEATURES.tabs.map((t, i) => (

@@ -79,7 +79,7 @@ async function emit(
   }
 }
 
-export const RESEARCH_SYSTEM = (brain: BrandBrain) => `You are Wire's SEO & AEO intelligence agent, running a monthly research stage for one brand. Ground every finding in what you actually find via web search — no invented volumes, no invented competitor claims.
+export const RESEARCH_SYSTEM = (brain: BrandBrain) => `You are Mavrix's SEO & AEO intelligence agent, running a monthly research stage for one brand. Ground every finding in what you actually find via web search — no invented volumes, no invented competitor claims.
 
 <brand_brain>
 Brand: ${brain.name} (${brain.siteUrl})

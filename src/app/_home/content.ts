@@ -2,10 +2,10 @@
  * Homepage copy and assets, in one place. Edit strings here; no JSX required.
  *
  * Two rules this file keeps to:
- *  1. Every claim maps to something Wire actually does. Credit costs and plan
+ *  1. Every claim maps to something Mavrix actually does. Credit costs and plan
  *     grants are imported from the real constants, so marketing cannot drift
  *     from billing.
- *  2. No invented social proof. Wire has no customers yet, so there is no logo
+ *  2. No invented social proof. Mavrix has no customers yet, so there is no logo
  *     wall, no testimonials, no awards, and the stats are product facts rather
  *     than customer outcomes.
  *
@@ -14,7 +14,7 @@
  *
  * Images in /public/syncmaster are still the SyncMaster template's demo assets
  * (stock photography and email-app screenshots). They are placeholders and need
- * replacing with real Wire product shots before launch.
+ * replacing with real Mavrix product shots before launch.
  */
 // From lib/credit-costs, not lib/credits: the latter imports Drizzle and the
 // Neon driver, and this file is reached from a client component.
@@ -93,7 +93,7 @@ export const FEED = {
 };
 
 /**
- * Replaces the template's customer logo wall. Wire has no customers to name yet,
+ * Replaces the template's customer logo wall. Mavrix has no customers to name yet,
  * so this states what a sweep contains instead of implying social proof.
  */
 export const STAGE_STRIP = {
@@ -102,7 +102,7 @@ export const STAGE_STRIP = {
 };
 
 export const FEATURES = {
-  eyebrow: "How Wire works",
+  eyebrow: "How Mavrix works",
   title: "Brand Guidelines First, Research and Repurpose Second, Writing Last",
   /**
    * Which tab opens first, by label. Only the active panel is server-rendered,
@@ -126,7 +126,7 @@ export const FEATURES = {
         {
           icon: ASSETS.iconBranch,
           title: "The whole pack in one pass",
-          body: "Request every format you need and Wire generates them together, so the piece ships everywhere the same day.",
+          body: "Request every format you need and Mavrix generates them together, so the piece ships everywhere the same day.",
         },
       ],
     },
@@ -182,7 +182,7 @@ export const TOOLS = {
 export const SPLITS = [
   {
     title: "Watch the research happen, line by line",
-    body: "A long job that shows nothing looks like a crashed one. Wire streams every search it runs and every source it reads, so you can see the work instead of guessing at it.",
+    body: "A long job that shows nothing looks like a crashed one. Mavrix streams every search it runs and every source it reads, so you can see the work instead of guessing at it.",
     listTitle: "What the live feed shows you",
     list: [
       "Every search query as it is issued",
@@ -274,12 +274,12 @@ export const PRICING = {
 };
 
 /**
- * The template ran customer outcome stats here (100K clients, 80% faster). Wire
+ * The template ran customer outcome stats here (100K clients, 80% faster). Mavrix
  * has none to report, so these are product facts instead, each checkable in the
  * app: research stages, the cost of an article, and the trial grant.
  */
 export const STATS = {
-  eyebrow: "Wire by the numbers",
+  eyebrow: "Mavrix by the numbers",
   title: "What you actually get",
   items: [
     {
@@ -306,7 +306,7 @@ export const STATS = {
   ],
 };
 
-/** Replaces the template's third party integration logos: Wire has no integrations yet. */
+/** Replaces the template's third party integration logos: Mavrix has no integrations yet. */
 export const CHANNELS = {
   title: "Written once, reshaped for where it lands",
   body: "Repurposing is a rewrite for a different room, not a copy and paste with the line breaks moved. Each format carries its own brief.",
@@ -327,7 +327,7 @@ export const CTA = {
 };
 
 export const FOOTER = {
-  body: "Wire is the content engine for CMOs. Research first, written against your brand, ready for every channel.",
+  body: "Mavrix is the content engine for CMOs. Research first, written against your brand, ready for every channel.",
   columns: [
     {
       title: "PRODUCT",
@@ -350,5 +350,5 @@ export const FOOTER = {
       links: [{ label: "Sign in", href: "/dashboard" }],
     },
   ],
-  copyright: "[Wire, Inc.]. The content engine for CMOs.",
+  copyright: "[Mavrix, Inc.]. The content engine for CMOs.",
 };

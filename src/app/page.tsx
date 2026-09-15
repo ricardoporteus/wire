@@ -20,11 +20,11 @@ const APP_HOST = process.env.NEXT_PUBLIC_APP_HOST;
 const APP = APP_HOST ? `https://${APP_HOST}` : "";
 
 export const metadata: Metadata = {
-  title: "Wire: the content engine for CMOs",
+  title: "Mavrix: the content engine for CMOs",
   description:
-    "Wire learns your brand, sweeps your market for what is worth writing, then drafts it in your voice and reshapes it for every channel.",
+    "Mavrix learns your brand, sweeps your market for what is worth writing, then drafts it in your voice and reshapes it for every channel.",
   openGraph: {
-    title: "Wire: the content engine for CMOs",
+    title: "Mavrix: the content engine for CMOs",
     description:
       "Research first, then writing. Six live research stages, a brand-trained writer, and channel-ready exports.",
     url: "/",

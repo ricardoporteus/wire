@@ -1,4 +1,4 @@
-export const metadata = { title: "Terms of Service — Wire" };
+export const metadata = { title: "Terms of Service — Mavrix" };
 
 export default function TermsPage() {
   return (
@@ -7,15 +7,15 @@ export default function TermsPage() {
       <p className="text-caption text-muted">Last updated: July 17, 2026</p>
 
       <p>
-        These Terms of Service (&ldquo;Terms&rdquo;) govern your access to and use of Wire, a content-intelligence and
-        content-generation platform (the &ldquo;Service&rdquo;) operated by <strong>[Wire, Inc.]</strong> (&ldquo;Wire&rdquo;,
+        These Terms of Service (&ldquo;Terms&rdquo;) govern your access to and use of Mavrix, a content-intelligence and
+        content-generation platform (the &ldquo;Service&rdquo;) operated by <strong>[Mavrix, Inc.]</strong> (&ldquo;Mavrix&rdquo;,
         &ldquo;we&rdquo;, &ldquo;us&rdquo;). By creating an account, forming an organization, or using the Service, you agree to
         these Terms on behalf of yourself and the organization you represent.
       </p>
 
       <h2>1. The Service</h2>
       <p>
-        Wire helps marketing teams research keywords and topics and produce written content. It runs automated research
+        Mavrix helps marketing teams research keywords and topics and produce written content. It runs automated research
         (including web searches) and uses artificial intelligence to draft content grounded in the configuration you
         provide (your &ldquo;Brand Brain&rdquo;) and the source material you supply. AI output has inherent limits — see
         our <a href="/legal/ai-disclosure">AI-Content Disclosure</a>, which forms part of these Terms.
@@ -49,13 +49,13 @@ export default function TermsPage() {
       <p>
         &ldquo;Inputs&rdquo; are the material you provide or direct us to process — your Brand Brain, pasted text, URLs,
         uploaded files, and similar. &ldquo;Outputs&rdquo; are the content the Service generates for you. As between you
-        and Wire, <strong>you own your Inputs and your Outputs</strong>. You grant Wire a limited licence to host,
+        and Mavrix, <strong>you own your Inputs and your Outputs</strong>. You grant Mavrix a limited licence to host,
         process, and transmit your Inputs and Outputs solely to provide, secure, and improve the Service and as
         described in our <a href="/legal/privacy">Privacy Policy</a>.
       </p>
       <p>
         You are responsible for your Inputs and for reviewing and approving Outputs before use. You represent that your
-        Inputs, and your use of Outputs, do not infringe others&rsquo; rights or violate law. When you direct Wire to
+        Inputs, and your use of Outputs, do not infringe others&rsquo; rights or violate law. When you direct Mavrix to
         ingest a website or document, you confirm you have the right to do so.
       </p>
 
@@ -73,7 +73,7 @@ export default function TermsPage() {
       <p>
         Outputs are produced by automated systems and may be inaccurate, incomplete, or resemble existing material. You
         are solely responsible for reviewing, fact-checking, and approving Outputs before publishing or relying on them.
-        Wire is not a professional advisor and Outputs are not legal, financial, medical, or other professional advice.
+        Mavrix is not a professional advisor and Outputs are not legal, financial, medical, or other professional advice.
         See the <a href="/legal/ai-disclosure">AI-Content Disclosure</a>.
       </p>
 
@@ -93,9 +93,9 @@ export default function TermsPage() {
 
       <h2>9. Limitation of liability</h2>
       <p>
-        To the fullest extent permitted by law, Wire will not be liable for indirect, incidental, special,
-        consequential, or exemplary damages, or lost profits, revenue, or data. Wire&rsquo;s total liability arising out
-        of or relating to the Service will not exceed the amounts you paid to Wire in the <strong>three months</strong>
+        To the fullest extent permitted by law, Mavrix will not be liable for indirect, incidental, special,
+        consequential, or exemplary damages, or lost profits, revenue, or data. Mavrix&rsquo;s total liability arising out
+        of or relating to the Service will not exceed the amounts you paid to Mavrix in the <strong>three months</strong>
         before the event giving rise to the claim.
       </p>
 

@@ -28,7 +28,7 @@ function SetupPending() {
 }
 
 export function BillingTable() {
-  // Wire is org-scoped (one Clerk Organization = one customer), so show the
+  // Mavrix is org-scoped (one Clerk Organization = one customer), so show the
   // Organization plans (launch/growth/scale) for the active org, not user plans.
   return (
     <Boundary fallback={<SetupPending />}>

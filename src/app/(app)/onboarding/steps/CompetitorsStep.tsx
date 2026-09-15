@@ -15,7 +15,7 @@ export function CompetitorsStep({ draft, patch, aiDrafted }: StepProps) {
     <div className="grid gap-4">
       <Field
         label="Competitors"
-        hint="3–8 sites. Wire analyses each one's topics, keywords, and gaps every run."
+        hint="3–8 sites. Mavrix analyses each one's topics, keywords, and gaps every run."
         aiDraft={aiDrafted}
       >
         <div className="grid gap-3">

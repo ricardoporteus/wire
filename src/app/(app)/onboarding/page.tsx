@@ -23,7 +23,7 @@ function OnboardingHeader() {
   return (
     <header className="border-b border-line">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-        <span className="font-display text-h5 font-semibold text-ink-green">Wire</span>
+        <span className="font-display text-h5 font-semibold text-ink-green">Mavrix</span>
         <OrganizationSwitcher afterSelectOrganizationUrl="/dashboard" hidePersonal />
       </div>
     </header>

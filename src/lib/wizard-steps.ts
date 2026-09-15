@@ -61,13 +61,13 @@ export type StepMeta = {
 };
 
 export const STEPS: StepMeta[] = [
-  { key: "site",        title: "Site scan",          blurb: "Point Wire at your site and let it draft everything.", optional: false },
+  { key: "site",        title: "Site scan",          blurb: "Point Mavrix at your site and let it draft everything.", optional: false },
   { key: "company",     title: "Company & ICP",      blurb: "Who you are and who you're writing for.",             optional: false },
   { key: "competitors", title: "Competitors",        blurb: "The 3–8 sites your intelligence runs watch.",         optional: false },
-  { key: "voice",       title: "Voice & vocabulary", blurb: "How Wire sounds, and the words it must and mustn't use.", optional: false },
+  { key: "voice",       title: "Voice & vocabulary", blurb: "How Mavrix sounds, and the words it must and mustn't use.", optional: false },
   { key: "values",      title: "Values & facts",     blurb: "What every piece must reflect, and the only claims it may state.", optional: true },
   { key: "formats",     title: "Formats",            blurb: "Which formats are on, and their length rules.",       optional: true },
-  { key: "review",      title: "Review",             blurb: "How Wire will write for you.",                        optional: false },
+  { key: "review",      title: "Review",             blurb: "How Mavrix will write for you.",                        optional: false },
 ];
 
 /* ------------------------------ seed defaults ----------------------------- */

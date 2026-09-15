@@ -166,7 +166,7 @@ export function WriterFlow({
               <textarea
                 className="input mt-3"
                 rows={3}
-                placeholder="Tell Wire what to change — 'tighten the intro', 'more concrete examples', 'warmer tone'…"
+                placeholder="Tell Mavrix what to change — 'tighten the intro', 'more concrete examples', 'warmer tone'…"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
               />
@@ -237,7 +237,7 @@ function FactCheckPanel({ fc }: { fc: NonNullable<Brief["factCheck"]> }) {
                 Removed from the draft <span className="badge badge--attention ml-1">{fc.removed.length}</span>
               </h3>
               <p className="mt-1 text-caption text-muted">
-                These were fabricated or out of date, so Wire took them out. Add a verified figure back if you have one.
+                These were fabricated or out of date, so Mavrix took them out. Add a verified figure back if you have one.
               </p>
               <ul className="mt-3 space-y-2">
                 {fc.removed.map((c, i) => (
@@ -255,7 +255,7 @@ function FactCheckPanel({ fc }: { fc: NonNullable<Brief["factCheck"]> }) {
                 Check before publishing <span className="badge badge--queued ml-1">{fc.flagged.length}</span>
               </h3>
               <p className="mt-1 text-caption text-muted">
-                Wire could not confirm these either way. They are still in the draft, verify or cut them.
+                Mavrix could not confirm these either way. They are still in the draft, verify or cut them.
               </p>
               <ul className="mt-3 space-y-2">
                 {fc.flagged.map((c, i) => (

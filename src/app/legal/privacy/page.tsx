@@ -1,4 +1,4 @@
-export const metadata = { title: "Privacy Policy — Wire" };
+export const metadata = { title: "Privacy Policy — Mavrix" };
 
 export default function PrivacyPage() {
   return (
@@ -7,8 +7,8 @@ export default function PrivacyPage() {
       <p className="text-caption text-muted">Last updated: July 17, 2026</p>
 
       <p>
-        This Privacy Policy explains how <strong>[Wire, Inc.]</strong> (&ldquo;Wire&rdquo;) collects, uses, and shares
-        information when you use the Wire platform. It should be read with our <a href="/legal/terms">Terms of Service</a>.
+        This Privacy Policy explains how <strong>[Mavrix, Inc.]</strong> (&ldquo;Mavrix&rdquo;) collects, uses, and shares
+        information when you use the Mavrix platform. It should be read with our <a href="/legal/terms">Terms of Service</a>.
       </p>
 
       <h2>1. Information we collect</h2>
@@ -17,7 +17,7 @@ export default function PrivacyPage() {
         <li><strong>Brand Brain configuration</strong> — the company description, audience, voice, competitors, values, and approved facts you enter.</li>
         <li><strong>Ingested source material</strong> — text you paste, URLs and files you provide, and web pages we retrieve at your direction (including competitor pages during research).</li>
         <li><strong>Generated content and usage</strong> — the outputs we produce, and metadata such as credits consumed, timestamps, and model token usage.</li>
-        <li><strong>Billing data</strong> — plan and payment status. Card details are handled by our payments vendor; Wire does not store full card numbers.</li>
+        <li><strong>Billing data</strong> — plan and payment status. Card details are handled by our payments vendor; Mavrix does not store full card numbers.</li>
         <li><strong>Technical data</strong> — logs, IP address, and similar information generated when you use the Service.</li>
       </ul>
 

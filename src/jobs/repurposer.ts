@@ -32,7 +32,7 @@ const packSchema = z.object({
   })).min(1),
 });
 
-const REPURPOSE_SYSTEM = (brain: BrandBrain) => `You are Wire's repurposer for ${brain.name}. You adapt one finished piece into channel-native formats without losing the brand voice.
+const REPURPOSE_SYSTEM = (brain: BrandBrain) => `You are Mavrix's repurposer for ${brain.name}. You adapt one finished piece into channel-native formats without losing the brand voice.
 
 Voice pillars: ${brain.voice.pillars.map((p) => p.name).join(" / ")}.
 Personality: ${brain.voice.personality.map((p) => `${p.is} not ${p.notBut}`).join("; ")}.

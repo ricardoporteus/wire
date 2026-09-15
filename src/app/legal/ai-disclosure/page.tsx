@@ -1,4 +1,4 @@
-export const metadata = { title: "AI-Content Disclosure — Wire" };
+export const metadata = { title: "AI-Content Disclosure — Mavrix" };
 
 export default function AiDisclosurePage() {
   return (
@@ -7,13 +7,13 @@ export default function AiDisclosurePage() {
       <p className="text-caption text-muted">Last updated: July 17, 2026</p>
 
       <p>
-        Wire uses artificial intelligence to research topics and generate written content. This page explains what that
+        Mavrix uses artificial intelligence to research topics and generate written content. This page explains what that
         means so you can use the Service responsibly. It forms part of our <a href="/legal/terms">Terms of Service</a>.
       </p>
 
-      <h2>How Wire produces content</h2>
+      <h2>How Mavrix produces content</h2>
       <ul>
-        <li>Wire runs automated research, including web searches, to gather topics, keywords, and competitor signals.</li>
+        <li>Mavrix runs automated research, including web searches, to gather topics, keywords, and competitor signals.</li>
         <li>It uses large-language-model (AI) systems to draft, revise, and repurpose content.</li>
         <li>Drafts are grounded in your Brand Brain (your voice, values, and approved facts) and the source material you supply, plus deterministic checks for banned terms and formatting.</li>
       </ul>
@@ -30,7 +30,7 @@ export default function AiDisclosurePage() {
         <li>reflect gaps or biases in their training data.</li>
       </ul>
       <p>
-        Wire adds guardrails — it grounds claims in your approved facts and source material, avoids fabricating
+        Mavrix adds guardrails — it grounds claims in your approved facts and source material, avoids fabricating
         brand-specific specifics, and enforces your terminology rules — but <strong>these reduce, not eliminate,</strong>
         the risk of error.
       </p>
@@ -45,13 +45,13 @@ export default function AiDisclosurePage() {
 
       <h2>Not professional advice</h2>
       <p>
-        Outputs are not legal, financial, medical, tax, or other professional advice, and using Wire does not create any
+        Outputs are not legal, financial, medical, tax, or other professional advice, and using Mavrix does not create any
         professional relationship. Seek a qualified professional for advice in those areas.
       </p>
 
       <h2>Originality and third-party rights</h2>
       <p>
-        Wire does not knowingly copy third-party content, but it cannot guarantee that Outputs are free of similarity to
+        Mavrix does not knowingly copy third-party content, but it cannot guarantee that Outputs are free of similarity to
         existing works. You are responsible for ensuring your published content does not infringe copyrights, trademarks,
         or other rights, and for running your own plagiarism or originality checks where that matters to you.
       </p>
@@ -65,7 +65,7 @@ export default function AiDisclosurePage() {
 
       <h2>Human oversight</h2>
       <p>
-        Wire is designed to keep a human in the loop: it diagnoses before it writes, shows you a draft, and lets you
+        Mavrix is designed to keep a human in the loop: it diagnoses before it writes, shows you a draft, and lets you
         revise. Please keep it that way — meaningful human review is the safeguard that makes AI-assisted content
         trustworthy.
       </p>

@@ -9,11 +9,11 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-body", weight: ["400
 // site keeps to it.
 export const metadata: Metadata = {
   metadataBase: new URL("https://mavrix.agency"),
-  title: "Wire: the content engine for CMOs",
+  title: "Mavrix: the content engine for CMOs",
   description: "Research-first content: live SEO intelligence, a brand-trained writer, and every channel format. Built for Series A/B marketing teams.",
   // Only site-wide defaults belong here. Anything page-specific (canonical URL,
   // per-page OG title) is set on the page, or every route inherits the homepage's.
-  openGraph: { type: "website", siteName: "Wire" },
+  openGraph: { type: "website", siteName: "Mavrix" },
   twitter: { card: "summary_large_image" },
 };
 

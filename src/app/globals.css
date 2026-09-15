@@ -189,7 +189,7 @@
   .input:focus { border-color: var(--color-accent-strong); outline: none;
                  box-shadow: 0 0 0 3px var(--color-accent-tint); }
 
-  /* Status badges — Wire product language */
+  /* Status badges — Mavrix product language */
   .badge { display: inline-flex; align-items: center; gap: 6px;
            font-size: 13px; font-weight: 500;
            padding: 4px 12px; border-radius: var(--radius-pill); }

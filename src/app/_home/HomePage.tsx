@@ -1,14 +1,14 @@
 /**
  * Homepage — the SyncMaster "home-02" layout rebuilt in this app's design system,
- * selling Wire.
+ * selling Mavrix.
  *
  * All copy lives in ./content.ts. The interactive parts (feature tabs, pricing
  * toggle, count-up stats) live in ./Interactive.tsx as client components.
  *
  * Three sections deliberately differ from the template, because the template's
- * versions would have been untrue for Wire: the customer logo wall is now the
+ * versions would have been untrue for Mavrix: the customer logo wall is now the
  * six research stages, the customer-outcome stats are now product facts, and the
- * third party integration logos are now the export formats Wire really produces.
+ * third party integration logos are now the export formats Mavrix really produces.
  * The award badges are gone for the same reason.
  *
  * Images in /public/syncmaster are still template placeholders. Replace before
@@ -38,7 +38,7 @@ export function HomePage({ appUrl }: { appUrl: string }) {
           <div className="mx-auto flex max-w-[1200px] items-center gap-10 px-6 py-5">
             {/* Text wordmark, matching the app shell. The template's logo asset is
                 SyncMaster's own branding and cannot be used here. */}
-            <a href="/" className="font-display text-h5 font-semibold text-white">Wire</a>
+            <a href="/" className="font-display text-h5 font-semibold text-white">Mavrix</a>
             <nav className="hidden items-center gap-8 lg:flex">
               {NAV.map((n) => (
                 <a key={n.label} href={n.href} className="text-body-sm text-white/85 hover:text-white">
@@ -102,7 +102,7 @@ export function HomePage({ appUrl }: { appUrl: string }) {
           </div>
 
           {/* The live run feed, replacing the template's email-app composite: it
-              shows Wire's actual product rather than a stock screenshot. The
+              shows Mavrix's actual product rather than a stock screenshot. The
               template's doodle arrows are gone; against a single clean card they
               read as artefacts rather than decoration. */}
           <div className="mx-auto w-full max-w-[560px]">
@@ -265,7 +265,7 @@ export function HomePage({ appUrl }: { appUrl: string }) {
       <footer className="border-t border-white/10 bg-hero">
           <div className="mx-auto grid max-w-[1200px] gap-12 px-6 py-16 md:grid-cols-2 lg:grid-cols-4">
             <div>
-              <p className="font-display text-h5 font-semibold text-white">Wire</p>
+              <p className="font-display text-h5 font-semibold text-white">Mavrix</p>
               <p className="mt-5 max-w-xs text-body-sm text-white/60">{FOOTER.body}</p>
             </div>
 

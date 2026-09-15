@@ -95,7 +95,7 @@ export function SiteScanStep({
           <span className="eyebrow">Drafting your Brand Brain</span>
           <p className="mt-4 text-h5 text-ink-green">{PROGRESS_LINES[line]}</p>
           <p className="mt-2 text-body-sm text-muted">
-            Wire is reading your site and drafting every step. This usually takes under a minute.
+            Mavrix is reading your site and drafting every step. This usually takes under a minute.
           </p>
           <div className="mt-6 h-1.5 w-full overflow-hidden rounded-pill bg-bg-alt">
             <div className="h-full w-1/3 animate-pulse rounded-pill bg-accent-strong" />
@@ -113,7 +113,7 @@ export function SiteScanStep({
       <Field label="Brand name" hint="How your brand is written in copy.">
         <input className="input" placeholder="Acme" value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
-      <Field label="Website URL" hint="Wire reads your home, about, and a few content pages." error={error ?? undefined}>
+      <Field label="Website URL" hint="Mavrix reads your home, about, and a few content pages." error={error ?? undefined}>
         <input
           className="input"
           placeholder="acme.com"
@@ -131,7 +131,7 @@ export function SiteScanStep({
         </button>
       </div>
       <p className="text-micro text-muted">
-        Everything Wire reads is treated as data, never instructions — your Brand Brain is drafted, not dictated to.
+        Everything Mavrix reads is treated as data, never instructions — your Brand Brain is drafted, not dictated to.
       </p>
     </div>
   );

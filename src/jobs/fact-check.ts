@@ -44,7 +44,7 @@ export const STRIP_VERDICTS: FactVerdict[] = ["fabricated", "contradicted"];
 
 const CLAIM_SHAPE = `{"claims":[{"claim":"the specific as written in the draft","type":"price|number|percent|date|law|feature|comparison|superiority|other","verdict":"supported|fabricated|contradicted|unverified","note":"one sentence: the evidence, and the correct value if you found it"}]}`;
 
-const SYSTEM = (brain: BrandBrain) => `You are Wire's fact-checker for ${brain.name}. You are given a DRAFT article, the SOURCE material the writer was given, and APPROVED FACTS (pre-verified brand claims). Your job is to catch fabricated and outdated specifics before the piece is published.
+const SYSTEM = (brain: BrandBrain) => `You are Mavrix's fact-checker for ${brain.name}. You are given a DRAFT article, the SOURCE material the writer was given, and APPROVED FACTS (pre-verified brand claims). Your job is to catch fabricated and outdated specifics before the piece is published.
 
 Brand site: ${brain.siteUrl}
 

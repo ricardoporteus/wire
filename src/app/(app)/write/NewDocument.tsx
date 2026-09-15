@@ -55,7 +55,7 @@ export function NewDocument() {
         {tab === "paste" && (
           <textarea
             className="input min-h-[220px] font-body"
-            placeholder="Paste a transcript, notes, a rough draft, a voice-note dump — anything. Wire finds the piece inside it."
+            placeholder="Paste a transcript, notes, a rough draft, a voice-note dump — anything. Mavrix finds the piece inside it."
             value={text}
             onChange={(e) => setText(e.target.value)}
           />

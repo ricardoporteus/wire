@@ -11,7 +11,7 @@ function Row({ label, children }: { label: React.ReactNode; children: React.Reac
   );
 }
 
-/** Review — the one-page "here's how Wire will write for you" summary. */
+/** Review — the one-page "here's how Mavrix will write for you" summary. */
 export function ReviewStep({ draft, onEdit }: { draft: WizardDraft; onEdit: (stepIndex: number) => void }) {
   const edit = (i: number) => (
     <button type="button" className="ml-2 text-micro text-accent-strong underline" onClick={() => onEdit(i)}>
@@ -23,7 +23,7 @@ export function ReviewStep({ draft, onEdit }: { draft: WizardDraft; onEdit: (ste
     <div className="grid gap-6">
       <div>
         <span className="eyebrow">Review</span>
-        <h2 className="mt-3 text-h3 text-ink-green">Here&apos;s how Wire will write for {draft.name || "you"}</h2>
+        <h2 className="mt-3 text-h3 text-ink-green">Here&apos;s how Mavrix will write for {draft.name || "you"}</h2>
         <p className="mt-2 text-muted">
           Approve to grant your trial credits and fire your first intelligence run on {draft.siteUrl || "your domain"}.
         </p>

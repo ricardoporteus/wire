@@ -21,7 +21,7 @@ export function AppHeader({ creditsBalance }: { creditsBalance: number | null })
   return (
     <header className="sticky top-0 z-10 border-b border-line bg-bg/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-3">
-        <Link href="/dashboard" className="font-display text-h5 font-semibold text-ink-green">Wire</Link>
+        <Link href="/dashboard" className="font-display text-h5 font-semibold text-ink-green">Mavrix</Link>
         <nav className="flex items-center gap-1">
           {NAV.map((n) => {
             const active = pathname === n.href || pathname?.startsWith(n.href + "/");

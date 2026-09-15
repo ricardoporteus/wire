@@ -58,7 +58,7 @@ export default async function WritePage() {
       <span className="eyebrow">Write</span>
       <h1 className="mt-4 text-h2 text-ink-green">Start a new piece</h1>
       <p className="mt-2 text-muted">
-        Paste your material or drop in a URL. Wire diagnoses what it should become, grounded in your live
+        Paste your material or drop in a URL. Mavrix diagnoses what it should become, grounded in your live
         keyword intelligence and Brand Brain, before it writes a word.
       </p>
       <NewDocument />

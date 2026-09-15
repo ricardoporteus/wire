@@ -11,7 +11,7 @@ export function CreateWorkspace() {
   return (
     <main className="mx-auto grid min-h-screen max-w-xl place-items-center px-6 py-16">
       <div className="w-full">
-        <span className="eyebrow">Welcome to Wire</span>
+        <span className="eyebrow">Welcome to Mavrix</span>
         <h1 className="mt-4 text-h3 text-ink-green">Create your workspace</h1>
         <p className="mt-2 text-muted">
           Your workspace holds your Brand Brain, your team, and your plan. You can rename it any time.

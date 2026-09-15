@@ -34,7 +34,7 @@ export type RefreshResult = {
 
 const SHAPE = `{"facts":[{"topic":"short label, e.g. 'Sintra pricing' or 'Age range'","fact":"one specific, self-contained sentence a writer can state verbatim"}],"notes":["any claim you could NOT confirm on the site, or that the site contradicts, so it is left out"]}`;
 
-const SYSTEM = (brain: BrandBrain) => `You are Wire's brand-fact researcher for ${brain.name}. Build the list of specific, verifiable facts a content writer is allowed to state about this brand, taken ONLY from the brand's own live website.
+const SYSTEM = (brain: BrandBrain) => `You are Mavrix's brand-fact researcher for ${brain.name}. Build the list of specific, verifiable facts a content writer is allowed to state about this brand, taken ONLY from the brand's own live website.
 
 Brand: ${brain.name} — ${brain.whatTheyDo}
 Website: ${brain.siteUrl}

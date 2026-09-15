@@ -305,7 +305,7 @@ export const exports = pgTable("exports", {
 /**
  * Source of truth for credits. Every AI action appends a row; the org's
  * creditsBalance is a denormalized sum maintained in the same transaction.
- * Clerk Billing has no usage metering — this table is Wire's.
+ * Clerk Billing has no usage metering — this table is Mavrix's.
  */
 export const usageLedger = pgTable("usage_ledger", {
   id: uuid("id").defaultRandom().primaryKey(),

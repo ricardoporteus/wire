@@ -16,7 +16,7 @@ const APP_HOST = process.env.NEXT_PUBLIC_APP_HOST;
 const APP = APP_HOST ? `https://${APP_HOST}` : "";
 
 export const metadata: Metadata = {
-  title: "Wire: the content engine for CMOs (spare homepage)",
+  title: "Mavrix: the content engine for CMOs (spare homepage)",
   robots: { index: false, follow: false },
 };
 
@@ -54,16 +54,16 @@ const FEED = [
 
 const WRITER = [
   ["Writes from your Brand Brain", "Voice, positioning, ICP and approved facts come from the brand document you signed off, not from the model's imagination."],
-  ["Terminology guardrails", "Ban the words your brand doesn't use. Wire enforces them on whole words, so banning \"cure\" never mangles \"secure\", and runs a repair pass if any slip through."],
+  ["Terminology guardrails", "Ban the words your brand doesn't use. Mavrix enforces them on whole words, so banning \"cure\" never mangles \"secure\", and runs a repair pass if any slip through."],
   ["No em dashes, ever", "A hard rule in the writer, not a preference in a prompt. En dashes survive in ranges, where they belong."],
   ["Word counts you can trust", "Length is measured from the finished markdown, not taken from the model's own estimate, which is routinely wrong by an order of magnitude."],
-  ["Targeted regeneration", "Leave a note on a draft and Wire revises that, instead of rewriting the piece from scratch and losing what you liked."],
+  ["Targeted regeneration", "Leave a note on a draft and Mavrix revises that, instead of rewriting the piece from scratch and losing what you liked."],
   ["Live progress throughout", "Research and drafting both stream what they are doing, so a long job never looks like a crashed one."],
 ];
 
 const FAQ = [
-  ["Does Wire publish to my CMS?", "Not yet. Wire takes you to an approved draft and channel-ready exports that you copy or download. Publishing integrations are not built."],
-  ["Is the content AI-generated?", "Yes, and we say so plainly in our AI-content disclosure. Wire is built for teams who edit and take ownership of what they publish, not for unattended posting."],
+  ["Does Mavrix publish to my CMS?", "Not yet. Mavrix takes you to an approved draft and channel-ready exports that you copy or download. Publishing integrations are not built."],
+  ["Is the content AI-generated?", "Yes, and we say so plainly in our AI-content disclosure. Mavrix is built for teams who edit and take ownership of what they publish, not for unattended posting."],
   ["How does it avoid making things up?", "The writer works from the approved facts in your Brand Brain and the sources gathered during research. It is a guardrail, not a guarantee. Every draft still needs a human read before it ships."],
   ["What happens when credits run out?", "Top up at $99 per 300 credits, or move up a plan. Annual billing includes two months free."],
   ["Can I run intelligence more than once a month?", "Yes. Runs are on demand as well as scheduled, subject to your credit balance and a fair-use rate limit."],
@@ -109,7 +109,7 @@ function Marketing() {
               Your content engine researches before it writes.
             </h1>
             <p className="mt-5 max-w-xl text-body text-muted">
-              Most AI tools start generating on the first keystroke. Wire starts by learning your brand, then
+              Most AI tools start generating on the first keystroke. Mavrix starts by learning your brand, then
               sweeps your market for what is actually worth writing, and only then drafts it in your voice.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -151,7 +151,7 @@ function Marketing() {
 
         <div className="mt-12 grid gap-8 md:grid-cols-3">
           {[
-            ["Build the Brand Brain", "Wire reads your site and any documents you add, then proposes your differentiator, ICP, values, approved facts and banned terminology. You edit and approve it. Nothing gets written until you do."],
+            ["Build the Brand Brain", "Mavrix reads your site and any documents you add, then proposes your differentiator, ICP, values, approved facts and banned terminology. You edit and approve it. Nothing gets written until you do."],
             ["Run the intelligence sweep", "Six research stages with live web search, from keyword intent through AI-search questions, ending in a ranked queue of specific pieces to write."],
             ["Write and repurpose", "Pick an idea, watch the draft build, leave notes for targeted revisions, then export it for every channel in one pass."],
           ].map(([title, body], i) => (
@@ -319,7 +319,7 @@ function SiteHeader() {
   return (
     <header className="sticky top-0 z-10 border-b border-line bg-bg/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-3">
-        <a href="/" className="font-display text-h5 font-semibold text-ink-green">Wire</a>
+        <a href="/" className="font-display text-h5 font-semibold text-ink-green">Mavrix</a>
         <nav className="ml-auto hidden items-center gap-1 md:flex">
           {[["How it works", "#how"], ["Pricing", "#pricing"]].map(([label, href]) => (
             <a key={href} href={href} className="rounded-pill px-3 py-1.5 text-body-sm text-muted hover:text-ink-green">
@@ -379,7 +379,7 @@ function SiteFooter() {
       <div className="mx-auto max-w-6xl px-6 py-10">
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div>
-            <p className="font-display text-h5 font-semibold text-ink-green">Wire</p>
+            <p className="font-display text-h5 font-semibold text-ink-green">Mavrix</p>
             <p className="mt-1 text-caption text-muted">The content engine for CMOs.</p>
           </div>
           <nav className="flex flex-wrap gap-x-5 gap-y-2 text-caption">
@@ -391,7 +391,7 @@ function SiteFooter() {
           </nav>
         </div>
         <p className="mt-8 border-t border-line pt-6 text-caption text-muted">
-          © {new Date().getFullYear()} {"[Wire, Inc.]"}. The content engine for CMOs.
+          © {new Date().getFullYear()} {"[Mavrix, Inc.]"}. The content engine for CMOs.
         </p>
       </div>
     </footer>

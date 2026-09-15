@@ -18,7 +18,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
       {/* header / main / footer as sibling landmarks, so screen reader users can
           skip the nav and the disclaimer and land on the document itself. */}
       <header className="flex items-center justify-between gap-4">
-        <Link href="/" className="font-display text-h5 font-semibold text-ink-green">Wire</Link>
+        <Link href="/" className="font-display text-h5 font-semibold text-ink-green">Mavrix</Link>
         <nav className="flex flex-wrap gap-x-4 gap-y-1 text-caption">
           {DOCS.map((d) => (
             <Link key={d.href} href={d.href} className="text-muted hover:text-ink-green">{d.label}</Link>
@@ -28,7 +28,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
 
       <div className="mt-6 rounded-md border border-line bg-accent-tint px-4 py-3 text-caption text-ink">
         <strong>Template, not legal advice.</strong> These documents are a good-faith starting point tailored to how
-        Wire works. Have a qualified attorney review and adapt them for your jurisdiction and business before you rely
+        Mavrix works. Have a qualified attorney review and adapt them for your jurisdiction and business before you rely
         on them or take paying customers.
       </div>
 
@@ -42,7 +42,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             <Link key={d.href} href={d.href} className="hover:text-ink-green">{d.label}</Link>
           ))}
         </nav>
-        <p className="mt-3">© {"[Wire, Inc.]"} — the content engine for CMOs.</p>
+        <p className="mt-3">© {"[Mavrix, Inc.]"} — the content engine for CMOs.</p>
       </footer>
 
       <style>{`

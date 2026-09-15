@@ -166,7 +166,7 @@ const diagnosisSchema = z.union([diagnosisOffTopic, diagnosisOk]);
 /** A source that is nothing but a bare link — no content to diagnose. */
 const BARE_URL_RE = /^https?:\/\/\S+$/i;
 
-const DIAGNOSIS_SYSTEM = (brain: BrandBrain, intel: string) => `You are Wire's content diagnostician for ${brain.name}. You read raw source material and recommend what it should become — before anything is written.
+const DIAGNOSIS_SYSTEM = (brain: BrandBrain, intel: string) => `You are Mavrix's content diagnostician for ${brain.name}. You read raw source material and recommend what it should become — before anything is written.
 
 <brand_brain>
 Brand: ${brain.name} — ${brain.whatTheyDo}
@@ -234,8 +234,8 @@ export const diagnoseDocument = inngest.createFunction(
     if (sourceText.length < 120 || BARE_URL_RE.test(sourceText)) {
       await step.run("thin-source", async () => {
         const msg = BARE_URL_RE.test(sourceText)
-          ? "That's a link on its own, not content. Paste it into the Web URL tab for an article, or the Audio / video / podcast tab for a video or podcast, and Wire will pull the content for you."
-          : "There wasn't enough content here to work with. Paste the full text (or a URL / video link) and Wire will take it from there.";
+          ? "That's a link on its own, not content. Paste it into the Web URL tab for an article, or the Audio / video / podcast tab for a video or podcast, and Mavrix will pull the content for you."
+          : "There wasn't enough content here to work with. Paste the full text (or a URL / video link) and Mavrix will take it from there.";
         await db.update(sources).set({ error: msg }).where(eq(sources.id, source.id));
         await db.update(documents).set({ status: "failed", updatedAt: new Date() }).where(eq(documents.id, documentId));
         await emitDoc(documentId, "diagnose", "error", msg, { stage: "angle" });
@@ -294,7 +294,7 @@ export const diagnoseDocument = inngest.createFunction(
         // Lead with the actual reason rather than forcing an "off-brand" framing:
         // a bare link or empty source is a different problem from truly off-topic
         // content, and the reason text distinguishes them.
-        const msg = `Wire couldn't build a brief from this source. ${reason} Paste your material, or a link, about ${brain.name}'s topics and it will run with it.`;
+        const msg = `Mavrix couldn't build a brief from this source. ${reason} Paste your material, or a link, about ${brain.name}'s topics and it will run with it.`;
         await db.update(sources).set({ error: msg }).where(eq(sources.id, source.id));
         await db.update(documents).set({ status: "failed", updatedAt: new Date() }).where(eq(documents.id, documentId));
         await emitDoc(documentId, "diagnose", "error", msg, { stage: "angle" });
@@ -350,7 +350,7 @@ export const generationSchema = z.object({
   }),
 });
 
-export const WRITER_SYSTEM = (brain: BrandBrain, formatRule: BrandBrain["formats"][number]) => `You are Wire's content writer for ${brain.name}. You transform raw source material into polished, on-brand, SEO- and AEO-optimized content ready to publish.
+export const WRITER_SYSTEM = (brain: BrandBrain, formatRule: BrandBrain["formats"][number]) => `You are Mavrix's content writer for ${brain.name}. You transform raw source material into polished, on-brand, SEO- and AEO-optimized content ready to publish.
 
 <brand_brain>
 Brand: ${brain.name} (${brain.siteUrl}) — ${brain.whatTheyDo}
