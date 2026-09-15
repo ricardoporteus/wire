@@ -112,11 +112,11 @@ export default async function AuditPage({
             <table className="w-full min-w-[720px] text-body-sm">
               <thead>
                 <tr className="border-b border-line text-caption uppercase tracking-wide text-muted">
-                  <th className="py-2 pr-4 text-left font-medium">Phrase</th>
-                  <th className="py-2 pr-4 text-left font-medium">Intent<InfoTip text={TIPS.intent} /></th>
-                  <th className="py-2 pr-4 text-left font-medium">Priority<InfoTip text={TIPS.priority} /></th>
-                  <th className="py-2 pr-4 text-left font-medium">Difficulty<InfoTip text={TIPS.difficulty} /></th>
-                  <th className="py-2 text-left font-medium">Why it matters<InfoTip text={TIPS.why} align="right" /></th>
+                  <th className="whitespace-nowrap py-2 pr-4 text-left font-medium">Phrase<InfoTip text={TIPS.phrase} /></th>
+                  <th className="whitespace-nowrap py-2 pr-4 text-left font-medium">Intent<InfoTip text={TIPS.intent} /></th>
+                  <th className="whitespace-nowrap py-2 pr-4 text-left font-medium">Priority<InfoTip text={TIPS.priority} /></th>
+                  <th className="whitespace-nowrap py-2 pr-4 text-left font-medium">Difficulty<InfoTip text={TIPS.difficulty} /></th>
+                  <th className="whitespace-nowrap py-2 text-left font-medium">Why it matters<InfoTip text={TIPS.why} align="right" /></th>
                 </tr>
               </thead>
               <tbody>
@@ -258,6 +258,7 @@ export default async function AuditPage({
 
 /** Plain-language explanations for the keyword table's column headers. */
 const TIPS = {
+  phrase: "The exact search phrase or question your audience types — a keyword phrase (e.g. “AI content marketing tool”) or an answer-engine question the research found them asking. Each becomes a target for a piece of content.",
   intent: "What the searcher is trying to do. High intent = ready to act (commercial); Informational = still researching; Long-tail = specific, lower-volume phrases; AEO question = something people ask AI and search engines. Intent shapes the format and angle of the piece Mavrix writes.",
   priority: "How urgently to target this, from P1 to P3. P1 is red-hot — high value and winnable now, so write these first. Priority is set by the research from intent, opportunity size, and how much strong competition already owns the result.",
   difficulty: "How hard it is to rank for this keyword — high, medium, or low — estimated from how much strong competition already targets it. Shows 'n/a' for answer-engine questions, where keyword difficulty does not apply.",
