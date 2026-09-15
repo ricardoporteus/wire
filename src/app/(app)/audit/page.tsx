@@ -113,10 +113,10 @@ export default async function AuditPage({
               <thead>
                 <tr className="border-b border-line text-caption uppercase tracking-wide text-muted">
                   <th className="py-2 pr-4 text-left font-medium">Phrase</th>
-                  <th className="py-2 pr-4 text-left font-medium">Intent</th>
-                  <th className="py-2 pr-4 text-left font-medium">Priority</th>
-                  <th className="py-2 pr-4 text-left font-medium">Difficulty</th>
-                  <th className="py-2 text-left font-medium">Why it matters</th>
+                  <th className="py-2 pr-4 text-left font-medium">Intent<InfoTip text={TIPS.intent} /></th>
+                  <th className="py-2 pr-4 text-left font-medium">Priority<InfoTip text={TIPS.priority} /></th>
+                  <th className="py-2 pr-4 text-left font-medium">Difficulty<InfoTip text={TIPS.difficulty} /></th>
+                  <th className="py-2 text-left font-medium">Why it matters<InfoTip text={TIPS.why} align="right" /></th>
                 </tr>
               </thead>
               <tbody>
@@ -255,6 +255,40 @@ export default async function AuditPage({
 }
 
 /* -------------------------------------------------------------------------- */
+
+/** Plain-language explanations for the keyword table's column headers. */
+const TIPS = {
+  intent: "What the searcher is trying to do. High intent = ready to act (commercial); Informational = still researching; Long-tail = specific, lower-volume phrases; AEO question = something people ask AI and search engines. Intent shapes the format and angle of the piece Mavrix writes.",
+  priority: "How urgently to target this, from P1 to P3. P1 is red-hot — high value and winnable now, so write these first. Priority is set by the research from intent, opportunity size, and how much strong competition already owns the result.",
+  difficulty: "How hard it is to rank for this keyword — high, medium, or low — estimated from how much strong competition already targets it. Shows 'n/a' for answer-engine questions, where keyword difficulty does not apply.",
+  why: "Why this phrase is worth your time: the opportunity or angle the research found. For featured-snippet questions it tells you the format to win the answer box — a paragraph, a list, or a table.",
+} as const;
+
+/**
+ * A small "(i)" marker with a hover/focus tooltip explaining a column. Pure CSS
+ * (group-hover + group-focus-within) so it works in this server component with
+ * no client JS. Anchored below the header to avoid the table's overflow clip;
+ * pass align="right" for the last column so the popup opens inward.
+ */
+function InfoTip({ text, align = "left" }: { text: string; align?: "left" | "right" }) {
+  return (
+    <span className="group relative ml-1 inline-flex align-middle">
+      <button
+        type="button"
+        aria-label={text}
+        className="flex h-4 w-4 items-center justify-center rounded-full border border-line text-[10px] font-semibold normal-case leading-none text-muted transition-colors hover:border-ink-green hover:text-ink-green focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-strong"
+      >
+        i
+      </button>
+      <span
+        role="tooltip"
+        className={`pointer-events-none absolute top-[calc(100%_+_6px)] z-20 w-64 rounded-md border border-line bg-card p-3 text-left text-caption font-normal normal-case leading-relaxed tracking-normal text-ink opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${align === "right" ? "right-0" : "left-0"}`}
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
 
 /**
  * "Why it matters" cell text. Prefer the model's rationale/angle. For
