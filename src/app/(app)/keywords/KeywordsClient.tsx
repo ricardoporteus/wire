@@ -8,13 +8,16 @@
  * on (brain_id, intent, priority).
  */
 import { useMemo, useState } from "react";
-import { INTENTS, INTENT_LABEL, PRIORITY_BADGE, formatDateTime } from "@/lib/seo-labels";
+import { INTENTS, INTENT_LABEL, PRIORITY_BADGE, formatDateTime, formatDifficulty, formatVolume } from "@/lib/seo-labels";
 
 type Keyword = {
   id: string;
   phrase: string;
   intent: string;
   difficulty: string | null;
+  kd: number | null;
+  searchVolume: number | null;
+  variants: string[];
   priority: number;
   rationale: string | null;
   aeoFormat: string | null;
@@ -45,7 +48,7 @@ export function KeywordsClient({ brandName, keywords }: { brandName: string; key
     return keywords.filter((k) => {
       if (intent !== "all" && k.intent !== intent) return false;
       if (priority !== "all" && String(k.priority) !== priority) return false;
-      if (q && !k.phrase.toLowerCase().includes(q) && !(k.rationale ?? "").toLowerCase().includes(q)) return false;
+      if (q && !k.phrase.toLowerCase().includes(q) && !k.variants.some((v) => v.includes(q)) && !(k.rationale ?? "").toLowerCase().includes(q)) return false;
       return true;
     });
   }, [keywords, intent, priority, query]);
@@ -118,12 +121,13 @@ export function KeywordsClient({ brandName, keywords }: { brandName: string; key
 
           {/* ---- Table --------------------------------------------------- */}
           <div className="card mt-4 overflow-x-auto">
-            <table className="w-full min-w-[820px] text-body-sm">
+            <table className="w-full min-w-[920px] text-body-sm">
               <thead>
                 <tr className="border-b border-line text-caption uppercase tracking-wide text-muted">
                   <th className="py-2 pr-4 text-left font-medium">Phrase</th>
                   <th className="py-2 pr-4 text-left font-medium">Intent</th>
                   <th className="py-2 pr-4 text-left font-medium">Priority</th>
+                  <th className="py-2 pr-4 text-left font-medium">Volume</th>
                   <th className="py-2 pr-4 text-left font-medium">Difficulty</th>
                   <th className="py-2 pr-4 text-left font-medium">Snippet</th>
                   <th className="py-2 pr-4 text-left font-medium">Why it matters</th>
@@ -136,12 +140,16 @@ export function KeywordsClient({ brandName, keywords }: { brandName: string; key
                     <td className="py-2.5 pr-4 font-medium text-ink-green">
                       {k.phrase}
                       {!k.active && <span className="ml-2 badge badge--draft">inactive</span>}
+                      {k.variants.length > 0 && (
+                        <span className="mt-0.5 block text-caption font-normal text-muted">also: {k.variants.join(", ")}</span>
+                      )}
                     </td>
                     <td className="py-2.5 pr-4 text-muted">{INTENT_LABEL[k.intent] ?? k.intent}</td>
                     <td className="py-2.5 pr-4">
                       <span className={`badge ${PRIORITY_BADGE(k.priority)}`}>P{k.priority}</span>
                     </td>
-                    <td className="py-2.5 pr-4 text-muted">{k.difficulty ?? "—"}</td>
+                    <td className="py-2.5 pr-4 whitespace-nowrap text-muted">{formatVolume(k.searchVolume)}</td>
+                    <td className="py-2.5 pr-4 whitespace-nowrap text-muted">{formatDifficulty(k.kd, k.difficulty) ?? "—"}</td>
                     <td className="py-2.5 pr-4 text-muted">{k.aeoFormat ?? "—"}</td>
                     <td className="py-2.5 pr-4 text-muted">{k.rationale ?? "—"}</td>
                     <td className="py-2.5 whitespace-nowrap text-muted">{formatDateTime(k.createdAt)}</td>

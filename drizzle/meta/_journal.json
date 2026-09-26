@@ -50,6 +50,13 @@
       "when": 1784872290250,
       "tag": "0006_flippant_black_bolt",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790320642309,
+      "tag": "0007_far_cerise",
+      "breakpoints": true
     }
   ]
 }

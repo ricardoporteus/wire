@@ -85,7 +85,7 @@ export default async function DashboardPage() {
       runStartedAt={run?.startedAt ? run.startedAt.toISOString() : null}
       keywords={kws.map((k) => ({
         id: k.id, phrase: k.phrase, intent: k.intent,
-        difficulty: k.difficulty, priority: k.priority, aeoFormat: k.aeoFormat,
+        difficulty: k.difficulty, kd: k.kd, searchVolume: k.searchVolume, priority: k.priority, aeoFormat: k.aeoFormat,
       }))}
       ideas={decorated}
       competitorIntel={run?.competitorIntel ?? []}

@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { rerunIntelligence, writeThisIdea } from "./actions";
 import { RunProgress } from "./RunProgress";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
+import { formatDifficulty, formatVolume } from "@/lib/seo-labels";
 
 type Keyword = {
   id: string; phrase: string; intent: string;
-  difficulty: string | null; priority: number; aeoFormat: string | null;
+  difficulty: string | null; kd: number | null; searchVolume: number | null; priority: number; aeoFormat: string | null;
 };
 type Idea = {
   id: string; title: string; format: string;
@@ -217,6 +218,7 @@ export function DashboardClient({
                 <tr className="border-b border-line text-left text-caption text-muted">
                   <th className="py-2 pr-4 font-medium">Phrase</th>
                   <th className="py-2 pr-4 font-medium">Priority</th>
+                  <th className="py-2 pr-4 font-medium">Volume</th>
                   <th className="py-2 pr-4 font-medium">Difficulty</th>
                   <th className="py-2 font-medium">Snippet</th>
                 </tr>
@@ -228,12 +230,13 @@ export function DashboardClient({
                     <td className="py-2 pr-4">
                       <span className={`badge ${PRIORITY_BADGE(k.priority)}`}>P{k.priority}</span>
                     </td>
-                    <td className="py-2 pr-4 text-muted">{k.difficulty ?? "—"}</td>
+                    <td className="py-2 pr-4 whitespace-nowrap text-muted">{formatVolume(k.searchVolume)}</td>
+                    <td className="py-2 pr-4 whitespace-nowrap text-muted">{formatDifficulty(k.kd, k.difficulty) ?? "—"}</td>
                     <td className="py-2 text-muted">{k.aeoFormat ?? "—"}</td>
                   </tr>
                 ))}
                 {shown.length === 0 && (
-                  <tr><td colSpan={4} className="py-3 text-muted">No keywords in this bucket yet.</td></tr>
+                  <tr><td colSpan={5} className="py-3 text-muted">No keywords in this bucket yet.</td></tr>
                 )}
               </tbody>
             </table>

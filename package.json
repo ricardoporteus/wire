@@ -10,7 +10,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "inngest:dev": "npx inngest-cli@latest dev",
-    "eval": "tsx src/eval/run.ts"
+    "eval": "tsx src/eval/run.ts",
+    "eval:keywords": "tsx src/eval/keyword-trial.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.57.0",

@@ -33,3 +33,6 @@ yarn-error.log*
 .idea
 .vscode
 .env*
+
+# eval reports
+/eval-out

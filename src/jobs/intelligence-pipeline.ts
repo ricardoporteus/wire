@@ -23,8 +23,10 @@ import {
   brandBrains, intelligenceRuns, keywords, contentIdeas, usageLedger, organizations, runEvents,
 } from "@/db/schema";
 import { brandBrainSchema, type BrandBrain } from "@/lib/brand-brain.zod";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
+import { parseJson } from "@/lib/parse-json";
+import { discoverKeywords, selectKeywords, finalizeKeywords, type ResearchedKeyword } from "@/lib/keyword-research";
 
 const anthropic = new Anthropic();
 // COST KNOB #1 (biggest lever). A full run is input-token-dominated, so the model
@@ -72,6 +74,7 @@ async function emit(
   runId: string, stage: string, kind: FeedKind, message: string,
   meta?: { query?: string; count?: number; titles?: string[] },
 ): Promise<void> {
+  if (!runId) return; // offline callers (the keyword trial) have no run to feed
   try {
     await db.insert(runEvents).values({ runId, stage, kind, message, meta: meta ?? null });
   } catch {
@@ -100,7 +103,7 @@ Rules:
 4. Your final message must be a single JSON object with EXACTLY the top-level keys shown in the instruction's "JSON shape" — nothing more. Do NOT wrap it in another object and do NOT add extra fields (no "brand", "research_month", "keywords" wrapper, etc.). No preamble, no markdown fences.`;
 
 /** Agentic loop: let the model search the web until it stops requesting tools, then parse JSON. */
-async function researchStage<T>(opts: {
+export async function researchStage<T>(opts: {
   brain: BrandBrain;
   instruction: string;
   schema: z.ZodType<T>;
@@ -183,17 +186,9 @@ async function researchStage<T>(opts: {
 
 /* ---------------------- lenient parsing + schema helpers ------------------- */
 
-/** Parse model JSON tolerantly: strip fences, then salvage the outermost object.
- *  Returns null (never throws) so only genuinely non-JSON routes to a repair pass. */
-export function parseJson(text: string): unknown {
-  const clean = text.replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
-  const tryParse = (s: string): unknown => { try { return JSON.parse(s); } catch { return undefined; } };
-  const direct = tryParse(clean);
-  if (direct !== undefined) return direct;
-  const a = clean.indexOf("{"), b = clean.lastIndexOf("}");
-  if (a !== -1 && b > a) { const s = tryParse(clean.slice(a, b + 1)); if (s !== undefined) return s; }
-  return null;
-}
+// parseJson lives in lib so the keyword-research module can share it without a
+// circular import; re-exported here for existing callers.
+export { parseJson };
 
 /** Enum that never fails: normalizes casing/spacing and falls back on anything
  *  unknown, so an enum slip (e.g. "How-To", "Medium") coerces instead of looping. */
@@ -262,7 +257,7 @@ export const ideasStage = z.object({
  * triggers repair loops — the biggest source of slow runs. Keep these in sync
  * with the Zod schemas above.
  */
-const SHAPES = {
+export const SHAPES = {
   keywords: `{"highIntent":[{"phrase":"...","intent":"...","difficulty":"high|medium|low","priority":1,"rationale":"..."}],"informational":[{"phrase":"...","intent":"...","difficulty":"high|medium|low","priority":2,"rationale":"..."}],"longTail":[{"phrase":"...","rationale":"..."}]}`,
   competitors: `{"competitors":[{"competitor":"...","topics":["..."],"targetKeywords":["..."],"weakness":"..."}]}`,
   gaps: `{"gaps":[{"topic":"...","whyItMatters":"...","suggestedAngle":"..."}]}`,
@@ -271,7 +266,10 @@ const SHAPES = {
   ideas: `{"ideas":[{"title":"...","format":"article|listicle|how_to|lesson|tutorial|testimonial|faq_page","targetKeyword":"...","targetAeoQuestion":"... (optional, omit if none)","whyNow":"..."}]}`,
 } as const;
 
-const shapeHint = (s: string) => `\n\nReturn ONLY a JSON object with exactly this shape (these top-level keys, no wrapper, no extra fields):\n${s}`;
+export const shapeHint = (s: string) => `\n\nReturn ONLY a JSON object with exactly this shape (these top-level keys, no wrapper, no extra fields):\n${s}`;
+
+/** The web-search keyword prompt: the fallback when DataForSEO is unavailable, and the eval's baseline. */
+export const KEYWORD_INSTRUCTION = `Research the keywords this brand's ICP is searching this month. Cover: high-intent (ready to act), informational (research phase), and long-tail phrases — with geographic intent for the listed geographies where relevant. 10–15 high-intent, 10–15 informational, 8–12 long-tail. Real phrases people type.${shapeHint(SHAPES.keywords)}`;
 
 /* --------------------------------- the run -------------------------------- */
 
@@ -322,35 +320,86 @@ export const runIntelligence = inngest.createFunction(
         .then((r) => r?.trigger ?? "on_demand"));
     const searchUses = trigger === "onboarding" ? TRIAL_SEARCH_USES : MAX_SEARCH_USES;
 
-    /* 1. Keyword research */
-    const kw = await step.run("stage:keywords", () =>
-      researchStage({
+    /* 1. Keyword research — measured (DataForSEO) when configured, else web search */
+    // Three steps, not one: a measured pass takes minutes (Trends is slow), too
+    // close to the function timeout for a single step, and a retried step must
+    // not re-buy data an earlier step already paid for. Any failure (or no
+    // credentials) drops to the web-search stage: a data-provider outage must
+    // not fail a run the customer paid for.
+    const measuredOpts = { brain, system: RESEARCH_SYSTEM(brain),
+      onProgress: (m: string, count?: number) => emit(runId, "researching_keywords", "info", m, count != null ? { count } : undefined) };
+    const measuredKw = process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD
+      ? await (async (): Promise<KeywordStageResult | null> => {
+          try {
+            const discovery = await step.run("stage:keywords:discover", async () => {
+              // Existing and pinned phrases seed the research, so each run builds
+              // on the last (and on what the user asked for) instead of starting cold.
+              const prior = await db.select({ phrase: keywords.phrase }).from(keywords)
+                .where(and(eq(keywords.brainId, brainId), eq(keywords.active, true), ne(keywords.intent, "aeo_question")))
+                .orderBy(desc(keywords.pinned), keywords.priority).limit(60);
+              await emit(runId, "researching_keywords", "stage", "Researching keywords");
+              // Free onboarding run: skip Trends (and check fewer SERPs below) to bound COGS.
+              return discoverKeywords({ ...measuredOpts, priorPhrases: prior.map((p) => p.phrase), trends: trigger === "onboarding" ? 0 : 8 });
+            });
+            const selection = await step.run("stage:keywords:select", () => selectKeywords(measuredOpts, discovery));
+            return await step.run("stage:keywords:finalize", async (): Promise<KeywordStageResult> => {
+              const r = await finalizeKeywords({ ...measuredOpts, serp: trigger === "onboarding" ? 5 : 10 }, discovery, selection);
+              return {
+                source: "dataforseo", rows: r.keywords.map(measuredRow), peopleAlsoAsk: r.peopleAlsoAsk,
+                tokensIn: r.tokensIn, tokensOut: r.tokensOut, costUsdMicros: r.costUsdMicros,
+              };
+            });
+          } catch (e) {
+            console.error(`[keywords] DataForSEO research failed for run ${runId}, falling back to web search`, e);
+            await step.run("stage:keywords:fallback-notice", () =>
+              emit(runId, "researching_keywords", "info", "Search data unavailable, researching keywords from the web instead"));
+            return null;
+          }
+        })()
+      : null;
+    const kw = measuredKw ?? await step.run("stage:keywords", async (): Promise<KeywordStageResult> => {
+      const legacy = await researchStage({
         brain, searchUses, schema: keywordStage,
         runId, stageKey: "researching_keywords", label: "Researching keywords",
-        instruction: `Research the keywords this brand's ICP is searching this month. Cover: high-intent (ready to act), informational (research phase), and long-tail phrases — with geographic intent for the listed geographies where relevant. 10–15 high-intent, 10–15 informational, 8–12 long-tail. Real phrases people type.${shapeHint(SHAPES.keywords)}`,
-      }));
+        instruction: KEYWORD_INSTRUCTION,
+      });
+      return {
+        source: "model", rows: modelRows(legacy.data), peopleAlsoAsk: [],
+        tokensIn: legacy.tokensIn, tokensOut: legacy.tokensOut, costUsdMicros: legacy.costUsdMicros,
+      };
+    });
     totals.in += kw.tokensIn; totals.out += kw.tokensOut; totals.cost += kw.costUsdMicros;
     await step.run("save:keywords", async () => {
-      const rows = [
-        ...kw.data.highIntent.map((k) => ({ ...k, intent: "high_intent" })),
-        ...kw.data.informational.map((k) => ({ ...k, intent: "informational" })),
-        ...kw.data.longTail.map((k) => ({ intent: "long_tail", phrase: k.phrase, rationale: k.rationale, difficulty: null, priority: 2 })),
-      ];
-      for (const r of rows) {
+      const measuredAt = kw.source === "dataforseo" ? new Date() : null;
+      for (const r of kw.rows) {
+        const metrics = {
+          searchVolume: r.searchVolume, kd: r.kd, cpc: r.cpc, trend: r.trend, searchIntent: r.searchIntent,
+          fit: r.fit, score: r.score, variants: r.variants, serp: r.serp, recommendedFormat: r.recommendedFormat,
+          metricsSource: kw.source, measuredAt,
+        };
         await db.insert(keywords).values({
           brainId, runId, phrase: r.phrase, intent: r.intent,
-          difficulty: (r as { difficulty?: string }).difficulty ?? null,
-          priority: (r as { priority?: number }).priority ?? 2,
-          rationale: r.rationale,
+          difficulty: r.difficulty, priority: r.priority, rationale: r.rationale, ...metrics,
         }).onConflictDoUpdate({
           target: [keywords.brainId, keywords.phrase],
-          set: { runId, rationale: r.rationale, active: true },
+          // A measured run re-ranks and refreshes the row. A fallback run only
+          // re-surfaces it: its guessed difficulty and blank metrics must never
+          // overwrite measurements from an earlier run.
+          set: kw.source === "dataforseo"
+            ? { runId, rationale: r.rationale, active: true, difficulty: r.difficulty, priority: r.priority, ...metrics }
+            : { runId, rationale: r.rationale, active: true },
           // Never overwrite a row a human has touched. Without this, an edited
           // rationale or a deliberate deactivation is reverted by the next run.
           setWhere: isNull(keywords.userModifiedAt),
         });
+        // Measurements are facts, not opinions: refresh them on user-edited rows
+        // too, leaving everything the user can change untouched.
+        if (kw.source === "dataforseo") {
+          await db.update(keywords).set({ ...metrics, difficulty: r.difficulty })
+            .where(and(eq(keywords.brainId, brainId), eq(keywords.phrase, r.phrase), isNotNull(keywords.userModifiedAt)));
+        }
       }
-      await emit(runId, "researching_keywords", "saved", `Saved ${rows.length} keywords`, { count: rows.length });
+      await emit(runId, "researching_keywords", "saved", `Saved ${kw.rows.length} keywords`, { count: kw.rows.length });
       await mark("analyzing_competitors");
     });
 
@@ -385,7 +434,7 @@ export const runIntelligence = inngest.createFunction(
       researchStage({
         brain, searchUses, schema: aeoStage,
         runId, stageKey: "finding_aeo", label: "Finding answer-engine opportunities",
-        instruction: `Find Answer-Engine opportunities: People-Also-Ask clusters the ICP asks, featured-snippet questions with no dominant answer, and conversational/voice phrasings. For snippets, recommend the winning format (paragraph / list / table) and a one-line "angle" — why the snippet matters for this brand and how to win it.${shapeHint(SHAPES.aeo)}`,
+        instruction: `Find Answer-Engine opportunities: People-Also-Ask clusters the ICP asks, featured-snippet questions with no dominant answer, and conversational/voice phrasings. For snippets, recommend the winning format (paragraph / list / table) and a one-line "angle" — why the snippet matters for this brand and how to win it.${kw.peopleAlsoAsk.length ? `\n\nThese People Also Ask questions are live on Google for this brand's top keywords right now. Build the peopleAlsoAsk list from the ones that fit the ICP (verbatim) before adding your own:\n${kw.peopleAlsoAsk.slice(0, 40).map((q) => `- ${q}`).join("\n")}` : ""}${shapeHint(SHAPES.aeo)}`,
       }));
     totals.in += aeo.tokensIn; totals.out += aeo.tokensOut; totals.cost += aeo.costUsdMicros;
     await step.run("save:aeo", async () => {
@@ -423,11 +472,11 @@ export const runIntelligence = inngest.createFunction(
         brain, searchUses, schema: ideasStage,
         runId, stageKey: "compiling", label: "Compiling your content plan",
         instruction: `Synthesize this month's plan. Findings so far:
-KEYWORDS: ${JSON.stringify(kw.data).slice(0, 6000)}
+KEYWORDS (best opportunity first${kw.source === "dataforseo" ? "; volume = monthly Google searches, kd = difficulty 0–100, format = what page one of Google rewards" : ""}): ${JSON.stringify(kw.rows.map((r) => ({ phrase: r.phrase, intent: r.intent, volume: r.searchVolume ?? undefined, kd: r.kd ?? undefined, format: r.recommendedFormat ?? undefined }))).slice(0, 6000)}
 GAPS: ${JSON.stringify(gaps.data).slice(0, 4000)}
 AEO: ${JSON.stringify(aeo.data).slice(0, 4000)}
 TRENDS: ${JSON.stringify(tr.data.trends).slice(0, 2000)}
-Produce 8–12 prioritized content pieces (best opportunity first): title in the brand's headline style, format (from: ${brain.formats.map((f) => f.format).join(", ")}), target keyword (verbatim from findings), target AEO question if applicable, and why now.${shapeHint(SHAPES.ideas)}`,
+Produce 8–12 prioritized content pieces (best opportunity first): title in the brand's headline style, format (from: ${brain.formats.map((f) => f.format).join(", ")}; use a keyword's format when it has one), target keyword (verbatim from KEYWORDS), target AEO question if applicable, and why now.${shapeHint(SHAPES.ideas)}`,
       }));
     totals.in += ideas.tokensIn; totals.out += ideas.tokensOut; totals.cost += ideas.costUsdMicros;
 
@@ -505,4 +554,46 @@ function rollingCache(messages: Anthropic.MessageParam[]) {
     const blocks = last.content as unknown as Array<Record<string, unknown>>;
     blocks[blocks.length - 1].cache_control = { type: "ephemeral" };
   }
+}
+
+/* ---------------------------- keyword stage rows ---------------------------- */
+
+/** One keyword ready to save, whichever research path produced it. Plain JSON: it crosses an Inngest step boundary. */
+type KeywordRow = {
+  phrase: string; intent: string; difficulty: string | null; priority: number; rationale: string;
+  searchVolume: number | null; kd: number | null; cpc: number | null; trend: number[] | null;
+  searchIntent: string | null; fit: number | null; score: number | null; variants: string[] | null;
+  serp: { aiOverview: boolean; featuredSnippet: boolean; peopleAlsoAsk: number; features: string[] } | null;
+  recommendedFormat: string | null;
+};
+type KeywordStageResult = {
+  source: "dataforseo" | "model"; rows: KeywordRow[]; peopleAlsoAsk: string[];
+  tokensIn: number; tokensOut: number; costUsdMicros: number;
+};
+
+const CORE_SERP = new Set(["organic", "ai_overview", "featured_snippet", "people_also_ask"]);
+
+function measuredRow(k: ResearchedKeyword): KeywordRow {
+  return {
+    phrase: k.phrase, intent: k.bucket, difficulty: k.difficulty, priority: k.priority, rationale: k.rationale,
+    searchVolume: k.metrics.searchVolume, kd: k.metrics.kd, cpc: k.metrics.cpc,
+    trend: k.metrics.trend.length ? k.metrics.trend : null,
+    searchIntent: k.searchIntent, fit: k.fit, score: k.score, variants: k.variants.length ? k.variants : null,
+    serp: k.serp && {
+      aiOverview: k.serp.aiOverview, featuredSnippet: k.serp.featuredSnippet,
+      peopleAlsoAsk: k.serp.peopleAlsoAsk.length, features: k.serp.itemTypes.filter((t) => !CORE_SERP.has(t)),
+    },
+    recommendedFormat: k.format,
+  };
+}
+
+/** Fallback path: the web-search stage's output, with no measurements. */
+type ModelKeyword = { phrase: string; rationale: string; difficulty?: unknown; priority?: unknown };
+function modelRows(d: { highIntent: ModelKeyword[]; informational: ModelKeyword[]; longTail: ModelKeyword[] }): KeywordRow[] {
+  const none = { searchVolume: null, kd: null, cpc: null, trend: null, searchIntent: null, fit: null, score: null, variants: null, serp: null, recommendedFormat: null };
+  return [
+    ...d.highIntent.map((k) => ({ ...none, phrase: k.phrase, intent: "high_intent", difficulty: String(k.difficulty ?? "medium"), priority: Number(k.priority ?? 2), rationale: k.rationale })),
+    ...d.informational.map((k) => ({ ...none, phrase: k.phrase, intent: "informational", difficulty: String(k.difficulty ?? "medium"), priority: Number(k.priority ?? 2), rationale: k.rationale })),
+    ...d.longTail.map((k) => ({ ...none, phrase: k.phrase, intent: "long_tail", difficulty: null, priority: 2, rationale: k.rationale })),
+  ];
 }

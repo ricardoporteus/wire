@@ -67,3 +67,18 @@ export function formatDuration(start: Date | string | null, end: Date | string |
   if (s < 60) return `${s}s`;
   return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
 }
+
+/** "12,100/mo", or a dash for phrases with no measured volume. */
+export function formatVolume(n: number | null | undefined) {
+  return n == null ? "—" : `${n.toLocaleString("en-US")}/mo`;
+}
+
+/**
+ * Measured difficulty reads "12 · low" (DataForSEO KD 0–100, with its band).
+ * Rows from before measurement, or from a model-only fallback run, only have
+ * the model's label, marked "est." so nobody mistakes a guess for a measurement.
+ */
+export function formatDifficulty(kd: number | null | undefined, label: string | null | undefined) {
+  if (kd != null) return `${kd} · ${label ?? (kd < 30 ? "low" : kd < 60 ? "medium" : "high")}`;
+  return label ? `${label} (est.)` : null;
+}

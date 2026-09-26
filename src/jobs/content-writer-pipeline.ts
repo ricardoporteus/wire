@@ -262,7 +262,7 @@ export const diagnoseDocument = inngest.createFunction(
       });
       return [
         "PRIORITY KEYWORDS:",
-        ...kws.map((k) => `- [${k.intent}${k.aeoFormat ? `/${k.aeoFormat}` : ""}] ${k.phrase}`),
+        ...kws.map((k) => `- [${k.intent}${k.aeoFormat ? `/${k.aeoFormat}` : ""}] ${k.phrase}${k.searchVolume != null ? ` (${k.searchVolume}/mo)` : ""}${k.variants?.length ? `; also covers: ${k.variants.join(", ")}` : ""}`),
         "THIS MONTH'S PLANNED PIECES:",
         ...ideas.map((i) => `- ${i.title} (${i.format})`),
       ].join("\n");

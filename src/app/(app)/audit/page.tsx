@@ -17,7 +17,7 @@ import { brandBrains, intelligenceRuns, keywords, contentIdeas } from "@/db/sche
 import { requireOrg } from "@/lib/org";
 import {
   INTENT_LABEL, PRIORITY_BADGE, RUN_STATUS_BADGE, RUN_STATUS_LABEL,
-  TRIGGER_LABEL, formatDateTime, formatDuration, RUNNING_STATUSES,
+  TRIGGER_LABEL, formatDateTime, formatDuration, RUNNING_STATUSES, formatDifficulty, formatVolume,
 } from "@/lib/seo-labels";
 import { RerunButton } from "./RerunButton";
 
@@ -109,12 +109,13 @@ export default async function AuditPage({
           <p className="text-body-sm text-muted">No keywords were saved for this run.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-body-sm">
+            <table className="w-full min-w-[860px] text-body-sm">
               <thead>
                 <tr className="border-b border-line text-caption uppercase tracking-wide text-muted">
                   <th className="whitespace-nowrap py-2 pr-4 text-left font-medium">Phrase<InfoTip text={TIPS.phrase} /></th>
                   <th className="whitespace-nowrap py-2 pr-4 text-left font-medium">Intent<InfoTip text={TIPS.intent} /></th>
                   <th className="whitespace-nowrap py-2 pr-4 text-left font-medium">Priority<InfoTip text={TIPS.priority} /></th>
+                  <th className="whitespace-nowrap py-2 pr-4 text-left font-medium">Volume<InfoTip text={TIPS.volume} /></th>
                   <th className="whitespace-nowrap py-2 pr-4 text-left font-medium">Difficulty<InfoTip text={TIPS.difficulty} /></th>
                   <th className="whitespace-nowrap py-2 text-left font-medium">Why it matters<InfoTip text={TIPS.why} align="right" /></th>
                 </tr>
@@ -122,13 +123,24 @@ export default async function AuditPage({
               <tbody>
                 {runKeywords.map((k) => (
                   <tr key={k.id} className="border-b border-line align-top">
-                    <td className="py-2.5 pr-4 font-medium text-ink-green">{k.phrase}</td>
+                    <td className="py-2.5 pr-4 font-medium text-ink-green">
+                      {k.phrase}
+                      {k.variants && k.variants.length > 0 && (
+                        <span className="mt-0.5 block text-caption font-normal text-muted">also: {k.variants.join(", ")}</span>
+                      )}
+                    </td>
                     <td className="py-2.5 pr-4 text-muted">{INTENT_LABEL[k.intent] ?? k.intent}</td>
                     <td className="py-2.5 pr-4">
                       <span className={`badge ${PRIORITY_BADGE(k.priority)}`}>P{k.priority}</span>
                     </td>
-                    <td className="py-2.5 pr-4 text-muted">{k.difficulty ?? (k.intent === "aeo_question" ? "n/a" : "—")}</td>
-                    <td className="py-2.5 text-muted">{whyItMatters(k)}</td>
+                    <td className="py-2.5 pr-4 whitespace-nowrap text-muted">{k.intent === "aeo_question" ? "n/a" : formatVolume(k.searchVolume)}</td>
+                    <td className="py-2.5 pr-4 whitespace-nowrap text-muted">{k.intent === "aeo_question" ? "n/a" : formatDifficulty(k.kd, k.difficulty) ?? "—"}</td>
+                    <td className="py-2.5 text-muted">
+                      {whyItMatters(k)}
+                      {k.recommendedFormat && (
+                        <span className="mt-0.5 block text-caption">Write it as: {k.recommendedFormat.replace(/_/g, " ")}</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -260,8 +272,9 @@ export default async function AuditPage({
 const TIPS = {
   phrase: "The exact search phrase or question your audience types — a keyword phrase (e.g. “AI content marketing tool”) or an answer-engine question the research found them asking. Each becomes a target for a piece of content.",
   intent: "What the searcher is trying to do. High intent = ready to act (commercial); Informational = still researching; Long-tail = specific, lower-volume phrases; AEO question = something people ask AI and search engines. Intent shapes the format and angle of the piece Mavrix writes.",
-  priority: "How urgently to target this, from P1 to P3. P1 is red-hot — high value and winnable now, so write these first. Priority is set by the research from intent, opportunity size, and how much strong competition already owns the result.",
-  difficulty: "How hard it is to rank for this keyword — high, medium, or low — estimated from how much strong competition already targets it. Shows 'n/a' for answer-engine questions, where keyword difficulty does not apply.",
+  priority: "How urgently to target this, from P1 to P3. P1 is red-hot — high value and winnable now, so write these first. Priority ranks each keyword's opportunity: how well it fits your buyer, search volume, difficulty, intent, and what Google's results page looks like.",
+  volume: "How many times a month people search this exact phrase on Google in your main market, from measured search data. Close variants (listed under the phrase) are targeted by the same piece. Shows 'n/a' for answer-engine questions.",
+  difficulty: "How hard it is to reach Google's first page, on a 0–100 scale measured from the strength of the pages already ranking: under 30 is low, 30–59 medium, 60+ high. Older keywords found before measurement show an estimate marked 'est.'. Shows 'n/a' for answer-engine questions.",
   why: "Why this phrase is worth your time: the opportunity or angle the research found. For featured-snippet questions it tells you the format to win the answer box — a paragraph, a list, or a table.",
 } as const;
 

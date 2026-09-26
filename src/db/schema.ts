@@ -12,7 +12,7 @@
  */
 
 import {
-  pgTable, pgEnum, text, varchar, integer, timestamp, jsonb, boolean,
+  pgTable, pgEnum, text, varchar, integer, real, timestamp, jsonb, boolean,
   uuid, index, uniqueIndex, bigserial,
 } from "drizzle-orm/pg-core";
 
@@ -196,6 +196,28 @@ export const keywords = pgTable("keywords", {
   rationale: text("rationale"),
   aeoFormat: varchar("aeo_format", { length: 24 }),         // paragraph | list | table (snippet target)
   active: boolean("active").notNull().default(true),
+
+  /**
+   * Measured search data (DataForSEO), refreshed on every run that finds the
+   * phrase — even on rows a user has edited, since these are facts, not
+   * opinions. All null on rows from before measurement existed, or when a run
+   * fell back to model-only research; `metricsSource` says which.
+   *
+   * `difficulty` above is kept as the high/medium/low label every screen shows,
+   * derived from `kd` when measured (<30 low, <60 medium, else high).
+   */
+  searchVolume: integer("search_volume"),                   // Google, monthly, for the brand's main market
+  kd: integer("kd"),                                        // keyword difficulty 0–100
+  cpc: real("cpc"),                                         // USD
+  trend: jsonb("trend").$type<number[]>(),                  // last 12 months of volume, oldest first
+  searchIntent: varchar("search_intent", { length: 16 }),   // informational | commercial | transactional | navigational
+  fit: integer("fit"),                                      // 1–5 buyer fit, rated by the model
+  score: integer("score"),                                  // 0–100 opportunity score
+  variants: jsonb("variants").$type<string[]>(),            // close variants one piece can target together
+  serp: jsonb("serp").$type<{ aiOverview: boolean; featuredSnippet: boolean; peopleAlsoAsk: number; features: string[] }>(),
+  recommendedFormat: varchar("recommended_format", { length: 24 }), // what page one of Google rewards
+  metricsSource: varchar("metrics_source", { length: 12 }), // dataforseo | model
+  measuredAt: timestamp("measured_at", { withTimezone: true }),
 
   /**
    * Ownership. Keywords accumulate across runs (upsert on brand + phrase), so a
