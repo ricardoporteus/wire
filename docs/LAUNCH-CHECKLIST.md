@@ -11,7 +11,7 @@ Tick these before promoting the site publicly.
 - [ ] **App mockups** — the in-page "screens" are representative SVG/HTML, not the real product. Swap for real screenshots before they imply live UI, or keep and confirm they're clearly illustrative.
 
 ## 2. Domain & deploy
-- [ ] `git push origin main` completed and the Vercel deploy (project `wire`) is green.
+- [ ] Production deployed with `npx vercel --prod` from a clean working tree, and the Vercel deploy (project `wire`) is green. The project is not connected to Git: the CLI uploads the folder as-is, uncommitted edits included, so commit first.
 - [ ] **Apex `mavrix.agency` is attached to the `wire` Vercel project.** Per project notes the apex may still be unclaimed (returns a Vercel 404). If so, add the domain in Vercel → Project → Domains, or the site won't surface at the apex even after a successful build.
 - [ ] `www.mavrix.agency` redirects to the apex (or vice-versa) — pick one canonical host.
 - [ ] Confirm middleware host routing: apex serves marketing, `app.mavrix.agency` serves the app, and `/dashboard` / "Start free" bounce correctly between hosts in production.
