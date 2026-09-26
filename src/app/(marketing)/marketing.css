@@ -149,9 +149,34 @@
 
 /* ---- generic strips ---- */
 .mkt .strip2{background:var(--card); border-top:1px solid var(--line); border-bottom:1px solid var(--line);}
-.mkt .strip2 .in{display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:12px 26px; padding:22px 24px; max-width:var(--maxw); margin:0 auto;}
-.mkt .strip2 .lab{font-size:13px; color:var(--muted2); font-weight:600;}
+.mkt .strip2 .in{display:flex; flex-direction:column; align-items:center; gap:14px; padding:26px 24px; max-width:var(--maxw); margin:0 auto; text-align:center;}
+.mkt .strip2 .head{font-size:19px; font-weight:700; color:var(--dark);}
+.mkt .strip2 .fmts{display:flex; flex-wrap:wrap; justify-content:center; gap:10px 24px;}
 .mkt .strip2 .fmt{font-size:14.5px; color:var(--dark); font-weight:700; opacity:.85;}
+
+/* hero right column (team card + guarantee stacked) */
+.mkt .hero-right{max-width:480px; width:100%; margin-left:auto;}
+@media(max-width:960px){ .mkt .hero-right{margin:0 auto;} }
+.mkt .hero-right .roster{max-width:none; margin-left:0;}
+/* hero guarantee box */
+.mkt .hero .guar{display:flex; align-items:flex-start; gap:9px; margin-top:14px; background:rgba(219,254,122,.1); border:1px solid rgba(219,254,122,.28); border-radius:10px; padding:11px 14px; max-width:none;}
+.mkt .hero .guar .s{color:var(--lime); font-weight:800; flex:none;} .mkt .hero .guar p{color:rgba(255,255,255,.85); font-size:13.5px;}
+
+/* who it's for */
+.mkt .whofor{display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:820px; margin:0 auto;}
+@media(max-width:640px){ .mkt .whofor{grid-template-columns:1fr;} }
+.mkt .whofor .w{border:1px solid var(--line); border-radius:var(--radius-md); background:var(--card); padding:20px 22px;}
+.mkt .whofor .w h4{font-size:13px; letter-spacing:.05em; text-transform:uppercase;}
+.mkt .whofor .w.yes h4{color:var(--pos);} .mkt .whofor .w.no h4{color:var(--muted2);}
+.mkt .whofor .w ul{list-style:none; margin:12px 0 0; padding:0; display:flex; flex-direction:column; gap:9px;}
+.mkt .whofor .w li{display:flex; gap:9px; font-size:14.5px; color:var(--ink);}
+.mkt .whofor .w.yes .m{color:var(--pos); font-weight:800;} .mkt .whofor .w.no{background:var(--bg-alt);} .mkt .whofor .w.no li{color:var(--muted);} .mkt .whofor .w.no .m{color:var(--muted2); font-weight:800;}
+
+/* guarantee band */
+.mkt .guarantee{background:var(--dark);}
+.mkt .guarantee .in{display:flex; align-items:center; gap:22px; max-width:900px; margin:0 auto; flex-wrap:wrap; justify-content:center; text-align:center;}
+.mkt .guarantee .seal{width:74px; height:74px; border-radius:50%; background:rgba(219,254,122,.12); border:2px solid var(--lime); color:var(--lime); display:flex; align-items:center; justify-content:center; font-size:30px; flex:none;}
+.mkt .guarantee h2{color:#fff; font-size:26px; max-width:640px;} .mkt .guarantee p{color:rgba(255,255,255,.72); margin-top:8px; max-width:620px;}
 
 /* ---- pain killers (before/after) ---- */
 .mkt .cmp{display:grid; grid-template-columns:1fr 1fr; margin-top:40px; border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden; box-shadow:0 8px 24px -12px rgba(8,8,12,.16); background:var(--card);}
@@ -314,11 +339,7 @@
 .mkt .foot-copy{grid-column:1/-1; border-top:1px solid rgba(255,255,255,.1); padding-top:18px; color:rgba(255,255,255,.5); font-size:12.5px;}
 
 /* ---- name toggle (home) ---- */
-.mkt .ntoggle{display:inline-flex; align-items:center; gap:2px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); border-radius:var(--pill); padding:3px; cursor:pointer;}
-.mkt .ntoggle span{font-size:12px; font-weight:700; padding:5px 12px; border-radius:var(--pill); color:rgba(255,255,255,.7); line-height:1;}
-.mkt .ntoggle .on{background:var(--lime); color:#0E0E12;}
-.mkt .ntoggle.is-crew .on{background:transparent; color:rgba(255,255,255,.7);}
-.mkt .ntoggle.is-crew .off{background:var(--lime); color:#0E0E12;}
+/* name toggle removed — homepage is locked to the professional team */
 
 @media(prefers-reduced-motion:no-preference){
   .mkt .rise{opacity:0; transform:translateY(16px); animation:mkt-rise .7s cubic-bezier(.2,.7,.2,1) both;}

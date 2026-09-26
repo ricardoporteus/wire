@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { Avatar, CREW_OF, type SpecialistId } from "./Avatars";
+import { Avatar, type SpecialistId } from "./Avatars";
 import { PRODUCTS, type Product } from "./products";
 import { SiteNav } from "./SiteNav";
 import { SiteFooter } from "./SiteFooter";
@@ -10,21 +10,21 @@ import { Starfield } from "./Starfield";
 import { Count } from "./Count";
 
 const P = Object.fromEntries(PRODUCTS.map((p) => [p.avatar, p])) as Record<SpecialistId, Product>;
-const ROLE: Record<SpecialistId, { pro: string; crew: string; color: string }> = {
-  scout: { pro: "Research Analyst", crew: "Recon & Intel", color: "#0B66A8" },
-  ada: { pro: "SEO & AEO Strategist", crew: "SEO & AEO", color: "#3F6212" },
-  iris: { pro: "Brand Guardian", crew: "Brand Commander", color: "#8A5A1B" },
-  quill: { pro: "Senior Copywriter", crew: "Lead Copywriter", color: "#1E7A44" },
+const ROLE: Record<SpecialistId, { pro: string; color: string }> = {
+  scout: { pro: "Research Analyst", color: "#0B66A8" },
+  ada: { pro: "SEO & AEO Strategist", color: "#3F6212" },
+  iris: { pro: "Brand Guardian", color: "#8A5A1B" },
+  quill: { pro: "Senior Copywriter", color: "#1E7A44" },
 };
 
-function Rail({ on, crew }: { on: SpecialistId; crew: boolean }) {
+function Rail({ on }: { on: SpecialistId }) {
   const ids: SpecialistId[] = ["scout", "ada", "iris", "quill"];
   return (
     <aside className="rail">
       <div className="lg">M</div>
       {ids.map((id) => (
         <div key={id} className={`ri${id === on ? " on" : ""}`}>
-          <Avatar id={crew ? CREW_OF[id] : id} />
+          <Avatar id={id} />
         </div>
       ))}
     </aside>
@@ -32,10 +32,8 @@ function Rail({ on, crew }: { on: SpecialistId; crew: boolean }) {
 }
 
 export function Home() {
-  const [crew, setCrew] = useState(false);
   const [tab, setTab] = useState(0);
-  const nm = (id: SpecialistId) => (crew ? P[id].crew : P[id].persona);
-  const av = (id: SpecialistId) => (crew ? CREW_OF[id] : id);
+  const nm = (id: SpecialistId) => P[id].persona;
 
   const tabs: { key: SpecialistId; label: string }[] = [
     { key: "scout", label: "Research" },
@@ -46,16 +44,16 @@ export function Home() {
 
   return (
     <>
-      <SiteNav nameToggle={{ crew, onToggle: () => setCrew((c) => !c) }} />
+      <SiteNav />
 
       {/* HERO */}
       <section className="hero">
         <Starfield />
         <div className="wrap hero-in">
           <div>
-            <span className="tag"><span className="new">NEW</span><span className="t">Now writing for Google and AI answer engines</span></span>
+            <span className="tag"><span className="new">FOR FOUNDERS</span><span className="t">…doing their own marketing</span></span>
             <h1 className="htitle">Get found on Google. <span className="hl">Get quoted by AI.</span></h1>
-            <p className="sub">A four-person AI marketing team that researches your market, wins the rankings, protects your brand and writes the content. No agency, no new hires.</p>
+            <p className="sub">Mavrix runs a research sweep on your market every month, then writes and reshapes a month of on-brand content in your voice and strategy. The output of an agency, for less than one freelancer. Your first ranked briefs in minutes.</p>
             <div className="chips">
               <span className="chip"><span className="tick">✓</span> Rank on Google</span>
               <span className="chip"><span className="tick">✓</span> Quoted by AI search</span>
@@ -63,29 +61,32 @@ export function Home() {
             </div>
             <div className="cta">
               <Link className="btn btn-lime" href="/dashboard">Start free</Link>
-              <a className="btn btn-ghost" href="#team">Meet the team ›</a>
+              <a className="btn btn-ghost" href="#how">See how it works ›</a>
             </div>
             <p className="micro">Free to start · No card required · First sweep in minutes</p>
           </div>
 
-          <div className="roster">
+          <div className="hero-right">
+            <div className="roster">
             <div className="top"><h3>Your content team</h3><span className="badge live">4 online</span></div>
             <p className="muted" style={{ fontSize: 14, marginTop: 4 }}>Working your market right now</p>
             <div className="grid">
               {(["scout", "ada", "iris", "quill"] as SpecialistId[]).map((id) => (
                 <div key={id} className="mini">
-                  <Avatar id={av(id)} className="av" />
-                  <div><div className="nm">{nm(id)}</div><div className="rl">{crew ? ROLE[id].crew : ROLE[id].pro}</div></div>
+                  <Avatar id={id} className="av" />
+                  <div><div className="nm">{nm(id)}</div><div className="rl">{ROLE[id].pro}</div></div>
                 </div>
               ))}
             </div>
             <div className="float"><span className="pulse" /><p>{nm("scout")} is sweeping. {nm("quill")} has 12 briefs queued.</p></div>
+            </div>
+            <div className="guar"><span className="s">✓</span><p><b>Founder guarantee:</b> if your first sweep doesn&rsquo;t hand you 10+ briefs worth writing, you don&rsquo;t pay. Ever.</p></div>
           </div>
         </div>
       </section>
 
       {/* channel strip */}
-      <section className="strip2"><div className="in"><span className="lab">Ships ready for</span><span className="fmt">Blog &amp; CMS</span><span className="fmt">LinkedIn article</span><span className="fmt">LinkedIn post</span><span className="fmt">Newsletter</span><span className="fmt">Markdown export</span></div></section>
+      <section className="strip2"><div className="in"><div className="head">One hour a month &rarr; a month of content that ranks.</div><div className="fmts"><span className="fmt">Blog &amp; CMS</span><span className="fmt">LinkedIn article</span><span className="fmt">LinkedIn post</span><span className="fmt">Newsletter</span><span className="fmt">Markdown export</span></div></div></section>
 
       {/* interactive demo */}
       <section className="band center" id="demo">
@@ -96,14 +97,14 @@ export function Home() {
           <div className="tabs" role="tablist" aria-label="Product demo">
             {tabs.map((t, i) => (
               <button key={t.label} role="tab" aria-selected={tab === i} onClick={() => setTab(i)}>
-                <span className="av"><Avatar id={av(t.key)} /></span>{t.label}
+                <span className="av"><Avatar id={t.key} /></span>{t.label}
               </button>
             ))}
           </div>
           <div className="demo-stage">
             {tab === 0 && (
               <div className="frame"><Bar u="app.mavrix.life/sweep" />
-                <div className="app"><Rail on="scout" crew={crew} />
+                <div className="app"><Rail on="scout" />
                   <div className="scr"><div className="scrh"><div><b>Intelligence run</b><span className="s">Six stages across the live web</span></div><span className="badge live">live</span></div><div className="prog"><i style={{ width: "82%" }} /></div>
                     <div className="lines" style={{ textAlign: "left" }}>
                       <div className="ln"><span className="dt" style={{ background: "#1E7A44" }} /><span>Keyword stage: 34 phrases, 11 high-intent</span></div>
@@ -114,7 +115,7 @@ export function Home() {
             )}
             {tab === 1 && (
               <div className="frame"><Bar u="app.mavrix.life/keywords" />
-                <div className="app"><Rail on="ada" crew={crew} />
+                <div className="app"><Rail on="ada" />
                   <div className="scr"><div className="scrh"><div><b>Ranked opportunities</b><span className="s">34 scored · 11 high-intent</span></div><span className="badge rank">ranked</span></div>
                     <table className="tbl" style={{ marginTop: 10 }}><thead><tr><th>Keyword</th><th>Intent</th><th>KD</th><th>Priority</th></tr></thead><tbody>
                       <tr><td className="kw">ai content workflow</td><td><span className="pill buy">Buyer</span></td><td><span className="kd"><span className="track"><i style={{ width: "32%", background: "#1E7A44" }} /></span>32</span></td><td><span className="pill hi">High</span></td></tr>
@@ -124,7 +125,7 @@ export function Home() {
             )}
             {tab === 2 && (
               <div className="frame"><Bar u="app.mavrix.life/write" />
-                <div className="app"><Rail on="quill" crew={crew} />
+                <div className="app"><Rail on="quill" />
                   <div className="scr"><div className="wr">
                     <div className="doc"><div className="t">The founder&apos;s guide to AI search visibility</div>
                       <p>Buyers no longer start every search on Google. A growing share ask an AI assistant, and the brands that get quoted are the ones structured to be cited.</p>
@@ -139,7 +140,7 @@ export function Home() {
             )}
             {tab === 3 && (
               <div className="frame"><Bar u="app.mavrix.life/repurpose" />
-                <div className="app"><Rail on="quill" crew={crew} />
+                <div className="app"><Rail on="quill" />
                   <div className="scr"><div className="scrh"><div><b>Repurpose pack</b><span className="s">One article, four channels, one pass</span></div><span className="badge live">ready</span></div>
                     <div className="pack" style={{ marginTop: 14 }}>
                       <div className="pk"><div className="h"><span className="ic" style={{ background: "#0B66A8" }}>in</span>LinkedIn article</div><div className="bars"><i style={{ width: "100%" }} /><i style={{ width: "92%" }} /><i style={{ width: "80%" }} /></div><span className="tag2">600 to 900 words</span></div>
@@ -158,14 +159,14 @@ export function Home() {
         <div className="wrap center">
           <span className="eyebrow mint">Meet the team</span>
           <h2 className="sec" style={{ marginTop: 14 }}>Four specialists. None on the headcount.</h2>
-          <p className="lead" style={{ margin: "14px auto 0" }}>Each owns a lane and hands off to the next without a standup.</p>
+          <p className="lead" style={{ margin: "14px auto 0" }}>Each owns a lane and hands off to the next, so the whole month gets made without you managing it.</p>
         </div>
         <div className="wrap">
           <div className="team-grid">
             {(["scout", "ada", "iris", "quill"] as SpecialistId[]).map((id) => (
               <div key={id} className="member">
-                <div className="h"><Avatar id={av(id)} className="avatar" /><div><h3>{nm(id)}</h3><div className="role" style={{ color: ROLE[id].color }}>{crew ? ROLE[id].crew : ROLE[id].pro}</div></div></div>
-                <p className="q">{TEAM_QUOTE[id][crew ? "crew" : "pro"]}</p>
+                <div className="h"><Avatar id={id} className="avatar" /><div><h3>{nm(id)}</h3><div className="role" style={{ color: ROLE[id].color }}>{ROLE[id].pro}</div></div></div>
+                <p className="q">{TEAM_QUOTE[id]}</p>
                 <div className="out">{TEAM_OUT[id]}</div>
                 <Link className="mlink" href={P[id].path}>See {nm(id)}&apos;s page ›</Link>
               </div>
@@ -187,7 +188,7 @@ export function Home() {
               ["quill", "Writes it", "Drafts the piece to the brand, then repurposes it into a pack for every channel."]] as [SpecialistId, string, string][]).map(([id, label, text], i) => (
               <div key={id} className="leg">
                 {i < 3 && <span className="arrow">›</span>}
-                <div className="who"><Avatar id={av(id)} className="avatar" /><div><div className="nm">{nm(id)}</div><div className="lbl">{label}</div></div></div>
+                <div className="who"><Avatar id={id} className="avatar" /><div><div className="nm">{nm(id)}</div><div className="lbl">{label}</div></div></div>
                 <p>{text}</p>
               </div>
             ))}
@@ -200,8 +201,8 @@ export function Home() {
         <div className="results">
           <div>
             <span className="eyebrow lime">Compounding</span>
-            <h2 style={{ fontSize: 32, marginTop: 14 }}>Consistency is the growth engine</h2>
-            <p className="lead" style={{ marginTop: 12 }}>One team publishing every week beats a burst of content once a quarter. Mavrix keeps the cadence so visibility compounds.</p>
+            <h2 style={{ fontSize: 32, marginTop: 14 }}>Content that compounds into pipeline</h2>
+            <p className="lead" style={{ marginTop: 12 }}>One team publishing every week beats a burst once a quarter. The library you build keeps ranking and getting cited long after you hit publish.</p>
             <div className="stat3">
               <div className="s"><b><Count to={6} /></b><span>research stages per sweep</span></div>
               <div className="s"><b><Count to={4} suffix="x" /></b><span>weekly beats monthly</span></div>
@@ -224,11 +225,36 @@ export function Home() {
         </div>
       </div></section>
 
+      {/* WHO IT'S FOR */}
+      <section className="band" style={{ background: "var(--bg-alt)" }}><div className="wrap">
+        <div className="center"><span className="eyebrow sky">Read this before you start</span><h2 className="sec" style={{ marginTop: 14 }}>Who Mavrix is for</h2></div>
+        <div className="whofor" style={{ marginTop: 36 }}>
+          <div className="w yes"><h4>✓ A fit if you…</h4><ul>
+            <li><span className="m">✓</span>Are a founder or lean team doing your own marketing</li>
+            <li><span className="m">✓</span>Want to publish 4+ pieces a month, consistently</li>
+            <li><span className="m">✓</span>Sell something where SEO and AI search matter</li>
+            <li><span className="m">✓</span>Would rather edit than write from scratch</li>
+          </ul></div>
+          <div className="w no"><h4>✕ Not for you if you…</h4><ul>
+            <li><span className="m">✕</span>Just need a one-off blog post</li>
+            <li><span className="m">✕</span>Want a hands-off ghostwriter with zero input</li>
+            <li><span className="m">✕</span>Have a full content team already humming</li>
+            <li><span className="m">✕</span>Won&rsquo;t spend 20 minutes a week reviewing</li>
+          </ul></div>
+        </div>
+      </div></section>
+
+      {/* GUARANTEE */}
+      <section className="band guarantee"><div className="wrap"><div className="in">
+        <span className="seal">✓</span>
+        <div><h2>Your first sweep pays for itself, or it&rsquo;s free.</h2><p>Run one sweep on the house. If it doesn&rsquo;t hand you 10+ briefs you&rsquo;d actually write, you owe nothing and keep everything it made. The risk is ours.</p></div>
+      </div></div></section>
+
       {/* 30 DAYS */}
       <section className="band" id="thirty" style={{ background: "var(--bg-alt)" }}><div className="wrap">
         <span className="eyebrow">Your first 30 days</span>
-        <h2 className="sec" style={{ marginTop: 14 }}>What you will have done by day 30</h2>
-        <p className="lead">No vague promises. Here is the work the team gets through in a month.</p>
+        <h2 className="sec" style={{ marginTop: 14 }}>Ranked content = evergreen lead generation at $0 additional monthly costs.</h2>
+        <p className="lead">Content Strategy done. Content created. Ready to publish.</p>
         <div className="tl">
           <div className="tlc"><span className="bar2" style={{ width: "33%" }} /><span className="ph">Day one</span><h3>Set up and swept</h3><ul><li><span className="ck">✓</span>Brand Brain built and approved</li><li><span className="ck">✓</span>First full market sweep run</li><li><span className="ck">✓</span>A ranked queue of briefs waiting</li></ul></div>
           <div className="tlc"><span className="bar2" style={{ width: "66%" }} /><span className="ph">Week one</span><h3>Published and reshaped</h3><ul><li><span className="ck">✓</span>First pieces written to brand</li><li><span className="ck">✓</span>Repurposed across your channels</li><li><span className="ck">✓</span>Exported straight to your CMS</li></ul></div>
@@ -240,11 +266,11 @@ export function Home() {
       <section className="band pricing" id="pricing"><div className="wrap">
         <p className="muted" style={{ color: "rgba(16,45,35,.7)", fontSize: 15 }}>One team, every plan</p>
         <h2 className="sec">Hire the whole team on every plan</h2>
-        <p style={{ color: "rgba(16,45,35,.7)", marginTop: 10, maxWidth: 640 }}>Plans differ by credits, Brand Brains and seats, never by which teammates you work with.</p>
+        <p style={{ color: "rgba(16,45,35,.7)", marginTop: 10, maxWidth: 640 }}>Plans differ by volume, Brand Brains and seats, never by which teammates you work with.</p>
         <div className="plans">
-          <Plan name="Launch" blurb="One brand, one founder, a steady rhythm" credits="500" feats={["1 Brand Brain", "The full team", "Monthly sweep plus on-demand", "Email support"]} />
-          <Plan name="Growth" blurb="A team working several channels at once" credits="1,400" featured feats={["More seats", "Higher run limits", "Priority support", "Full repurposing pack"]} />
-          <Plan name="Scale" blurb="Multiple brands under one roof" credits="4,000" feats={["Multiple Brand Brains", "Highest run limits", "Dedicated onboarding", "Priority support"]} />
+          <Plan name="Launch" blurb="One brand, one founder, content done." amount="$99" featured feats={["1 Brand Brain", "The full team", "Monthly sweep plus on-demand", "Email support"]} />
+          <Plan name="Growth" blurb="For agencies. Multiple clients, one solution." amount="$199" feats={["More seats", "Higher run limits", "Priority support", "Full repurposing pack"]} />
+          <Plan name="Scale" blurb="Done for you. Team + Fractional CMO" amount="$5,000" feats={["Multiple Brand Brains", "Highest run limits", "Dedicated onboarding", "Priority support"]} />
         </div>
       </div></section>
 
@@ -259,7 +285,7 @@ export function Home() {
       </section>
 
       {/* CLOSING */}
-      <section className="band closing"><div className="wrap"><h2>Marketing capacity, not another tool to babysit</h2><p>Brief the team, run the first sweep, and watch the queue fill up. Free to start.</p><div className="cta"><Link className="btn btn-lime" href="/dashboard">Start free</Link><a className="btn btn-ghost" href="#demo">See it in action ›</a></div></div></section>
+      <section className="band closing"><div className="wrap"><h2>Your content strategy and 30 days of content, done. In the next 3 minutes!</h2><p>Brief the team, run the first sweep, and watch the queue fill up. Free to start.</p><div className="cta"><Link className="btn btn-lime" href="/dashboard">Start free</Link><a className="btn btn-ghost" href="#demo">See it in action ›</a></div></div></section>
 
       <SiteFooter />
     </>
@@ -270,12 +296,12 @@ function Bar({ u }: { u: string }) {
   return <div className="bar"><i style={{ background: "#FF5F57" }} /><i style={{ background: "#FEBC2E" }} /><i style={{ background: "#28C840" }} /><span className="u">{u}</span></div>;
 }
 
-function Plan({ name, blurb, credits, feats, featured }: { name: string; blurb: string; credits: string; feats: string[]; featured?: boolean }) {
+function Plan({ name, blurb, amount, feats, featured }: { name: string; blurb: string; amount: string; feats: string[]; featured?: boolean }) {
   return (
     <div className={`plan${featured ? " feat" : ""}`}>
       {featured && <span className="flag">Most popular</span>}
       <h3>{name}</h3><p className="blurb">{blurb}</p>
-      <div className="price"><b>{credits}</b><span>credits<br />per month</span></div>
+      <div className="price"><b>{amount}</b><span>per month</span></div>
       <ul>{feats.map((f) => <li key={f}><span className="ck">✓</span>{f}</li>)}</ul>
       <Link className="go" href="/dashboard">Start free <span>›</span></Link>
     </div>
@@ -291,11 +317,11 @@ function Faq({ q, a, open }: { q: string; a: string; open?: boolean }) {
   );
 }
 
-const TEAM_QUOTE: Record<SpecialistId, { pro: string; crew: string }> = {
-  scout: { pro: "“I sweep your market and rank what is worth writing.”", crew: "“Backseat radar. I sweep the market and call the targets worth a shot.”" },
-  ada: { pro: "“I score every idea and win the rankings on merit.”", crew: "“Ice cold, no mistakes. I score every idea and win on merit.”" },
-  iris: { pro: "“Nothing off brand ever leaves the building.”", crew: "“I set the standard and I hold it. Nothing off brand leaves this base.”" },
-  quill: { pro: "“I draft to your rules, then reshape for every channel.”", crew: "“Top of the class. I draft to your rules, then reshape for every channel.”" },
+const TEAM_QUOTE: Record<SpecialistId, string> = {
+  scout: "“I sweep your market and rank what is worth writing.”",
+  ada: "“I score every idea and win the rankings on merit.”",
+  iris: "“Nothing off brand ever leaves the building.”",
+  quill: "“I draft to your rules, then reshape for every channel.”",
 };
 
 const TEAM_OUT: Record<SpecialistId, ReactNode> = {

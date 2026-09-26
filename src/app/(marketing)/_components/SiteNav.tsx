@@ -9,13 +9,7 @@ import { PRODUCTS, type Product } from "./products";
  * /dashboard to the app host; locally it resolves in-app. */
 const APP = "/dashboard";
 
-export function SiteNav({
-  active,
-  nameToggle,
-}: {
-  active?: Product["id"];
-  nameToggle?: { crew: boolean; onToggle: () => void };
-}) {
+export function SiteNav({ active }: { active?: Product["id"] }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
 
@@ -40,18 +34,6 @@ export function SiteNav({
             <Link href="/#pricing">Pricing</Link>
           </div>
           <div className="right">
-            {nameToggle && (
-              <button
-                type="button"
-                className={`ntoggle${nameToggle.crew ? " is-crew" : ""}`}
-                role="switch"
-                aria-checked={nameToggle.crew}
-                aria-label="Toggle between professional names and crew callsigns"
-                onClick={nameToggle.onToggle}
-              >
-                <span className="on">Pro</span><span className="off">Crew</span>
-              </button>
-            )}
             {active ? (
               <Link href="/" className="back">‹ All products</Link>
             ) : (
