@@ -350,9 +350,12 @@ export const runIntelligence = inngest.createFunction(
               };
             });
           } catch (e) {
-            console.error(`[keywords] DataForSEO research failed for run ${runId}, falling back to web search`, e);
-            await step.run("stage:keywords:fallback-notice", () =>
-              emit(runId, "researching_keywords", "info", "Search data unavailable, researching keywords from the web instead"));
+            // Inside a step so it logs once: code outside steps re-runs on every
+            // Inngest replay, which printed this error six times per run.
+            await step.run("stage:keywords:fallback-notice", async () => {
+              console.error(`[keywords] DataForSEO research failed for run ${runId}, falling back to web search`, e);
+              await emit(runId, "researching_keywords", "info", "Search data unavailable, researching keywords from the web instead");
+            });
             return null;
           }
         })()

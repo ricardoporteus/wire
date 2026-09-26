@@ -38,7 +38,7 @@ export class DataForSEO {
   costUsd = 0;
   private auth: string;
 
-  constructor(login = process.env.DATAFORSEO_LOGIN, password = process.env.DATAFORSEO_PASSWORD) {
+  constructor(login = cleanEnv(process.env.DATAFORSEO_LOGIN), password = cleanEnv(process.env.DATAFORSEO_PASSWORD)) {
     if (!login || !password) throw new Error("DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD must be set");
     this.auth = "Basic " + Buffer.from(`${login}:${password}`).toString("base64");
   }
@@ -195,6 +195,15 @@ export class DataForSEO {
     );
     return new Map((r?.items ?? []).map((i) => [i.keyword.toLowerCase(), i.ai_search_volume ?? null]));
   }
+}
+
+/**
+ * Env values pasted into a dashboard can carry a trailing newline, spaces or
+ * the quotes from a .env line; any of them makes DataForSEO reject the login
+ * (40100). Strip them rather than fail the first production run on it.
+ */
+function cleanEnv(v: string | undefined): string | undefined {
+  return v?.trim().replace(/^(["'])(.*)\1$/, "$2").trim() || undefined;
 }
 
 function dfsError(path: string, code: number, message: string) {
