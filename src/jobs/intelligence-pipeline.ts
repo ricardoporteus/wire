@@ -162,7 +162,11 @@ export async function researchStage<T>(opts: {
     if (res.stop_reason !== "tool_use") {
       const text = res.content
         .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text).join("");
+        .map((b) => b.text).join("")
+        // Web-search citations sometimes land inside the JSON strings as
+        // <cite index="1-1">…</cite> markup, which then showed raw on the
+        // dashboard. Keep the cited text, drop the tags.
+        .replace(/<\/?cite\b[^>]*>/g, "");
       const parsed = opts.schema.safeParse(parseJson(text));
       if (!parsed.success) {
         // Repair pass — only reached now if the response was not parseable JSON,
