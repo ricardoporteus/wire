@@ -92,8 +92,8 @@ export function Home() {
       <section className="band center" id="demo">
         <div className="wrap">
           <span className="eyebrow">See it in action</span>
-          <h2 className="sec" style={{ marginTop: 14 }}>Watch the whole workflow, one click at a time</h2>
-          <p className="lead" style={{ margin: "14px auto 0" }}>Research, score, write, repurpose. Same run, four screens.</p>
+          <h2 className="sec" style={{ marginTop: 14 }}>Content strategy done. Content that converts.</h2>
+          <p className="lead" style={{ margin: "14px auto 0" }}>Research, score, repurpose, write, rank, convert.</p>
           <div className="tabs" role="tablist" aria-label="Product demo">
             {tabs.map((t, i) => (
               <button key={t.label} role="tab" aria-selected={tab === i} onClick={() => setTab(i)}>
