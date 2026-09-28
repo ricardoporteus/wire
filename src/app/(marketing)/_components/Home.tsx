@@ -53,9 +53,9 @@ export function Home() {
           <div>
             <span className="tag"><span className="new">FOR FOUNDERS</span><span className="t">…doing their own marketing</span></span>
             <h1 className="htitle">Get found on Google. <span className="hl">Get quoted by AI.</span></h1>
-            <p className="sub">Mavrix runs a research sweep on your market every month, then writes and reshapes a month of on-brand content in your voice and strategy. The output of an agency, for less than one freelancer. Your first ranked briefs in minutes.</p>
+            <p className="sub">Mavrix measures what your buyers actually search every month, then writes and reshapes a month of on-brand content around it, in your voice and strategy. The output of an agency, for less than one freelancer. Your first ranked briefs in minutes.</p>
             <div className="chips">
-              <span className="chip"><span className="tick">✓</span> Rank on Google</span>
+              <span className="chip"><span className="tick">✓</span> Keywords people actually search</span>
               <span className="chip"><span className="tick">✓</span> Quoted by AI search</span>
               <span className="chip"><span className="tick">✓</span> Converts to customers</span>
             </div>
@@ -78,9 +78,9 @@ export function Home() {
                 </div>
               ))}
             </div>
-            <div className="float"><span className="pulse" /><p>{nm("scout")} is sweeping. {nm("quill")} has 12 briefs queued.</p></div>
+            <div className="float"><span className="pulse" /><p>{nm("scout")} measured 903 searches. {nm("quill")} has 12 briefs queued.</p></div>
             </div>
-            <div className="guar"><span className="s">✓</span><p><b>Founder guarantee:</b> if your first sweep doesn&rsquo;t hand you 10+ briefs worth writing, you don&rsquo;t pay. Ever.</p></div>
+            <div className="guar"><span className="s">✓</span><p><b>Founder guarantee:</b> if your first sweep doesn&rsquo;t hand you 10+ briefs worth writing, each backed by real search volume, you don&rsquo;t pay. Ever.</p></div>
           </div>
         </div>
       </section>
@@ -107,20 +107,20 @@ export function Home() {
                 <div className="app"><Rail on="scout" />
                   <div className="scr"><div className="scrh"><div><b>Intelligence run</b><span className="s">Six stages across the live web</span></div><span className="badge live">live</span></div><div className="prog"><i style={{ width: "82%" }} /></div>
                     <div className="lines" style={{ textAlign: "left" }}>
-                      <div className="ln"><span className="dt" style={{ background: "#1E7A44" }} /><span>Keyword stage: 34 phrases, 11 high-intent</span></div>
+                      <div className="ln"><span className="dt" style={{ background: "#1E7A44" }} /><span>Measured 903 searches · kept the 30 your buyer types</span></div>
                       <div className="ln"><span className="dt" style={{ background: "#1E7A44" }} /><span>Competitor stage: 5 profiled, 9 gaps</span></div>
-                      <div className="ln"><span className="dt" style={{ background: "#DBFE7A" }} /><span>Trends: 4 rising topics this month</span></div>
+                      <div className="ln"><span className="dt" style={{ background: "#DBFE7A" }} /><span>Google Trends: rising searches added to the sweep</span></div>
                     </div>
                     <div className="scrf"><span>Ready to write</span><span className="k">12 briefs queued</span></div></div></div></div>
             )}
             {tab === 1 && (
               <div className="frame"><Bar u="app.mavrix.life/keywords" />
                 <div className="app"><Rail on="ada" />
-                  <div className="scr"><div className="scrh"><div><b>Ranked opportunities</b><span className="s">34 scored · 11 high-intent</span></div><span className="badge rank">ranked</span></div>
-                    <table className="tbl" style={{ marginTop: 10 }}><thead><tr><th>Keyword</th><th>Intent</th><th>KD</th><th>Priority</th></tr></thead><tbody>
-                      <tr><td className="kw">ai content workflow</td><td><span className="pill buy">Buyer</span></td><td><span className="kd"><span className="track"><i style={{ width: "32%", background: "#1E7A44" }} /></span>32</span></td><td><span className="pill hi">High</span></td></tr>
-                      <tr><td className="kw">get cited by ai search</td><td><span className="pill hi">Info</span></td><td><span className="kd"><span className="track"><i style={{ width: "21%", background: "#1E7A44" }} /></span>21</span></td><td><span className="pill hi">High</span></td></tr>
-                      <tr><td className="kw">seo for startups</td><td><span className="pill buy">Buyer</span></td><td><span className="kd"><span className="track"><i style={{ width: "54%", background: "#C9922B" }} /></span>54</span></td><td><span className="pill md">Medium</span></td></tr>
+                  <div className="scr"><div className="scrh"><div><b>Ranked opportunities</b><span className="s">903 measured · 30 kept · 10 P1</span></div><span className="badge rank">ranked</span></div>
+                    <table className="tbl" style={{ marginTop: 10 }}><thead><tr><th>Keyword</th><th>Volume</th><th>KD</th><th>Priority</th></tr></thead><tbody>
+                      <tr><td className="kw">aeo vs seo</td><td>1,900/mo</td><td><span className="kd"><span className="track"><i style={{ width: "17%", background: "#1E7A44" }} /></span>17</span></td><td><span className="pill hi">P1</span></td></tr>
+                      <tr><td className="kw">answer engine optimization</td><td>2,400/mo</td><td><span className="kd"><span className="track"><i style={{ width: "43%", background: "#C9922B" }} /></span>43</span></td><td><span className="pill hi">P1</span></td></tr>
+                      <tr><td className="kw">how to get cited by chatgpt</td><td>110/mo</td><td><span className="kd"><span className="track"><i style={{ width: "9%", background: "#1E7A44" }} /></span>9</span></td><td><span className="pill md">P2</span></td></tr>
                     </tbody></table></div></div></div>
             )}
             {tab === 2 && (
@@ -182,9 +182,9 @@ export function Home() {
           <h2 className="sec" style={{ marginTop: 14 }}>One brief, four hands, no standup</h2>
           <p className="lead">A single run moves through the whole team. You approve at the points that matter.</p>
           <div className="flow">
-            {([["scout", "Kicks off", "Fires the monthly sweep and streams every search and source as it reads them, live."],
-              ["ada", "Scores it", "Ranks findings by difficulty and intent, and flags the AEO openings competitors missed."],
-              ["iris", "Frames it", "Checks each ranked idea against your positioning and voice before a word gets written."],
+            {([["scout", "Kicks off", "Fires the monthly sweep: measures hundreds of real searches, pulls rising Google Trends and what your competitors actually rank for, streamed live."],
+              ["ada", "Scores it", "Runs the 3-Proof Filter: people search it, you can win it, your buyer types it. Then checks Google’s page one to pick the format that ranks."],
+              ["iris", "Frames it", "Checks each ranked idea against your positioning and voice, and vetoes keywords for products you don’t sell or promises you don’t make."],
               ["quill", "Writes it", "Drafts the piece to the brand, then repurposes it into a pack for every channel."]] as [SpecialistId, string, string][]).map(([id, label, text], i) => (
               <div key={id} className="leg">
                 {i < 3 && <span className="arrow">›</span>}
@@ -202,9 +202,9 @@ export function Home() {
           <div>
             <span className="eyebrow lime">Compounding</span>
             <h2 style={{ fontSize: 32, marginTop: 14 }}>Content that compounds into pipeline</h2>
-            <p className="lead" style={{ marginTop: 12 }}>One team publishing every week beats a burst once a quarter. The library you build keeps ranking and getting cited long after you hit publish.</p>
+            <p className="lead" style={{ marginTop: 12 }}>Most AI tools guess your keywords. In our testing, only 3 to 13% of AI-picked keywords had any real search volume. Mavrix measures every one before it writes a word, so the library you build keeps ranking and getting cited long after you hit publish.</p>
             <div className="stat3">
-              <div className="s"><b><Count to={6} /></b><span>research stages per sweep</span></div>
+              <div className="s"><b><Count to={400} suffix="+" /></b><span>searches measured per sweep</span></div>
               <div className="s"><b><Count to={4} suffix="x" /></b><span>weekly beats monthly</span></div>
               <div className="s"><b><Count to={12} /></b><span>briefs from one run</span></div>
             </div>
@@ -247,7 +247,7 @@ export function Home() {
       {/* GUARANTEE */}
       <section className="band guarantee"><div className="wrap"><div className="in">
         <span className="seal">✓</span>
-        <div><h2>Your first sweep pays for itself, or it&rsquo;s free.</h2><p>Run one sweep on the house. If it doesn&rsquo;t hand you 10+ briefs you&rsquo;d actually write, you owe nothing and keep everything it made. The risk is ours.</p></div>
+        <div><h2>Your first sweep pays for itself, or it&rsquo;s free.</h2><p>Run one sweep on the house. If it doesn&rsquo;t hand you 10+ briefs you&rsquo;d actually write, each backed by real search volume and a difficulty score, you owe nothing and keep everything it made. The risk is ours.</p></div>
       </div></div></section>
 
       {/* 30 DAYS */}
@@ -256,9 +256,9 @@ export function Home() {
         <h2 className="sec" style={{ marginTop: 14 }}>Ranked content = evergreen lead generation at $0 additional monthly costs.</h2>
         <p className="lead">Content Strategy done. Content created. Ready to publish.</p>
         <div className="tl">
-          <div className="tlc"><span className="bar2" style={{ width: "33%" }} /><span className="ph">Day one</span><h3>Set up and swept</h3><ul><li><span className="ck">✓</span>Brand Brain built and approved</li><li><span className="ck">✓</span>First full market sweep run</li><li><span className="ck">✓</span>A ranked queue of briefs waiting</li></ul></div>
+          <div className="tlc"><span className="bar2" style={{ width: "33%" }} /><span className="ph">Day one</span><h3>Set up and swept</h3><ul><li><span className="ck">✓</span>Brand Brain built and approved</li><li><span className="ck">✓</span>First full market sweep run</li><li><span className="ck">✓</span>A ranked queue of briefs, each with real search volume</li></ul></div>
           <div className="tlc"><span className="bar2" style={{ width: "66%" }} /><span className="ph">Week one</span><h3>Published and reshaped</h3><ul><li><span className="ck">✓</span>First pieces written to brand</li><li><span className="ck">✓</span>Repurposed across your channels</li><li><span className="ck">✓</span>Exported straight to your CMS</li></ul></div>
-          <div className="tlc"><span className="bar2" style={{ width: "100%" }} /><span className="ph">Month one</span><h3>Compounding, and owned</h3><ul><li><span className="ck">✓</span>A month of consistent publishing</li><li><span className="ck">✓</span>A second sweep on fresh trends</li><li><span className="ck">✓</span>A content library that is yours</li></ul></div>
+          <div className="tlc"><span className="bar2" style={{ width: "100%" }} /><span className="ph">Month one</span><h3>Compounding, and owned</h3><ul><li><span className="ck">✓</span>A month of consistent publishing</li><li><span className="ck">✓</span>A second sweep: fresh trends, re-measured keywords</li><li><span className="ck">✓</span>A content library that is yours</li></ul></div>
         </div>
       </div></section>
 
@@ -268,9 +268,9 @@ export function Home() {
         <h2 className="sec">Hire the whole team on every plan</h2>
         <p style={{ color: "rgba(16,45,35,.7)", marginTop: 10, maxWidth: 640 }}>Plans differ by volume, Brand Brains and seats, never by which teammates you work with.</p>
         <div className="plans">
-          <Plan name="Launch" blurb="One brand, one founder, content done." amount="$99" featured feats={["1 Brand Brain", "The full team", "Monthly sweep plus on-demand", "Email support"]} />
-          <Plan name="Growth" blurb="For agencies. Multiple clients, one solution." amount="$199" feats={["More seats", "Higher run limits", "Priority support", "Full repurposing pack"]} />
-          <Plan name="Scale" blurb="Done for you. Team + Fractional CMO" amount="$5,000" feats={["Multiple Brand Brains", "Highest run limits", "Dedicated onboarding", "Priority support"]} />
+          <Plan name="Launch" blurb="One brand, one founder, content done." amount="$99" featured feats={["1 Brand Brain", "Real search volume + difficulty on every keyword", "The full team", "Monthly sweep plus on-demand", "Email support"]} />
+          <Plan name="Growth" blurb="For agencies. Multiple clients, one solution." amount="$199" feats={["More seats", "Real search volume + difficulty on every keyword", "Higher run limits", "Priority support", "Full repurposing pack"]} />
+          <Plan name="Scale" blurb="Done for you. Team + Fractional CMO" amount="$5,000" feats={["Multiple Brand Brains", "Real search volume + difficulty on every keyword", "Highest run limits", "Dedicated onboarding", "Priority support"]} />
         </div>
       </div></section>
 
@@ -279,7 +279,8 @@ export function Home() {
         <div className="faq">
           <Faq open q="How is this different from ChatGPT or a generic AI writer?" a="A chat box answers a prompt. Mavrix runs real market research first, scores it for search, holds it to a brand you approved, and hands you finished, channel-ready pieces. A workflow and a team, not a text box." />
           <Faq q="Will it actually sound like my brand?" a="Iris builds a Brand Brain from your voice, ICP and positioning, and enforces banned words on whole words. Nothing is written until you sign off the brand." />
-          <Faq q="How does it get found on Google and in AI answers?" a="Ada scores every idea for difficulty and intent, targets featured snippets and the questions AI engines answer, and audits each draft for on-page and AEO before it ships." />
+          <Faq q="How does it get found on Google and in AI answers?" a="Every keyword is measured before it’s used: real monthly search volume, a 0 to 100 difficulty score, and a fit check against your buyer. Ada then checks Google’s live page one for your top keywords, sees whether an AI Overview or People Also Ask box is there, and shapes each piece to be the answer those boxes quote." />
+          <Faq q="Are the search volumes real?" a="Yes. Every recommended keyword comes with its measured monthly Google search volume and a 0 to 100 difficulty score, refreshed every sweep. If a number ever can’t be measured, it’s clearly labelled as an estimate. No guesses dressed up as data." />
           <Faq q="Does it invent facts or fake statistics?" a="No. Mavrix writes from sources it actually read during the sweep, and streams every one so you can check them. No invented numbers, no fake citations." />
         </div>
       </section>
@@ -318,15 +319,15 @@ function Faq({ q, a, open }: { q: string; a: string; open?: boolean }) {
 }
 
 const TEAM_QUOTE: Record<SpecialistId, string> = {
-  scout: "“I sweep your market and rank what is worth writing.”",
-  ada: "“I score every idea and win the rankings on merit.”",
+  scout: "“I measure what your buyers actually search, then rank what is worth writing.”",
+  ada: "“If it isn’t searched, winnable and on-brand, it doesn’t make my list.”",
   iris: "“Nothing off brand ever leaves the building.”",
   quill: "“I draft to your rules, then reshape for every channel.”",
 };
 
 const TEAM_OUT: Record<SpecialistId, ReactNode> = {
-  scout: (<div className="lines"><div className="ln"><span className="dt" style={{ background: "#60D184" }} /><span style={{ fontSize: 11.5 }}>34 keywords, 11 high-intent</span></div><div className="ln"><span className="dt" style={{ background: "#DBFE7A" }} /><span style={{ fontSize: 11.5 }}>12 briefs queued</span></div></div>),
-  ada: (<div className="check" style={{ background: "transparent", border: 0, padding: 0 }}><div className="row" style={{ padding: "3px 0" }}>Difficulty <b style={{ color: "#1E7A44" }}>32 / low</b></div><div className="row" style={{ padding: "3px 0" }}>Intent <span className="pill buy">Buyer</span></div></div>),
+  scout: (<div className="lines"><div className="ln"><span className="dt" style={{ background: "#60D184" }} /><span style={{ fontSize: 11.5 }}>903 searches measured, 30 kept</span></div><div className="ln"><span className="dt" style={{ background: "#DBFE7A" }} /><span style={{ fontSize: 11.5 }}>12 briefs queued</span></div></div>),
+  ada: (<div className="check" style={{ background: "transparent", border: 0, padding: 0 }}><div className="row" style={{ padding: "3px 0" }}>Volume <b style={{ color: "#0E0E12" }}>1,900/mo</b></div><div className="row" style={{ padding: "3px 0" }}>Difficulty <b style={{ color: "#1E7A44" }}>17 / low</b></div><div className="row" style={{ padding: "3px 0" }}>Intent <span className="pill buy">Buyer</span></div></div>),
   iris: (<div className="bb" style={{ gap: 0 }}><div className="chips2"><span>Direct</span><span>Warm</span><span className="ban">hype</span></div></div>),
   quill: (<div className="check" style={{ background: "transparent", border: 0, padding: 0 }}><div className="row" style={{ padding: "3px 0" }}>Em dashes <span className="ok">0</span></div><div className="row" style={{ padding: "3px 0" }}>Words <b style={{ color: "#0E0E12" }}>812</b></div></div>),
 };

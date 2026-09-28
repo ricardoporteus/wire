@@ -4,19 +4,18 @@ import { Bar, Rail } from "../../_components/Mock";
 
 export const metadata: Metadata = {
   title: "SEO & AEO — Mavrix",
-  description: "Ada scores every idea for difficulty and intent, then optimises each draft to win Google and the AI answer engines. Only write what can actually rank.",
+  description: "Ada backs every keyword with real search volume and a 0 to 100 difficulty score, checks Google’s live page one, then shapes each piece to win Google and AI answers. Only write what can actually rank.",
   alternates: { canonical: "/products/seo" },
 };
 
 const tableMock = (
   <div className="frame"><Bar u="app.mavrix.life/keywords" />
     <div className="app"><Rail on="ada" />
-      <div className="scr"><div className="scrh"><div><b>Ranked opportunities</b><span className="s">34 scored · 11 high-intent</span></div><span className="badge rank">ranked</span></div>
-        <table className="tbl" style={{ marginTop: 10 }}><thead><tr><th>Keyword</th><th>Intent</th><th>KD</th><th>Priority</th></tr></thead><tbody>
-          <tr><td className="kw">ai content workflow</td><td><span className="pill buy">Buyer</span></td><td><span className="kd"><span className="track"><i style={{ width: "32%", background: "#1E7A44" }} /></span>32</span></td><td><span className="pill hi">High</span></td></tr>
-          <tr><td className="kw">get cited by ai search</td><td><span className="pill hi">Info</span></td><td><span className="kd"><span className="track"><i style={{ width: "21%", background: "#1E7A44" }} /></span>21</span></td><td><span className="pill hi">High</span></td></tr>
-          <tr><td className="kw">seo for startups</td><td><span className="pill buy">Buyer</span></td><td><span className="kd"><span className="track"><i style={{ width: "54%", background: "#C9922B" }} /></span>54</span></td><td><span className="pill md">Medium</span></td></tr>
-          <tr><td className="kw">content repurposing tool</td><td><span className="pill buy">Buyer</span></td><td><span className="kd"><span className="track"><i style={{ width: "61%", background: "#C9922B" }} /></span>61</span></td><td><span className="pill md">Medium</span></td></tr>
+      <div className="scr"><div className="scrh"><div><b>Ranked opportunities</b><span className="s">903 measured · 30 kept · 10 P1</span></div><span className="badge rank">ranked</span></div>
+        <table className="tbl" style={{ marginTop: 10 }}><thead><tr><th>Keyword</th><th>Volume</th><th>KD</th><th>Priority</th></tr></thead><tbody>
+          <tr><td className="kw">aeo vs seo</td><td>1,900/mo</td><td><span className="kd"><span className="track"><i style={{ width: "17%", background: "#1E7A44" }} /></span>17</span></td><td><span className="pill hi">P1</span></td></tr>
+          <tr><td className="kw">answer engine optimization</td><td>2,400/mo</td><td><span className="kd"><span className="track"><i style={{ width: "43%", background: "#C9922B" }} /></span>43</span></td><td><span className="pill hi">P1</span></td></tr>
+          <tr><td className="kw">how to get cited by chatgpt</td><td>110/mo</td><td><span className="kd"><span className="track"><i style={{ width: "9%", background: "#1E7A44" }} /></span>9</span></td><td><span className="pill md">P2</span></td></tr>
         </tbody></table></div></div></div>
 );
 
@@ -37,34 +36,34 @@ const data: ProductData = {
   id: "seo", avatar: "ada", persona: "Ada", role: "SEO & AEO Strategist", roleColor: "#3F6212",
   hero: {
     title: <>Only write what can <span className="hl">actually rank</span></>,
-    sub: "Ada scores every idea for difficulty and intent, then optimises each draft to win Google and the AI answer engines. No more publishing into the void.",
+    sub: "Ada backs every idea with real search volume and a 0 to 100 difficulty score, checks what Google’s page one rewards right now, then optimises each draft to win Google and the AI answer engines. No more publishing into the void.",
     cta: "Score my ideas", mock: tableMock,
   },
   pains: {
     old: ["You publish and it never ranks.", "Tools give volume, not whether you can win.", "You optimise for Google and ignore AI answers.", "SEO advice is vague and never draft-specific."],
     fixes: [
       { b: "Every idea scored before you commit a word.", chip: "Difficulty scoring" },
-      { b: "Ranked by real opportunity, not raw volume.", chip: "Opportunity ranking" },
-      { b: "Optimised for AI answers, not just blue links.", chip: "AEO optimisation" },
+      { b: "Ranked by real opportunity: volume, difficulty and buyer fit.", chip: "Opportunity score 0–100" },
+      { b: "Optimised for AI answers, not just blue links.", chip: "AI Overview ready" },
       { b: "Every draft audited on-page before it ships.", chip: "Draft SEO audit" },
     ],
   },
   benefits: [
-    { ic: "🎯", h: "Stop writing into the void", p: "Pursue only the keywords you can realistically win, scored before you spend a single draft." },
+    { ic: "🎯", h: "Stop writing into the void", p: "Every keyword comes with real monthly searches and a measured difficulty score, so you only spend a draft on fights you can win." },
     { ic: "🤖", h: "Show up in AI answers", p: "Get cited where buyers now ask their questions, not just in the ten blue links." },
     { ic: "✅", h: "Every draft ships optimised", p: "No post-hoc SEO scramble. Each piece is audited for search and AEO before it goes live." },
   ],
   zigs: [
-    { klabel: "Benefit · only chase winnable keywords", h: "Scored and ranked, not just listed", p: "Every idea gets an intent label and a difficulty score, ordered so the highest-opportunity work sits at the top.", bullets: ["Buyer vs informational intent tagged", "Difficulty scored, priority ranked", "The reasoning shown, not hidden"], mock: tableMock },
-    { klabel: "Benefit · get quoted by AI search", h: "Optimised for the answer engines", p: "Ada audits each draft against the questions AI engines answer, then scores its readiness before you publish.", bullets: ["Target questions covered and formatted", "Snippet and schema structure checked", "Unsupported claims flagged for a source"], mock: aeoMock, flip: true },
+    { klabel: "Benefit · only chase winnable keywords", h: "Proof, not guesses: every keyword measured", p: "Every keyword gets real monthly search volume, a 0 to 100 difficulty score, a search-intent label and a buyer-fit rating. Then one opportunity score decides P1, P2 or P3.", bullets: ["Real search volume and 0 to 100 difficulty", "Intent classified from live search data", "Buyer fit rated against your Brand Brain"], mock: tableMock },
+    { klabel: "Benefit · get quoted by AI search", h: "Optimised for the answer engines", p: "Ada checks Google’s live page one for your top keywords: is there an AI Overview, a People Also Ask box, a featured snippet? Then she tells you the format page one rewards and shapes each piece to be the answer.", bullets: ["Live page-one check: AI Overviews, People Also Ask, snippets", "Recommended format from what already ranks", "Unsupported claims flagged for a source"], mock: aeoMock, flip: true },
   ],
   videoTitle: "Watch Ada score a month of ideas",
   spec: [
-    { h: "Difficulty scoring", p: "Every keyword rated for how hard it is to rank, so you pick winnable fights." },
-    { h: "Intent classification", p: "Buyer, informational or navigational, so effort matches the goal." },
-    { h: "Opportunity ranking", p: "Ideas ordered by real upside, not raw search volume." },
+    { h: "Difficulty scoring", p: "Every keyword rated 0 to 100 from the strength of the pages already ranking: under 30 low, 30 to 59 medium, 60+ high." },
+    { h: "Intent classification", p: "Buyer, commercial, informational or navigational, classified from live search data." },
+    { h: "Opportunity ranking", p: "One 0 to 100 score from buyer fit, volume, difficulty, intent and page one. Not raw volume." },
     { h: "AEO optimisation", p: "Shaped for the questions AI answer engines actually field." },
-    { h: "Snippet targeting", p: "Formatting and structure aimed at featured snippets and citations." },
+    { h: "AI Overview & snippet targeting", p: "In our testing, 29 of 30 results pages showed an AI Overview. Ada targets the answer boxes that actually appear." },
     { h: "On-page draft audit", p: "Each draft checked for on-page and AEO gaps before it ships." },
   ],
   testimonials: [
@@ -77,13 +76,14 @@ const data: ProductData = {
     { co: "Fintech startup · new content program", title: "Cited in AI answers within six weeks", metrics: [{ b: "6 wks", span: "to first AI citation" }, { b: "6", span: "snippet targets won" }], problem: "Buyers increasingly asked AI assistants, and the brand never showed up.", withText: "Optimised each piece for answer-engine questions and snippet structure.", result: "First AI citations within six weeks, six snippet targets won." },
   ],
   faq: [
-    { q: "How is difficulty scored?", a: "Ada weighs how competitive a term is against your site, so the score reflects what you can realistically win, not a generic number." },
-    { q: "What is AEO?", a: "Answer-engine optimisation: shaping content so AI assistants quote it. Ada targets the questions those engines field and checks snippet and schema structure." },
+    { q: "How is difficulty scored?", a: "Every keyword gets a 0 to 100 difficulty score measured from the strength of the pages already on Google’s first page: under 30 is low, 30 to 59 medium, 60+ high. Ada combines it with search volume, intent and fit with your buyer, so the ranking reflects what’s worth winning, not just what’s easy." },
+    { q: "What is AEO?", a: "Answer-engine optimisation: shaping content so AI assistants and Google’s AI Overviews quote it. Ada pulls the real People Also Ask questions from Google, checks whether an AI Overview appears, and structures each piece to be the answer." },
+    { q: "Where do the search volumes come from?", a: "Measured search data: monthly Google volume for your main market, refreshed every sweep. If a number can’t be measured, it’s labelled as an estimate." },
     { q: "Does it audit my existing drafts?", a: "Yes. Paste or import a draft and Ada returns an on-page and AEO readiness score with specific fixes." },
     { q: "Do I need an SEO background?", a: "No. Ada does the scoring and the audit; you just act on a short, ranked list of fixes." },
   ],
   crossIntro: "Ada scores the ideas Scout finds, then hands the winners to the writer.",
-  closing: { h: "See what you can actually rank for", p: "Free to start. Score your first month of ideas in seconds." },
+  closing: { h: "See what you can actually rank for", p: "Free to start. See real search volume and difficulty for your first month of ideas in minutes." },
 };
 
 export default function Page() {

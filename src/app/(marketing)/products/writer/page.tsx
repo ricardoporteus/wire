@@ -66,7 +66,7 @@ const data: ProductData = {
   ],
   videoTitle: "Watch Quill draft and repurpose a piece",
   spec: [
-    { h: "Long-form drafting", p: "Full articles and thought leadership, structured and ready to edit." },
+    { h: "Long-form drafting", p: "Full articles written around a measured target keyword, with its close variants covered in the same piece." },
     { h: "Brand-aware writing", p: "Every draft written against the voice and facts you approved." },
     { h: "Draft-check panel", p: "Em dashes, word count, banned terms and voice, checked as it writes." },
     { h: "Channel repurposing", p: "One piece into a pack: LinkedIn, newsletter, markdown, each with its own brief." },
@@ -87,6 +87,7 @@ const data: ProductData = {
     { q: "Will it sound like me?", a: "Yes. It writes to the voice and approved facts in your Brand Brain, not the model's default tone." },
     { q: "How do revisions work?", a: "Leave a note on the part you want changed and Quill revises that, not the whole piece, so edits stay surgical." },
     { q: "What formats can it repurpose into?", a: "LinkedIn articles and posts, newsletter blocks and CMS-ready markdown, each written to its own brief rather than copy-pasted." },
+    { q: "Does Quill know which keywords to target?", a: "Yes. Each brief carries a keyword with its real monthly search volume, the close variants to cover, and the format Google’s page one rewards, so the draft is built to rank from the first line." },
   ],
   crossIntro: "Quill writes what Scout found, Ada scored and Iris approved.",
   closing: { h: "Get a draft you can actually edit", p: "Free to start. Write your first piece to your brand in minutes." },

@@ -51,7 +51,7 @@ const data: ProductData = {
   benefits: [
     { ic: "🎙️", h: "Sound like one company", p: "Every piece, on every channel, in the same voice, no matter who or what wrote it." },
     { ic: "🛡️", h: "Stop proofreading for brand", p: "The guardrails hold automatically, so you are not the last line of defence on every draft." },
-    { ic: "🧭", h: "Your positioning, not the model's", p: "Drafts are built from approved facts and positioning, not whatever the model assumes." },
+    { ic: "🧭", h: "Your positioning, not the model's", p: "Drafts are built from approved facts and positioning, not whatever the model assumes. Even keyword choice follows it: searches for products you don’t sell, or promises you don’t make, never reach your queue." },
   ],
   zigs: [
     { klabel: "Benefit · sound like one company", h: "A Brand Brain, approved once", p: "Iris captures your voice, ICP, positioning and banned words in a single profile, and applies it to everything the team writes.", bullets: ["Voice, ICP and positioning in one place", "You sign it off before anything ships", "Applied to every draft, every channel"], mock: brainMock },
@@ -80,6 +80,7 @@ const data: ProductData = {
     { q: "What does whole-word enforcement mean?", a: "Banned terms are matched as whole words, so blocking “cure” never mangles “secure”. It is precision, not blunt find-and-replace." },
     { q: "Can I update the brand later?", a: "Yes. The Brand Brain is versioned. Update voice, facts or banned words any time and it applies to new drafts." },
     { q: "Does it work across multiple brands?", a: "On the right plan, yes. Each brand gets its own Brain, so agencies and portfolios keep every client distinct." },
+    { q: "Does my Brand Brain affect which keywords I get?", a: "Yes. Every keyword is rated for fit against what you sell, who you sell to and how you position. Other companies’ brand names, the wrong audience and off-brand promises are filtered out before anything is written." },
   ],
   crossIntro: "Iris sets the standard. The others research, score and write to it.",
   closing: { h: "Set the standard once. Hold it forever.", p: "Free to start. Build your Brand Brain in a single onboarding." },
