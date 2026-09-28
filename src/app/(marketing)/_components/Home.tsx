@@ -52,7 +52,7 @@ export function Home() {
         <div className="wrap hero-in">
           <div>
             <span className="tag"><span className="new">FOR FOUNDERS</span><span className="t">…doing their own marketing</span></span>
-            <h1 className="htitle">Get found on Google. <span className="hl">Get quoted by AI. Convert Customers.</span></h1>
+            <h1 className="htitle">Get found on Google. <span className="hl">Get quoted by AI.</span> <span style={{ color: "#fff" }}>Convert Customers.</span></h1>
             <p className="sub">Mavrix measures what your buyers actually search every month, then writes and reshapes a month of on-brand content around it, in your voice and strategy. The output of an agency, for less than one freelancer. Your first ranked briefs in minutes.</p>
             <div className="chips">
               <span className="chip"><span className="tick">✓</span> Keywords people actually search</span>
