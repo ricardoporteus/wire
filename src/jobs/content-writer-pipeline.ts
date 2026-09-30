@@ -28,6 +28,12 @@ import { z } from "zod";
 
 const anthropic = new Anthropic();
 const WRITER_MODEL = "claude-sonnet-4-6";   // per bake-off; A/B Opus for long-form later
+// How much of the source each stage may read. A long podcast/panel transcript
+// can run 60–120k chars; truncating it made the writer miss material and, worse,
+// made the fact-checker flag legitimately-sourced quotes as "not in the
+// transcript". Keep these generous and keep the writer's window <= the
+// fact-checker's (see MAX_SOURCE_CHARS in fact-check.ts).
+const MAX_SOURCE_CHARS = 200_000;
 
 /**
  * Append a row to a document's live activity feed (diagnosis + generation).
@@ -272,7 +278,7 @@ export const diagnoseDocument = inngest.createFunction(
       await emitDoc(documentId, "diagnose", "stage", "Reading your source and diagnosing the best angle", { stage: "angle" });
       return generateJson({
         system: DIAGNOSIS_SYSTEM(brain, intel),
-        userContent: `Source kind: ${source.kind}\n${fence("source", source.normalizedText!.slice(0, 30_000))}\n\nDiagnose this source.`,
+        userContent: `Source kind: ${source.kind}\n${fence("source", source.normalizedText!.slice(0, MAX_SOURCE_CHARS))}\n\nDiagnose this source.`,
         schema: diagnosisSchema,
         // Was 1200. The full brand context makes the model elaborate — it writes
         // ~2000 tokens of diagnosis despite the brevity rule (rule 2 tells it to
@@ -465,7 +471,7 @@ export const generateDocument = inngest.createFunction(
           doc.diagnosis!.targetAeoQuestion ? `Target AEO question: ${doc.diagnosis!.targetAeoQuestion}` : "",
           regeneration && doc.bodyMarkdown ? `\nThis is a REVISION of an existing draft, not a new piece. Keep its structure, wording, examples, and length intact — change ONLY what the editor note asks for. Return the full revised ${formatRule.format}.\n${fence("current_draft", doc.bodyMarkdown.slice(0, 20_000))}` : "",
           regeneration && editorNote ? `\nEDITOR NOTE — the single most important instruction, apply it precisely and change nothing else: ${editorNote}` : "",
-          source?.normalizedText ? `\n${fence("source", source.normalizedText.slice(0, 40_000))}` : "",
+          source?.normalizedText ? `\n${fence("source", source.normalizedText.slice(0, MAX_SOURCE_CHARS))}` : "",
           regeneration ? `\nApply the editor note to the current draft now.` : `\nWrite the ${formatRule.format} now.`,
         ].filter(Boolean).join("\n"),
         schema: generationSchema,

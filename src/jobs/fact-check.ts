@@ -24,6 +24,12 @@ const MAX_SEARCHES = 8;            // bound COGS; a 2500-word piece rarely needs
 const WEB_SEARCH_USD = 0.01;       // Anthropic web-search tool fee per search
 // Opus 4.8 list price, micros per token ($5 / $25 per 1M).
 const OPUS_IN_MICROS = 5, OPUS_OUT_MICROS = 25;
+// The checker MUST see at least as much source as the writer did, or it flags
+// legitimately-sourced quotes/anecdotes as "not in the transcript". This cap
+// covers multi-hour transcripts in full (~50k tokens); prompt caching keeps the
+// per-turn cost of re-sending it down. Keep this >= the writer's source window.
+const MAX_SOURCE_CHARS = 200_000;
+const MAX_DRAFT_CHARS = 40_000;
 
 export type FactVerdict = "supported" | "fabricated" | "contradicted" | "unverified";
 export type FactClaim = {
@@ -48,10 +54,13 @@ const SYSTEM = (brain: BrandBrain) => `You are Mavrix's fact-checker for ${brain
 
 Brand site: ${brain.siteUrl}
 
+You have the COMPLETE source material below — it is the full text the writer worked from, not an excerpt or a sample. Never assume the source is truncated or "cuts off"; if something is not in it, it is genuinely absent. Read the WHOLE source before judging any claim against it.
+
 Method:
-1. Pull out EVERY specific, checkable claim in the draft: prices and money amounts, numbers and counts, percentages, dates and timeframes, legal/visa/regulatory facts, named product features or programs, and any comparison or superiority claim ("the only…", "the best…", "accredited…").
-2. Verify each one. Use web_search aggressively:
-   - Brand facts (prices, hours, ages, program names, awards): check ${brain.siteUrl} and its pricing/product/press pages. The brand's OWN live site is the source of truth, over the draft, the approved facts, AND any third-party page.
+1. Pull out EVERY specific, checkable claim in the draft: prices and money amounts, numbers and counts, percentages, dates and timeframes, legal/visa/regulatory facts, named product features or programs, direct quotes and personal anecdotes attributed to people, and any comparison or superiority claim ("the only…", "the best…", "accredited…").
+2. Decide what each claim must be checked against, then check it there:
+   - SOURCE claims — direct quotes, personal anecdotes and stories, and the names, ages, schedules, timelines and experiences of the people in the source: verify against the SOURCE material, reading all of it. A published write-up condenses and lightly rewords a transcript, so a quote or anecdote is "supported" whenever its substance clearly appears somewhere in the source, even if the draft tightens the wording, cleans up filler, or merges two nearby lines. Mark it "fabricated" ONLY if the substance is genuinely absent from the entire source. Do NOT use web_search for personal quotes or anecdotes, and never mark one "unverified" for lack of a web result — the source is the sole authority for them.
+   - Brand facts (prices, hours, ages, program names, awards): check ${brain.siteUrl} and its pricing/product/press pages with web_search. The brand's OWN live site is the source of truth, over the draft, the approved facts, AND any third-party page.
    - World facts (visa law, tax thresholds, regulations, statistics): search for the current-year position. Laws change; do not trust the draft's own dates.
 3. Brand-authority rule — this is the most important rule, apply it strictly:
    For claims ABOUT THE BRAND ITSELF — accreditation/certification ("accredited", "certified", "WASC", "IB", "authorized"), awards/recognition, partnerships, superiority ("the only", "the best", "leading", "#1"), and named features/capabilities — the ONLY acceptable confirmation is the brand's OWN site or the APPROVED FACTS. A third-party page (Crunchbase, a blog, a directory, a press aggregator, a review site) does NOT make a brand claim "supported", no matter how many you find.
@@ -99,16 +108,18 @@ export async function factCheck(opts: {
   source: string | null;
   onSearch?: (query: string) => void;
 }): Promise<FactCheckResult> {
+  // The whole stable prefix (approved facts + full source + draft) is sent on
+  // every turn of the agent loop, so mark it cached: the model re-reads it from
+  // cache at ~10% cost instead of paying full input for the large transcript
+  // each turn.
+  const userText = [
+    `APPROVED FACTS:\n${opts.brain.approvedFacts?.map((f) => `- [${f.topic}] ${f.fact}`).join("\n") || "(none)"}`,
+    `\nSOURCE (the complete material the writer worked from — read all of it):\n${opts.source?.slice(0, MAX_SOURCE_CHARS) || "(none — the writer had only a brief)"}`,
+    `\nDRAFT:\nTitle: ${opts.title}\n\n${opts.body.slice(0, MAX_DRAFT_CHARS)}`,
+    `\nCheck every specific claim now, then return the claims JSON.`,
+  ].join("\n");
   const messages: Anthropic.MessageParam[] = [
-    {
-      role: "user",
-      content: [
-        `APPROVED FACTS:\n${opts.brain.approvedFacts?.map((f) => `- [${f.topic}] ${f.fact}`).join("\n") || "(none)"}`,
-        `\nSOURCE (what the writer was given):\n${opts.source?.slice(0, 20_000) || "(none — the writer had only a brief)"}`,
-        `\nDRAFT:\nTitle: ${opts.title}\n\n${opts.body.slice(0, 24_000)}`,
-        `\nCheck every specific claim now, then return the claims JSON.`,
-      ].join("\n"),
-    },
+    { role: "user", content: [{ type: "text", text: userText, cache_control: { type: "ephemeral" } }] },
   ];
 
   let tokensIn = 0, tokensOut = 0, costUsdMicros = 0;
@@ -118,7 +129,7 @@ export async function factCheck(opts: {
     const res = await anthropic.messages.create({
       model: FACT_CHECK_MODEL,
       max_tokens: 6000,
-      system: SYSTEM(opts.brain),
+      system: [{ type: "text", text: SYSTEM(opts.brain), cache_control: { type: "ephemeral" } }],
       tools: [{ type: "web_search_20250305", name: "web_search", max_uses: MAX_SEARCHES }],
       messages,
     });
