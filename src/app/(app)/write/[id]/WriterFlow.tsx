@@ -156,6 +156,13 @@ export function WriterFlow({
       {(s.status === "draft" || s.status === "final") && s.bodyMarkdown && (
         <>
         {s.brief?.factCheck && <FactCheckPanel fc={s.brief.factCheck} />}
+        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
+          <span className="mr-auto text-caption text-muted">Draft ready. Edit below, or regenerate.</span>
+          <button className="btn-ghost" disabled={pending} onClick={() => confirm(false)}>
+            Regenerate from scratch
+          </button>
+          <span className="text-micro text-muted">20 credits</span>
+        </div>
         <div className="mt-6 grid gap-8 md:grid-cols-[1fr_300px]">
           <article>
             <h1 className="text-h3 text-ink-green">{s.title}</h1>
@@ -163,6 +170,9 @@ export function WriterFlow({
 
             <div className="mt-8 border-t border-line pt-6">
               <h3 className="text-h5 text-ink-green">Not quite right?</h3>
+              <p className="mt-1 text-caption text-muted">
+                Tweak this draft with a note, or rewrite the whole piece from your original source.
+              </p>
               <textarea
                 className="input mt-3"
                 rows={3}
@@ -170,10 +180,24 @@ export function WriterFlow({
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
               />
-              <button className="btn-primary mt-3" disabled={pending || !note.trim()} onClick={rerun}>
-                Regenerate with this note
-              </button>
-              <span className="ml-3 text-micro text-muted">2 credits</span>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button className="btn-primary" disabled={pending || !note.trim()} onClick={rerun}>
+                  Regenerate with this note
+                </button>
+                <span className="text-micro text-muted">2 credits</span>
+              </div>
+              <div className="mt-5 border-t border-line pt-5">
+                <p className="text-body-sm text-ink">Rewrite from scratch</p>
+                <p className="mt-1 text-caption text-muted">
+                  Rebuilds the piece from your original source using the latest engine. Use this to restore anything an earlier version dropped.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <button className="btn-ghost" disabled={pending} onClick={() => confirm(false)}>
+                    Regenerate from scratch
+                  </button>
+                  <span className="text-micro text-muted">20 credits</span>
+                </div>
+              </div>
             </div>
           </article>
 
