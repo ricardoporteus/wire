@@ -40,6 +40,7 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [log, setLog] = useState<string[]>([]);
+  const [shown, setShown] = useState<string[]>([]);
 
   const [gateOpen, setGateOpen] = useState(false);
   const [gatePassed, setGatePassed] = useState(false);
@@ -52,21 +53,27 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
   const abortRef = useRef<AbortController | null>(null);
   const tokenRef = useRef<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
-  const queueRef = useRef<Array<() => void>>([]);
 
-  // Reveal queued sections one at a time so the scan "streams" as it searches.
+  // Reveal each block's shell on a fast fixed schedule so sections appear
+  // staggered and early (with a "working" state), then fill as data arrives.
   useEffect(() => {
-    const id = window.setInterval(() => {
-      const fn = queueRef.current.shift();
-      if (fn) fn();
-    }, 160);
-    return () => clearInterval(id);
+    const schedule: [number, string][] = [[1400, "brand"], [4400, "keywords"], [7600, "pageone"], [10800, "audit"]];
+    const timers = schedule.map(([ms, id]) => window.setTimeout(() => setShown((s) => (s.includes(id) ? s : [...s, id])), ms));
+    return () => timers.forEach(clearTimeout);
   }, []);
+  // Open the email gate only once the brand audit block is revealed and filled.
+  useEffect(() => {
+    if (gateOpen || gatePassed || error) return;
+    if (shown.includes("audit") && brand) {
+      const t = window.setTimeout(() => setGateOpen(true), 3500);
+      return () => clearTimeout(t);
+    }
+  }, [shown, brand, gateOpen, gatePassed, error]);
   // Keep the newest section in view as it appears.
   useEffect(() => {
     const el = feedRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [log, fields, keywords, pageOne, brand, briefs]);
+  }, [log, shown, fields, keywords, pageOne, brand, briefs, gatePassed]);
 
   // timer
   useEffect(() => {
@@ -128,16 +135,15 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
         setStage(ev.stage);
         const m = ev.message;
         if (m) setLog((l) => (l[l.length - 1] === m ? l : [...l, m]));
-        if (ev.stage === "writing") setGateOpen(true);
         break;
       }
-      case "brandField": { const label = ev.label, value = ev.value; queueRef.current.push(() => setFields((f) => (f.some(([l]) => l === label) ? f : [...f, [label, value]]))); break; }
-      case "keyword": { const row = ev.row; queueRef.current.push(() => setKeywords((k) => [...k, row])); break; }
-      case "pageone": { const card = ev.card; queueRef.current.push(() => setPageOne((p) => [...p, card])); break; }
-      case "audit": { const b = ev.brand; queueRef.current.push(() => setBrand(b)); break; }
-      case "brief": { const b = ev.brief; queueRef.current.push(() => setBriefs((p) => [...p, b])); break; }
+      case "brandField": { const label = ev.label, value = ev.value; setFields((f) => (f.some(([l]) => l === label) ? f : [...f, [label, value]])); break; }
+      case "keyword": setKeywords((k) => [...k, ev.row]); break;
+      case "pageone": setPageOne((p) => [...p, ev.card]); break;
+      case "audit": setBrand(ev.brand); break;
+      case "brief": setBriefs((b) => [...b, ev.brief]); break;
       case "counts": setCounts({ measured: ev.measured, kept: ev.kept, briefs: ev.briefs }); break;
-      case "done": { const tk = ev.token; queueRef.current.push(() => { setToken(tk); tokenRef.current = tk; setFinished(true); }); break; }
+      case "done": setToken(ev.token); tokenRef.current = ev.token; setFinished(true); break;
       case "error": setError(ev.message); setFinished(true); break;
     }
   }
@@ -209,7 +215,7 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
           </aside>
 
           <div className="ls-feed" ref={feedRef}>
-            {!finished && !error && (
+            {shown.length === 0 && !error && (
               <div className="ls-panel in">
                 <div className="ls-card ls-activity">
                   {log.length === 0 && <div className="ls-actln cur"><span className="d" /> Starting your scan…</div>}
@@ -229,91 +235,107 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
               </div>
             )}
 
-            {fields.length > 0 && (
+            {shown.includes("brand") && !error && (
               <div className="ls-panel in">
-                <div className="ls-phead"><b>Scout</b> · reading {safeHost(url)}</div>
-                <div className="ls-card"><div className="ls-bbrain">
-                  {fields.map(([l, v]) => (
-                    <div key={l} className="ls-fld"><div className="l">{l}</div><div className="v"><Typewriter text={v} /></div></div>
-                  ))}
-                </div></div>
+                <div className="ls-phead"><b>Scout</b> · learning your brand</div>
+                <div className="ls-card">
+                  {fields.length > 0 ? (
+                    <div className="ls-bbrain">
+                      {fields.map(([l, v]) => (
+                        <div key={l} className="ls-fld"><div className="l">{l}</div><div className="v"><Typewriter text={v} /></div></div>
+                      ))}
+                    </div>
+                  ) : <Working label="Reading your pages and learning your voice" />}
+                </div>
               </div>
             )}
 
-            {keywords.length > 0 && (
+            {shown.includes("keywords") && !error && (
               <div className="ls-panel in">
                 <div className="ls-phead"><b>Ada</b> · measuring real demand</div>
-                <div className="ls-card"><table className="ls-tbl">
-                  <thead><tr><th>Keyword</th><th>Volume</th><th>KD</th><th>Priority</th></tr></thead>
-                  <tbody>
-                    {keywords.map((k) => (
-                      <tr key={k.phrase} className="in">
-                        <td className="kw"><Typewriter text={k.phrase} cps={90} /></td>
-                        <td>{k.volume != null ? `${k.volume.toLocaleString()}/mo` : "—"}</td>
-                        <td><span className="ls-kd"><span className="ls-trk"><i style={{ width: `${k.kd ?? 0}%`, background: kdColor(k.kd) }} /></span>{k.kd ?? "—"}</span></td>
-                        <td><span className={`ls-pz p${k.priority}`}>P{k.priority}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table></div>
+                <div className="ls-card">
+                  {keywords.length > 0 ? (
+                    <table className="ls-tbl">
+                      <thead><tr><th>Keyword</th><th>Volume</th><th>KD</th><th>Priority</th></tr></thead>
+                      <tbody>
+                        {keywords.map((k) => (
+                          <tr key={k.phrase} className="in">
+                            <td className="kw"><Typewriter text={k.phrase} cps={90} /></td>
+                            <td>{k.volume != null ? `${k.volume.toLocaleString()}/mo` : "—"}</td>
+                            <td><span className="ls-kd"><span className="ls-trk"><i style={{ width: `${k.kd ?? 0}%`, background: kdColor(k.kd) }} /></span>{k.kd ?? "—"}</span></td>
+                            <td><span className={`ls-pz p${k.priority}`}>P{k.priority}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : <Working label="Measuring real search demand" />}
+                </div>
               </div>
             )}
 
-            {pageOne.length > 0 && (
+            {shown.includes("pageone") && !error && !(finished && pageOne.length === 0) && (
               <div className="ls-panel in">
                 <div className="ls-phead"><b>Ada</b> · what Google&rsquo;s page one rewards</div>
-                <div className="ls-card"><div className="ls-p1grid">
-                  {pageOne.map((c) => (
-                    <div key={c.phrase} className="ls-poc">
-                      <div className="q">&ldquo;{c.phrase}&rdquo;</div>
-                      <div className="row2">
-                        <span className={`ls-tag ${c.aiOverview ? "yes" : "no"}`}>{c.aiOverview ? "✓" : "·"} AI Overview</span>
-                        <span className={`ls-tag ${c.peopleAlsoAsk.length ? "yes" : "no"}`}>{c.peopleAlsoAsk.length ? "✓" : "·"} People Also Ask</span>
-                        <span className={`ls-tag ${c.featuredSnippet ? "yes" : "no"}`}>{c.featuredSnippet ? "✓" : "·"} snippet</span>
-                      </div>
-                      <div className="rec">→ {c.recommendedFormat}</div>
+                <div className="ls-card">
+                  {pageOne.length > 0 ? (
+                    <div className="ls-p1grid">
+                      {pageOne.map((c) => (
+                        <div key={c.phrase} className="ls-poc">
+                          <div className="q">&ldquo;{c.phrase}&rdquo;</div>
+                          <div className="row2">
+                            <span className={`ls-tag ${c.aiOverview ? "yes" : "no"}`}>{c.aiOverview ? "✓" : "·"} AI Overview</span>
+                            <span className={`ls-tag ${c.peopleAlsoAsk.length ? "yes" : "no"}`}>{c.peopleAlsoAsk.length ? "✓" : "·"} People Also Ask</span>
+                            <span className={`ls-tag ${c.featuredSnippet ? "yes" : "no"}`}>{c.featuredSnippet ? "✓" : "·"} snippet</span>
+                          </div>
+                          <div className="rec">→ {c.recommendedFormat}</div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div></div>
+                  ) : <Working label="Checking Google's page one" />}
+                </div>
               </div>
             )}
 
-            {brand && (
+            {shown.includes("audit") && !error && (
               <div className="ls-panel in">
                 <div className="ls-card ls-audit">
-                  <div className="ah">Here&rsquo;s what Mavrix now knows about {brand.name}.</div>
-                  <div className="asub">A full brand audit — the same detail that lives in your Settings. This is why every piece sounds like you and targets your real buyer.</div>
-                  <div className="ls-acols">
-                    {brand.voicePillars.length > 0 && (
-                      <div className="ls-ab"><h4>Voice &amp; principles</h4><ul>
-                        {brand.voicePillars.map((p) => <li key={p.name}><b>{p.name}</b> — {p.description}</li>)}
-                        {brand.principles.slice(0, 2).map((p) => <li key={p}>✓ {p}</li>)}
-                      </ul></div>
-                    )}
-                    {(brand.sayWords.length > 0 || brand.banWords.length > 0) && (
-                      <div className="ls-ab"><h4>Vocabulary</h4><ul>
-                        {brand.sayWords.length > 0 && <li><span className="ls-chips">{brand.sayWords.map((w) => <span key={w} className="ls-chip lime">{w}</span>)}</span></li>}
-                        {brand.banWords.length > 0 && <li><span className="ls-chips">{brand.banWords.map((w) => <span key={w} className="ls-chip ban">{w}</span>)}</span></li>}
-                      </ul></div>
-                    )}
-                    {brand.icpWho && <div className="ls-ab"><h4>Ideal customer</h4><ul><li>{brand.icpWho}</li></ul></div>}
-                    {brand.competitors.length > 0 && (
-                      <div className="ls-ab"><h4>Competitors</h4><ul>
-                        {brand.competitors.map((c, i) => <li key={i}><b>{c.name ?? c.url}</b>{c.note ? ` — ${c.note}` : ""}</li>)}
-                      </ul></div>
-                    )}
-                    {(brand.values.length > 0 || brand.facts.length > 0) && (
-                      <div className="ls-ab"><h4>Values &amp; approved facts</h4><ul>
-                        {brand.values.length > 0 && <li><b>{brand.values.map((v) => v.name).join(" · ")}</b></li>}
-                        {brand.facts.map((f, i) => <li key={i}><b>Fact:</b> {f.fact}</li>)}
-                      </ul></div>
-                    )}
-                    {brand.guardrails.length > 0 && (
-                      <div className="ls-ab"><h4>Guardrails</h4><ul>
-                        {brand.guardrails.map((g) => <li key={g}>✓ {g}</li>)}
-                      </ul></div>
-                    )}
-                  </div>
+                  {brand ? (
+                    <>
+                      <div className="ah">Here&rsquo;s what Mavrix now knows about {brand.name}.</div>
+                      <div className="asub">A full brand audit — the same detail that lives in your Settings. This is why every piece sounds like you and targets your real buyer.</div>
+                      <div className="ls-acols">
+                        {brand.voicePillars.length > 0 && (
+                          <div className="ls-ab"><h4>Voice &amp; principles</h4><ul>
+                            {brand.voicePillars.map((p) => <li key={p.name}><b>{p.name}</b> — {p.description}</li>)}
+                            {brand.principles.slice(0, 2).map((p) => <li key={p}>✓ {p}</li>)}
+                          </ul></div>
+                        )}
+                        {(brand.sayWords.length > 0 || brand.banWords.length > 0) && (
+                          <div className="ls-ab"><h4>Vocabulary</h4><ul>
+                            {brand.sayWords.length > 0 && <li><span className="ls-chips">{brand.sayWords.map((w) => <span key={w} className="ls-chip lime">{w}</span>)}</span></li>}
+                            {brand.banWords.length > 0 && <li><span className="ls-chips">{brand.banWords.map((w) => <span key={w} className="ls-chip ban">{w}</span>)}</span></li>}
+                          </ul></div>
+                        )}
+                        {brand.icpWho && <div className="ls-ab"><h4>Ideal customer</h4><ul><li>{brand.icpWho}</li></ul></div>}
+                        {brand.competitors.length > 0 && (
+                          <div className="ls-ab"><h4>Competitors</h4><ul>
+                            {brand.competitors.map((c, i) => <li key={i}><b>{c.name ?? c.url}</b>{c.note ? ` — ${c.note}` : ""}</li>)}
+                          </ul></div>
+                        )}
+                        {(brand.values.length > 0 || brand.facts.length > 0) && (
+                          <div className="ls-ab"><h4>Values &amp; approved facts</h4><ul>
+                            {brand.values.length > 0 && <li><b>{brand.values.map((v) => v.name).join(" · ")}</b></li>}
+                            {brand.facts.map((f, i) => <li key={i}><b>Fact:</b> {f.fact}</li>)}
+                          </ul></div>
+                        )}
+                        {brand.guardrails.length > 0 && (
+                          <div className="ls-ab"><h4>Guardrails</h4><ul>
+                            {brand.guardrails.map((g) => <li key={g}>✓ {g}</li>)}
+                          </ul></div>
+                        )}
+                      </div>
+                    </>
+                  ) : <Working label="Compiling your brand audit" />}
                 </div>
               </div>
             )}
@@ -344,7 +366,7 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
           </div>
         </div>
 
-        {/* email gate — appears at the second-to-last stage */}
+        {/* email gate — opens only after the brand audit block is shown */}
         {gateOpen && !gatePassed && (
           <div className="ls-overlay">
             <div className="ls-gatec">
@@ -380,6 +402,11 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
       </div>
     </div>
   );
+}
+
+/** A pulsing "working" line shown in a block before its data arrives. */
+function Working({ label }: { label: string }) {
+  return <div className="ls-working"><span className="d" /> {label}…</div>;
 }
 
 /** Types `text` in once on mount (skips to full text under reduced motion). */
