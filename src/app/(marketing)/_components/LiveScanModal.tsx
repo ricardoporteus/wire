@@ -39,6 +39,7 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
   const [finished, setFinished] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [log, setLog] = useState<string[]>([]);
 
   const [gateOpen, setGateOpen] = useState(false);
   const [gatePassed, setGatePassed] = useState(false);
@@ -109,6 +110,7 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
       case "token": setToken(ev.token); tokenRef.current = ev.token; break;
       case "stage":
         setStage(ev.stage);
+        if (ev.message) setLog((l) => (l[l.length - 1] === ev.message ? l : [...l, ev.message]));
         if (ev.stage === "writing") setGateOpen(true);
         break;
       case "brandField": setFields((f) => (f.some(([l]) => l === ev.label) ? f : [...f, [ev.label, ev.value]])); break;
@@ -189,6 +191,16 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
           </aside>
 
           <div className="ls-feed">
+            {!finished && !error && (
+              <div className="ls-panel in">
+                <div className="ls-card ls-activity">
+                  {log.length === 0 && <div className="ls-actln cur"><span className="d" /> Starting your scan…</div>}
+                  {log.map((l, i) => (
+                    <div key={i} className={`ls-actln${i === log.length - 1 ? " cur" : ""}`}><span className="d" /> {l}</div>
+                  ))}
+                </div>
+              </div>
+            )}
             {error && (
               <div className="ls-err">
                 <div>{error}</div>

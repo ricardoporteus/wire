@@ -441,6 +441,11 @@
 .mkt .ls-feed{overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;}
 .mkt .ls-panel{opacity:0;transform:translateY(12px);transition:opacity .5s,transform .5s;}
 .mkt .ls-panel.in{opacity:1;transform:none;}
+.mkt .ls-activity{display:flex;flex-direction:column;gap:9px;}
+.mkt .ls-actln{display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,.5);font-family:var(--mono);}
+.mkt .ls-actln .d{width:7px;height:7px;border-radius:50%;background:#60D184;flex:none;}
+.mkt .ls-actln.cur{color:#fff;}
+.mkt .ls-actln.cur .d{background:var(--lime);box-shadow:0 0 0 0 rgba(219,254,122,.6);animation:ls-pulse 1.3s infinite;}
 .mkt .ls-phead{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:10px;}
 .mkt .ls-phead b{color:var(--sky);}
 .mkt .ls-card{background:#191b26;border:1px solid rgba(255,255,255,.1);border-radius:15px;padding:16px;}
