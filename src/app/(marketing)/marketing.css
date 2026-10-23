@@ -446,6 +446,8 @@
 .mkt .ls-actln .d{width:7px;height:7px;border-radius:50%;background:#60D184;flex:none;}
 .mkt .ls-actln.cur{color:#fff;}
 .mkt .ls-actln.cur .d{background:var(--lime);box-shadow:0 0 0 0 rgba(219,254,122,.6);animation:ls-pulse 1.3s infinite;}
+.mkt .ls-caret{display:inline-block;width:2px;height:1em;background:var(--lime);margin-left:1px;vertical-align:text-bottom;animation:ls-blink 1s steps(1) infinite;}
+@keyframes ls-blink{50%{opacity:0;}}
 .mkt .ls-phead{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:10px;}
 .mkt .ls-phead b{color:var(--sky);}
 .mkt .ls-card{background:#191b26;border:1px solid rgba(255,255,255,.1);border-radius:15px;padding:16px;}

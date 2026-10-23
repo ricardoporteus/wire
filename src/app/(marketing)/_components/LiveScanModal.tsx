@@ -234,7 +234,7 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
                 <div className="ls-phead"><b>Scout</b> · reading {safeHost(url)}</div>
                 <div className="ls-card"><div className="ls-bbrain">
                   {fields.map(([l, v]) => (
-                    <div key={l} className="ls-fld"><div className="l">{l}</div><div className="v">{v}</div></div>
+                    <div key={l} className="ls-fld"><div className="l">{l}</div><div className="v"><Typewriter text={v} /></div></div>
                   ))}
                 </div></div>
               </div>
@@ -248,7 +248,7 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
                   <tbody>
                     {keywords.map((k) => (
                       <tr key={k.phrase} className="in">
-                        <td className="kw">{k.phrase}</td>
+                        <td className="kw"><Typewriter text={k.phrase} cps={90} /></td>
                         <td>{k.volume != null ? `${k.volume.toLocaleString()}/mo` : "—"}</td>
                         <td><span className="ls-kd"><span className="ls-trk"><i style={{ width: `${k.kd ?? 0}%`, background: kdColor(k.kd) }} /></span>{k.kd ?? "—"}</span></td>
                         <td><span className={`ls-pz p${k.priority}`}>P{k.priority}</span></td>
@@ -380,6 +380,21 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
       </div>
     </div>
   );
+}
+
+/** Types `text` in once on mount (skips to full text under reduced motion). */
+function Typewriter({ text, cps = 55 }: { text: string; cps?: number }) {
+  const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const [n, setN] = useState(reduce ? text.length : 0);
+  useEffect(() => {
+    if (reduce || n >= text.length) return;
+    const id = window.setInterval(() => {
+      setN((x) => { if (x >= text.length) { clearInterval(id); return x; } return x + 1; });
+    }, 1000 / cps);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return <>{text.slice(0, n)}{n < text.length && <span className="ls-caret" />}</>;
 }
 
 function kdColor(kd: number | null): string {
