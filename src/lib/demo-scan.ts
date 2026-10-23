@@ -295,16 +295,18 @@ function haikuAsker() {
   const usage = { in: 0, out: 0, usd: 0 };
 
   async function call<S extends z.ZodTypeAny>(system: string, prompt: string, schema: S, maxTokens = 500): Promise<z.infer<S>> {
-    const res = await anthropic.messages.create({
-      model: HAIKU_MODEL, max_tokens: maxTokens, system,
-      messages: [{ role: "user", content: prompt }],
-    });
-    usage.in += res.usage.input_tokens; usage.out += res.usage.output_tokens;
-    usage.usd += (res.usage.input_tokens * HAIKU.in + res.usage.output_tokens * HAIKU.out) / 1_000_000;
-    const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");
-    const parsed = schema.safeParse(parseJson(text));
-    if (!parsed.success) throw new Error("Model did not return valid JSON");
-    return parsed.data;
+    const messages: Anthropic.MessageParam[] = [{ role: "user", content: prompt }];
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await anthropic.messages.create({ model: HAIKU_MODEL, max_tokens: maxTokens, system, messages });
+      usage.in += res.usage.input_tokens; usage.out += res.usage.output_tokens;
+      usage.usd += (res.usage.input_tokens * HAIKU.in + res.usage.output_tokens * HAIKU.out) / 1_000_000;
+      const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");
+      const parsed = schema.safeParse(parseJson(text));
+      if (parsed.success) return parsed.data;
+      messages.push({ role: "assistant", content: res.content });
+      messages.push({ role: "user", content: `That did not validate: ${parsed.error.message.slice(0, 300)}. Reply with ONLY the JSON object, no prose.` });
+    }
+    throw new Error("Model did not return valid JSON");
   }
 
   return {
@@ -321,7 +323,7 @@ function haikuAsker() {
       return call(
         "You audit a brand from its website for a marketing team. Be specific and grounded; never invent facts or claims. Output ONLY JSON.",
         `${brief}\n\nReturn a brand audit as JSON with exactly these keys:\n{"name": string, "whatYouDo": string (2 plain sentences), "differentiator": string (1 sentence), "idealCustomer": string (one line), "voicePillars": [{"name": string, "description": string}] (3), "principles": string[] (3 short copy rules), "sayWords": string[] (4 on-brand words), "banWords": string[] (4 words to avoid), "competitors": [{"name": string, "url": string, "note": string}] (up to 3, only if genuinely inferable), "values": [{"name": string, "description": string}] (3), "facts": [{"topic": string, "fact": string}] (up to 3, ONLY claims actually on the site), "guardrails": string[] (3 content rules)}`,
-        demoAuditSchema, 1600,
+        demoAuditSchema, 2200,
       );
     },
   };
