@@ -7,6 +7,7 @@ import { SiteNav } from "./SiteNav";
 import { SiteFooter } from "./SiteFooter";
 import { Starfield } from "./Starfield";
 import { Count } from "./Count";
+import { LiveScanModal } from "./LiveScanModal";
 
 const APP = "/dashboard";
 
@@ -21,11 +22,10 @@ const NAME: Record<SpecialistId, string> = { scout: "Scout", ada: "Ada", iris: "
 export function HomeV2() {
   const [site, setSite] = useState("");
   const [err, setErr] = useState<string | null>(null);
-  const [going, setGoing] = useState(false);
+  const [scanUrl, setScanUrl] = useState<string | null>(null);
 
-  // Hand the hero URL to the real onboarding flow. Onboarding reads it (query
-  // param, or the cookie below) and prefills the site step, which drafts the
-  // Brand Brain and leads into the first sweep.
+  // Open the live scan on the entered URL. The modal runs the real scan and, on
+  // "Continue", carries the scan token into sign-up so onboarding adopts it.
   const startSweep = (e: FormEvent) => {
     e.preventDefault();
     setErr(null);
@@ -33,17 +33,7 @@ export function HomeV2() {
     if (!url) { setErr("Add your website to continue."); return; }
     if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
     try { new URL(url); } catch { setErr("That doesn’t look like a valid website."); return; }
-    // A query param is dropped across the hosted sign-in bounce, so also stash
-    // the URL in a short-lived, cross-subdomain cookie that survives the
-    // marketing-host -> app-host -> Clerk round trip.
-    try {
-      const host = window.location.hostname;
-      const dom = /(^|\.)mavrix\.agency$/i.test(host) ? "; domain=.mavrix.agency" : "";
-      const sec = window.location.protocol === "https:" ? "; secure" : "";
-      document.cookie = `mavrix_onboard_url=${encodeURIComponent(url)}; path=/; max-age=1800; samesite=lax${dom}${sec}`;
-    } catch { /* cookies blocked; the query param still covers signed-in users */ }
-    setGoing(true);
-    window.location.href = `/onboarding?url=${encodeURIComponent(url)}`;
+    setScanUrl(url);
   };
 
   return (
@@ -66,7 +56,7 @@ export function HomeV2() {
               <label htmlFor="site">See what you could rank for 👇</label>
               <div className="row">
                 <div className="urlwrap"><span className="pre">https://</span><input id="site" type="text" placeholder="yourwebsite.com" autoComplete="off" value={site} onChange={(e) => setSite(e.target.value)} /></div>
-                <button className="btn btn-lime mbtn" type="submit" disabled={going}>{going ? "Starting…" : "Get 10 measured keywords + a 30-day plan →"}</button>
+                <button className="btn btn-lime mbtn" type="submit">Get 10 measured keywords + a 30-day plan →</button>
               </div>
               {err && <div className="result" style={{ background: "var(--negbg)", color: "var(--neg)" }}>{err}</div>}
               <p className="micro">Free · No card required · First plan in minutes · Zero technical skills needed</p>
@@ -291,6 +281,8 @@ export function HomeV2() {
 
       {/* CLOSING */}
       <section className="band closing"><div className="wrap"><h2>See what you could rank for in the next 3 minutes.</h2><p>Drop your website, get 10 measured keywords and a 30-day plan. Free to start.</p><div className="cta"><Link className="btn btn-lime" href={APP}>Get my free plan</Link><a className="btn btn-ghost" href="#how-steps">See how it works ›</a></div></div></section>
+
+      {scanUrl && <LiveScanModal url={scanUrl} onClose={() => setScanUrl(null)} />}
 
       <SiteFooter />
     </>

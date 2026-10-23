@@ -11,6 +11,7 @@ import { OrganizationSwitcher } from "@clerk/nextjs";
 import { db } from "@/lib/db";
 import { organizations, brandBrains } from "@/db/schema";
 import { draftFromRow } from "@/lib/wizard-steps";
+import { claimDemoScan } from "@/lib/demo-claim";
 import { Wizard } from "./Wizard";
 import { CreateWorkspace } from "./CreateWorkspace";
 
@@ -44,15 +45,17 @@ function pickUrl(raw?: string | null): string | null {
 export default async function OnboardingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ url?: string }>;
+  searchParams: Promise<{ url?: string; demo?: string }>;
 }) {
   const { userId, orgId: clerkOrgId } = await auth();
   if (!userId) return null; // middleware protects this route; belt-and-braces
 
-  // URL handed over from the marketing homepage hero, to prefill the site step.
+  // Handoffs from the marketing homepage: a URL to prefill the site step, and/or
+  // a completed Live Scan token to adopt (query param or the cross-subdomain cookie).
   const sp = await searchParams;
   const cookieStore = await cookies();
   const prefillSiteUrl = pickUrl(sp?.url) ?? pickUrl(cookieStore.get("mavrix_onboard_url")?.value);
+  const demoToken = (sp?.demo ?? cookieStore.get("mavrix_demo_token")?.value ?? "").trim() || null;
 
   if (!clerkOrgId) {
     return (
@@ -66,9 +69,15 @@ export default async function OnboardingPage({
   const org = await db.query.organizations.findFirst({
     where: eq(organizations.clerkOrgId, clerkOrgId),
   });
-  const brain = org
+  let brain = org
     ? await db.query.brandBrains.findFirst({ where: eq(brandBrains.orgId, org.id) })
     : null;
+
+  // Adopt the Live Scan the visitor just watched: skips the site step entirely.
+  if (org && !brain && demoToken) {
+    const brainId = await claimDemoScan(org.id, demoToken).catch(() => null);
+    if (brainId) brain = await db.query.brandBrains.findFirst({ where: eq(brandBrains.id, brainId) });
+  }
 
   if (brain?.wizardCompletedAt) redirect("/dashboard");
 
