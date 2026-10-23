@@ -20,7 +20,7 @@ import { db } from "@/lib/db";
 import { demoScans } from "@/db/schema";
 import { DataForSEO, type Locale, type SerpFeatures } from "@/lib/dataforseo";
 import { scrapeSite, draftBrain } from "@/lib/brand-draft";
-import { measureCached } from "@/lib/keyword-metrics-cache";
+import { cacheKeywordMetrics } from "@/lib/keyword-metrics-cache";
 import { opportunityScore, kdBucket, domainOf } from "@/lib/keyword-research";
 import { parseJson } from "@/lib/parse-json";
 import type { BrandBrainDraft } from "@/lib/brand-brain.zod";
@@ -30,7 +30,7 @@ import type {
 
 const HAIKU_MODEL = "claude-haiku-4-5";
 const HAIKU = { in: 1, out: 5 }; // $/1M tokens
-const SEED_TARGET = 18;          // phrases to measure
+const SEED_TARGET = 10;          // seed phrases for keyword expansion
 const KEEP_MAX = 14;             // keywords shown after ranking
 const SERP_CHECKS = 3;           // live page-one checks on the top picks
 const BRIEF_COUNT = 6;
@@ -97,9 +97,13 @@ export async function runDemoScan(
     const locale = localeForDraft(draft);
     const ask = haikuAsker();
     const seeds = await ask.seeds(draft);
-    tokensIn += ask.usage.in; tokensOut += ask.usage.out; usd += ask.usage.usd;
 
-    const measured = await measureCached(dfs, seeds, locale);
+    // Expand seeds into real, volume-bearing keywords (one DataForSEO call), then
+    // cache them. keywordOverview only matches exact known phrases, which collapses
+    // a generated seed list; keywordIdeas returns measured related terms reliably.
+    const ideas = await dfs.keywordIdeas(seeds.slice(0, 10), locale, 40);
+    await cacheKeywordMetrics(ideas, locale).catch(() => {});
+    const measured = ideas;
     const withVolume = measured.filter((m) => (m.searchVolume ?? 0) > 0);
 
     // score + rank (fit held neutral at 4 — the teaser skips the full rating pass)
