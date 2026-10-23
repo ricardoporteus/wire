@@ -51,6 +51,22 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
   const started = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const tokenRef = useRef<string | null>(null);
+  const feedRef = useRef<HTMLDivElement>(null);
+  const queueRef = useRef<Array<() => void>>([]);
+
+  // Reveal queued sections one at a time so the scan "streams" as it searches.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const fn = queueRef.current.shift();
+      if (fn) fn();
+    }, 160);
+    return () => clearInterval(id);
+  }, []);
+  // Keep the newest section in view as it appears.
+  useEffect(() => {
+    const el = feedRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [log, fields, keywords, pageOne, brand, briefs]);
 
   // timer
   useEffect(() => {
@@ -115,13 +131,13 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
         if (ev.stage === "writing") setGateOpen(true);
         break;
       }
-      case "brandField": setFields((f) => (f.some(([l]) => l === ev.label) ? f : [...f, [ev.label, ev.value]])); break;
-      case "keyword": setKeywords((k) => [...k, ev.row]); break;
-      case "pageone": setPageOne((p) => [...p, ev.card]); break;
-      case "audit": setBrand(ev.brand); break;
-      case "brief": setBriefs((b) => [...b, ev.brief]); break;
+      case "brandField": { const label = ev.label, value = ev.value; queueRef.current.push(() => setFields((f) => (f.some(([l]) => l === label) ? f : [...f, [label, value]]))); break; }
+      case "keyword": { const row = ev.row; queueRef.current.push(() => setKeywords((k) => [...k, row])); break; }
+      case "pageone": { const card = ev.card; queueRef.current.push(() => setPageOne((p) => [...p, card])); break; }
+      case "audit": { const b = ev.brand; queueRef.current.push(() => setBrand(b)); break; }
+      case "brief": { const b = ev.brief; queueRef.current.push(() => setBriefs((p) => [...p, b])); break; }
       case "counts": setCounts({ measured: ev.measured, kept: ev.kept, briefs: ev.briefs }); break;
-      case "done": setToken(ev.token); tokenRef.current = ev.token; setFinished(true); break;
+      case "done": { const tk = ev.token; queueRef.current.push(() => { setToken(tk); tokenRef.current = tk; setFinished(true); }); break; }
       case "error": setError(ev.message); setFinished(true); break;
     }
   }
@@ -192,7 +208,7 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
             </div>
           </aside>
 
-          <div className="ls-feed">
+          <div className="ls-feed" ref={feedRef}>
             {!finished && !error && (
               <div className="ls-panel in">
                 <div className="ls-card ls-activity">
