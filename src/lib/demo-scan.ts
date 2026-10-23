@@ -18,7 +18,7 @@ import { randomBytes } from "crypto";
 import { db } from "@/lib/db";
 import { demoScans } from "@/db/schema";
 import { DataForSEO, type Locale, type SerpFeatures } from "@/lib/dataforseo";
-import { scrapeSite, draftBrain, type ScrapedPage } from "@/lib/brand-draft";
+import { scrapeSite, type ScrapedPage } from "@/lib/brand-draft";
 import { cacheKeywordMetrics } from "@/lib/keyword-metrics-cache";
 import { opportunityScore, kdBucket, domainOf } from "@/lib/keyword-research";
 import { parseJson } from "@/lib/parse-json";
@@ -29,7 +29,6 @@ import type {
 
 const HAIKU_MODEL = "claude-haiku-4-5";
 const HAIKU = { in: 1, out: 5 };    // $/1M tokens
-const DRAFT_MAX_TOKENS = 4000;      // the brain JSON needs room; truncation triggers a slow failing retry
 const SEED_TARGET = 10;
 const KEEP_MAX = 14;
 const SERP_CHECKS = 2;              // parallel page-one checks on the top picks
@@ -85,20 +84,19 @@ export async function runDemoScan(
     await db.update(demoScans).set({ status: "drafting" }).where(eq(demoScans.token, token));
     const ask = haikuAsker();
 
-    const draftP = draftBrain(url, pages, { model: HAIKU_MODEL, maxTokens: DRAFT_MAX_TOKENS });
+    const brief = briefFromPages(domain, pages);
+    const auditP = ask.audit(brief);
     const measureP = (async () => {
-      const seeds = await ask.seeds(briefFromPages(domain, pages));
+      const seeds = await ask.seeds(brief);
       const ideas = await dfs.keywordIdeas(seeds.slice(0, SEED_TARGET), LOCALE, 40);
       await cacheKeywordMetrics(ideas, LOCALE).catch(() => {});
       return ideas;
     })();
 
     // Brand first (narrative order), while measurement finishes concurrently.
-    const draftRes = await draftP;
-    tokensIn += draftRes.tokensIn; tokensOut += draftRes.tokensOut;
-    usd += (draftRes.tokensIn * HAIKU.in + draftRes.tokensOut * HAIKU.out) / 1_000_000;
-    const draft = draftRes.brain;
-    const brand = toBrand(draft);
+    const lean = await auditP;
+    const brand = leanToBrand(lean, domain);
+    const draft = leanToBrainDraft(lean, url);
     for (const [label, value] of brandFields(brand)) onProgress({ t: "brandField", label, value });
 
     /* keywords */
@@ -209,24 +207,42 @@ function briefFromPages(domain: string, pages: ScrapedPage[]): string {
   return `Brand domain: ${domain}\nHomepage text: ${home.slice(0, 1800)}`;
 }
 
-function toBrand(d: BrandBrainDraft): DemoBrand {
-  const v = d.vocabulary;
-  const say = [...(v?.preferredVerbs ?? []), ...(v?.preferredNouns ?? []), ...(v?.preferredAdjectives ?? [])]
-    .filter(Boolean).slice(0, 6);
+function leanToBrand(a: DemoAudit, domain: string): DemoBrand {
   return {
-    name: d.name,
-    whatTheyDo: d.whatTheyDo ?? "",
-    differentiator: d.differentiator,
-    voicePillars: (d.voice?.pillars ?? []).slice(0, 4),
-    principles: (d.voice?.principles ?? []).slice(0, 4),
-    icpWho: d.icp?.who ?? "",
-    competitors: (d.competitors ?? []).slice(0, 4),
-    sayWords: say,
-    banWords: (v?.banned ?? []).slice(0, 6),
-    values: (d.values ?? []).slice(0, 4),
-    facts: (d.approvedFacts ?? []).slice(0, 4),
-    guardrails: (d.ethicsRules ?? []).slice(0, 4),
+    name: a.name || domain,
+    whatTheyDo: a.whatYouDo,
+    differentiator: a.differentiator,
+    voicePillars: a.voicePillars.slice(0, 4),
+    principles: a.principles.slice(0, 4),
+    icpWho: a.idealCustomer,
+    competitors: a.competitors.slice(0, 4),
+    sayWords: a.sayWords.slice(0, 6),
+    banWords: a.banWords.slice(0, 6),
+    values: a.values.slice(0, 4),
+    facts: a.facts.slice(0, 4),
+    guardrails: a.guardrails.slice(0, 4),
   };
+}
+
+/** Build a Brand Brain draft (for adopt-on-signup) from the lean audit. Stored as jsonb; the wizard fills any gaps. */
+function leanToBrainDraft(a: DemoAudit, siteUrl: string): BrandBrainDraft {
+  return {
+    name: a.name,
+    siteUrl,
+    whatTheyDo: a.whatYouDo || undefined,
+    differentiator: a.differentiator,
+    icp: a.idealCustomer
+      ? { who: a.idealCustomer, segments: [], geographies: [], painPoints: [], searchBehaviour: "" }
+      : undefined,
+    competitors: a.competitors.filter((c) => !!c.url).map((c) => ({ url: c.url as string, name: c.name, note: c.note })),
+    voice: a.voicePillars.length
+      ? { pillars: a.voicePillars, personality: [], principles: a.principles, locale: "en-US" }
+      : undefined,
+    vocabulary: { preferredVerbs: [], preferredNouns: a.sayWords, preferredAdjectives: [], terminology: [], banned: a.banWords },
+    values: a.values.length ? a.values : undefined,
+    approvedFacts: a.facts,
+    ethicsRules: a.guardrails,
+  } as BrandBrainDraft;
 }
 
 function brandFields(b: DemoBrand): [string, string][] {
@@ -257,11 +273,28 @@ function titleFor(phrase: string): string {
 
 const seedsSchema = z.object({ phrases: z.array(z.string().min(2)).min(1) });
 
+// Loose, all-defaulted so Haiku satisfies it in one shot (no slow failing retry).
+const demoAuditSchema = z.object({
+  name: z.string().min(1),
+  whatYouDo: z.string().default(""),
+  differentiator: z.string().optional(),
+  idealCustomer: z.string().default(""),
+  voicePillars: z.array(z.object({ name: z.string(), description: z.string().default("") })).default([]),
+  principles: z.array(z.string()).default([]),
+  sayWords: z.array(z.string()).default([]),
+  banWords: z.array(z.string()).default([]),
+  competitors: z.array(z.object({ name: z.string().optional(), url: z.string().optional(), note: z.string().optional() })).default([]),
+  values: z.array(z.object({ name: z.string(), description: z.string().default("") })).default([]),
+  facts: z.array(z.object({ topic: z.string().default(""), fact: z.string() })).default([]),
+  guardrails: z.array(z.string()).default([]),
+});
+type DemoAudit = z.infer<typeof demoAuditSchema>;
+
 function haikuAsker() {
   const anthropic = new Anthropic();
   const usage = { in: 0, out: 0, usd: 0 };
 
-  async function call<T>(system: string, prompt: string, schema: z.ZodType<T>, maxTokens = 500): Promise<T> {
+  async function call<S extends z.ZodTypeAny>(system: string, prompt: string, schema: S, maxTokens = 500): Promise<z.infer<S>> {
     const res = await anthropic.messages.create({
       model: HAIKU_MODEL, max_tokens: maxTokens, system,
       messages: [{ role: "user", content: prompt }],
@@ -283,6 +316,13 @@ function haikuAsker() {
         seedsSchema,
       );
       return out.phrases.map((p) => p.toLowerCase().trim()).filter(Boolean).slice(0, SEED_TARGET);
+    },
+    async audit(brief: string): Promise<DemoAudit> {
+      return call(
+        "You audit a brand from its website for a marketing team. Be specific and grounded; never invent facts or claims. Output ONLY JSON.",
+        `${brief}\n\nReturn a brand audit as JSON with exactly these keys:\n{"name": string, "whatYouDo": string (2 plain sentences), "differentiator": string (1 sentence), "idealCustomer": string (one line), "voicePillars": [{"name": string, "description": string}] (3), "principles": string[] (3 short copy rules), "sayWords": string[] (4 on-brand words), "banWords": string[] (4 words to avoid), "competitors": [{"name": string, "url": string, "note": string}] (up to 3, only if genuinely inferable), "values": [{"name": string, "description": string}] (3), "facts": [{"topic": string, "fact": string}] (up to 3, ONLY claims actually on the site), "guardrails": string[] (3 content rules)}`,
+        demoAuditSchema, 1600,
+      );
     },
   };
 }
