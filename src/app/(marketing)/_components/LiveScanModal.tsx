@@ -108,11 +108,13 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
   function handle(ev: DemoEvent) {
     switch (ev.t) {
       case "token": setToken(ev.token); tokenRef.current = ev.token; break;
-      case "stage":
+      case "stage": {
         setStage(ev.stage);
-        if (ev.message) setLog((l) => (l[l.length - 1] === ev.message ? l : [...l, ev.message]));
+        const m = ev.message;
+        if (m) setLog((l) => (l[l.length - 1] === m ? l : [...l, m]));
         if (ev.stage === "writing") setGateOpen(true);
         break;
+      }
       case "brandField": setFields((f) => (f.some(([l]) => l === ev.label) ? f : [...f, [ev.label, ev.value]])); break;
       case "keyword": setKeywords((k) => [...k, ev.row]); break;
       case "pageone": setPageOne((p) => [...p, ev.card]); break;
