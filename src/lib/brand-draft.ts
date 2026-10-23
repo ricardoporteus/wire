@@ -30,7 +30,7 @@ export async function fetchReadable(url: string): Promise<string | null> {
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "accept-language": "en-US,en;q=0.9",
       },
-      signal: AbortSignal.timeout(12_000),
+      signal: AbortSignal.timeout(8_000),
     });
     const ct = res.headers.get("content-type") ?? "";
     if (!res.ok || !(ct.includes("text/html") || ct.includes("xml"))) return null;
@@ -51,12 +51,13 @@ export async function fetchReadable(url: string): Promise<string | null> {
 /** Fetch the key pages of a site (home, about, blog, pricing, product) as text. */
 export async function scrapeSite(siteUrl: string, paths: string[] = FETCH_PATHS): Promise<ScrapedPage[]> {
   const origin = new URL(siteUrl).origin;
-  const pages: ScrapedPage[] = [];
-  for (const path of paths) {
-    const text = await fetchReadable(origin + path);
-    if (text) pages.push({ path: path || "/", text });
-  }
-  return pages;
+  const results = await Promise.all(
+    paths.map(async (path) => {
+      const text = await fetchReadable(origin + path);
+      return text ? { path: path || "/", text } : null;
+    }),
+  );
+  return results.filter((p): p is ScrapedPage => p !== null);
 }
 
 export const DRAFTER_SYSTEM = `You are Mavrix's Brand Brain drafter. You read a company's website content and draft the configuration that Mavrix's research and writing agents will use for this brand.
@@ -125,14 +126,14 @@ export function siteContentMessage(siteUrl: string, pages: ScrapedPage[], upload
 export async function draftBrain(
   siteUrl: string,
   pages: ScrapedPage[],
-  opts: { model: string; uploadedDocText?: string },
+  opts: { model: string; uploadedDocText?: string; maxTokens?: number },
 ): Promise<{ brain: BrandBrainDraft; tokensIn: number; tokensOut: number }> {
   const userMessage = siteContentMessage(siteUrl, pages, opts.uploadedDocText);
 
   const attempt = async (repairNote?: string) => {
     const res = await anthropic.messages.create({
       model: opts.model,
-      max_tokens: 4000,
+      max_tokens: opts.maxTokens ?? 4000,
       system: DRAFTER_SYSTEM,
       messages: [
         { role: "user", content: userMessage },

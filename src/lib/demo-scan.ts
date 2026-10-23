@@ -1,16 +1,15 @@
 /**
- * Public "Live Scan" teaser — a bounded, REAL scan of any domain, cheap enough
- * to run per anonymous lead (~5¢ steady-state):
+ * Public "Live Scan" teaser — a bounded, REAL scan of any domain, fast and cheap
+ * enough to run per anonymous lead (~4¢, under ~12s):
  *
- *   1. scrape the homepage + a few key pages (real, free)
- *   2. draft the Brand Brain on Haiku (cheap) — this is the audit the modal shows
- *   3. ask Haiku for ~18 buyer search phrases, measure them via the shared
- *      keyword cache (one DataForSEO call minus cache hits)
- *   4. live page-one check on the top ~3 picks
- *   5. score + rank, title the top few into briefs
+ *   1. scrape homepage + a few pages (parallel, real, free)
+ *   2. IN PARALLEL: draft the Brand Brain on Haiku (the audit) AND generate seed
+ *      phrases → expand them with DataForSEO keywordIdeas (real volume/difficulty)
+ *   3. live page-one check on the top picks (parallel)
+ *   4. score + rank; brief titles from a heuristic (no extra model call)
  *
- * The full 400+ keyword sweep and article writing stay post-sign-up, billed on
- * credits. The draft is persisted so sign-up can adopt it without re-scraping.
+ * The full 400+ keyword sweep and article writing stay post-sign-up on credits.
+ * The draft is persisted so sign-up adopts it without re-scraping.
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
@@ -19,7 +18,7 @@ import { randomBytes } from "crypto";
 import { db } from "@/lib/db";
 import { demoScans } from "@/db/schema";
 import { DataForSEO, type Locale, type SerpFeatures } from "@/lib/dataforseo";
-import { scrapeSite, draftBrain } from "@/lib/brand-draft";
+import { scrapeSite, draftBrain, type ScrapedPage } from "@/lib/brand-draft";
 import { cacheKeywordMetrics } from "@/lib/keyword-metrics-cache";
 import { opportunityScore, kdBucket, domainOf } from "@/lib/keyword-research";
 import { parseJson } from "@/lib/parse-json";
@@ -29,21 +28,19 @@ import type {
 } from "@/lib/demo-scan-types";
 
 const HAIKU_MODEL = "claude-haiku-4-5";
-const HAIKU = { in: 1, out: 5 }; // $/1M tokens
-const SEED_TARGET = 10;          // seed phrases for keyword expansion
-const KEEP_MAX = 14;             // keywords shown after ranking
-const SERP_CHECKS = 3;           // live page-one checks on the top picks
+const HAIKU = { in: 1, out: 5 };    // $/1M tokens
+const DRAFT_MAX_TOKENS = 1800;      // lean draft keeps the scan fast
+const SEED_TARGET = 10;
+const KEEP_MAX = 14;
+const SERP_CHECKS = 2;              // parallel page-one checks on the top picks
 const BRIEF_COUNT = 6;
 const DOMAIN_CACHE_DAYS = 30;
+// Teaser uses a fixed main market for speed; the full post-signup sweep uses the
+// brand's real geography. US volumes are a fine preview for most brands.
+const LOCALE: Locale = { location_name: "United States", language_code: "en" };
 
 export type DemoProgress = (ev: DemoEvent) => void;
 
-/* --------------------------------- entry ---------------------------------- */
-
-/**
- * Run (or serve from the per-domain cache) a teaser scan. Emits events as it
- * goes and returns the final result + the token to carry into sign-up.
- */
 export async function runDemoScan(
   rawUrl: string,
   onProgress: DemoProgress,
@@ -79,35 +76,39 @@ export async function runDemoScan(
     /* 1. scrape */
     onProgress({ t: "stage", stage: "scraping", message: `Reading ${domain}` });
     const pages = await scrapeSite(url);
-    if (pages.length === 0) throw new Error(`We couldn't read ${domain}. Check the URL and try again.`);
+    if (pages.length === 0) {
+      throw new Error("We can't preview enterprise sites here. Log in to try.");
+    }
 
-    /* 2. brand brain draft (Haiku) */
+    /* 2. draft + measurement IN PARALLEL */
     onProgress({ t: "stage", stage: "drafting", message: "Learning your brand" });
     await db.update(demoScans).set({ status: "drafting" }).where(eq(demoScans.token, token));
-    const draftRes = await draftBrain(url, pages, { model: HAIKU_MODEL });
+    const ask = haikuAsker();
+
+    const draftP = draftBrain(url, pages, { model: HAIKU_MODEL, maxTokens: DRAFT_MAX_TOKENS });
+    const measureP = (async () => {
+      const seeds = await ask.seeds(briefFromPages(domain, pages));
+      const ideas = await dfs.keywordIdeas(seeds.slice(0, SEED_TARGET), LOCALE, 40);
+      await cacheKeywordMetrics(ideas, LOCALE).catch(() => {});
+      return ideas;
+    })();
+
+    // Brand first (narrative order), while measurement finishes concurrently.
+    const draftRes = await draftP;
     tokensIn += draftRes.tokensIn; tokensOut += draftRes.tokensOut;
     usd += (draftRes.tokensIn * HAIKU.in + draftRes.tokensOut * HAIKU.out) / 1_000_000;
     const draft = draftRes.brain;
     const brand = toBrand(draft);
     for (const [label, value] of brandFields(brand)) onProgress({ t: "brandField", label, value });
 
-    /* 3. seeds → measure (cached) */
+    /* keywords */
     onProgress({ t: "stage", stage: "measuring", message: "Measuring real demand" });
     await db.update(demoScans).set({ status: "measuring" }).where(eq(demoScans.token, token));
-    const locale = localeForDraft(draft);
-    const ask = haikuAsker();
-    const seeds = await ask.seeds(draft);
+    const measured = await measureP;
+    tokensIn += ask.usage.in; tokensOut += ask.usage.out; usd += ask.usage.usd;
 
-    // Expand seeds into real, volume-bearing keywords (one DataForSEO call), then
-    // cache them. keywordOverview only matches exact known phrases, which collapses
-    // a generated seed list; keywordIdeas returns measured related terms reliably.
-    const ideas = await dfs.keywordIdeas(seeds.slice(0, 10), locale, 40);
-    await cacheKeywordMetrics(ideas, locale).catch(() => {});
-    const measured = ideas;
-    const withVolume = measured.filter((m) => (m.searchVolume ?? 0) > 0);
-
-    // score + rank (fit held neutral at 4 — the teaser skips the full rating pass)
-    const scored = withVolume
+    const scored = measured
+      .filter((m) => (m.searchVolume ?? 0) > 0)
       .map((m) => ({ m, score: opportunityScore(m, m.intent, null, "seed", 4) }))
       .sort((a, b) => b.score - a.score)
       .slice(0, KEEP_MAX);
@@ -124,12 +125,14 @@ export async function runDemoScan(
     for (const row of kept) onProgress({ t: "keyword", row });
     onProgress({ t: "counts", measured: measured.length, kept: kept.length, briefs: Math.min(BRIEF_COUNT, kept.length) });
 
-    /* 4. page-one check on the top picks */
+    /* 3. page-one check on the top picks (parallel) */
     onProgress({ t: "stage", stage: "pageone", message: "Checking Google's page one" });
+    const top = kept.slice(0, SERP_CHECKS);
+    const serps = await Promise.all(top.map((k) => dfs.serp(k.phrase, LOCALE).catch(() => null)));
     const pageOne: DemoPageOne[] = [];
-    for (const k of kept.slice(0, SERP_CHECKS)) {
-      const s = await dfs.serp(k.phrase, locale).catch(() => null);
-      if (!s) continue;
+    top.forEach((k, i) => {
+      const s = serps[i];
+      if (!s) return;
       const card: DemoPageOne = {
         phrase: k.phrase,
         aiOverview: s.aiOverview,
@@ -139,20 +142,17 @@ export async function runDemoScan(
       };
       pageOne.push(card);
       onProgress({ t: "pageone", card });
-    }
+    });
 
-    /* audit reveal (the reassurance beat) */
+    /* audit reveal */
     onProgress({ t: "stage", stage: "audit", message: "Auditing your brand" });
     onProgress({ t: "audit", brand });
     onProgress({ t: "stage", stage: "guardrails", message: "Brand guardrails" });
 
-    /* 5. briefs */
+    /* 4. briefs (heuristic titles — no extra model call) */
     onProgress({ t: "stage", stage: "writing", message: "Drafting your plan" });
-    const top = kept.slice(0, BRIEF_COUNT);
-    const titles = await ask.titles(brand.name, top.map((k) => k.phrase)).catch(() => null);
-    tokensIn += ask.usage.in; tokensOut += ask.usage.out; usd += ask.usage.usd;
-    const briefs: DemoBrief[] = top.map((k, i) => ({
-      title: titles?.[i] || fallbackTitle(k.phrase),
+    const briefs: DemoBrief[] = kept.slice(0, BRIEF_COUNT).map((k) => ({
+      title: titleFor(k.phrase),
       phrase: k.phrase,
       volume: k.volume,
       priority: k.priority,
@@ -160,22 +160,15 @@ export async function runDemoScan(
     for (const brief of briefs) onProgress({ t: "brief", brief });
 
     const result: DemoScanResult = {
-      domain,
-      brand,
-      keywords: kept,
-      pageOne,
-      briefs,
+      domain, brand, keywords: kept, pageOne, briefs,
       counts: { measured: measured.length, kept: kept.length, briefs: briefs.length },
     };
 
     usd += dfs.costUsd;
     await db.update(demoScans)
       .set({
-        status: "complete",
-        result,
-        brainDraft: draft,
-        tokensIn, tokensOut,
-        costUsdMicros: Math.round(usd * 1_000_000),
+        status: "complete", result, brainDraft: draft,
+        tokensIn, tokensOut, costUsdMicros: Math.round(usd * 1_000_000),
         completedAt: new Date(),
       })
       .where(eq(demoScans.token, token));
@@ -195,7 +188,6 @@ export async function runDemoScan(
 
 /* -------------------------------- helpers --------------------------------- */
 
-/** Stream a cached result through the same event sequence so the modal animates identically. */
 function replay(result: DemoScanResult, token: string, onProgress: DemoProgress) {
   onProgress({ t: "token", token });
   onProgress({ t: "stage", stage: "scraping", message: `Reading ${result.domain}` });
@@ -212,11 +204,9 @@ function replay(result: DemoScanResult, token: string, onProgress: DemoProgress)
   onProgress({ t: "done", token, result });
 }
 
-function localeForDraft(d: BrandBrainDraft): Locale {
-  return {
-    location_name: d.icp?.geographies?.[0] ?? "United States",
-    language_code: (d.voice?.locale ?? "en").split("-")[0].toLowerCase(),
-  };
+function briefFromPages(domain: string, pages: ScrapedPage[]): string {
+  const home = pages.find((p) => p.path === "/")?.text ?? pages[0]?.text ?? "";
+  return `Brand domain: ${domain}\nHomepage text: ${home.slice(0, 1800)}`;
 }
 
 function toBrand(d: BrandBrainDraft): DemoBrand {
@@ -253,25 +243,25 @@ function recommendFormat(s: SerpFeatures): string {
   return "Write as: comparison guide";
 }
 
-function fallbackTitle(phrase: string): string {
+function titleFor(phrase: string): string {
   const p = phrase.trim();
   const cap = p.charAt(0).toUpperCase() + p.slice(1);
   if (/\bvs\b/i.test(p)) return `${cap}: which is right for you?`;
   if (/^how /i.test(p)) return cap;
   if (/^best /i.test(p)) return `${cap} in ${new Date().getFullYear()}`;
+  if (/^what /i.test(p)) return cap;
   return `${cap}: a complete guide`;
 }
 
-/* --------------------------- Haiku judgment calls -------------------------- */
+/* --------------------------- Haiku seed generation ------------------------- */
 
 const seedsSchema = z.object({ phrases: z.array(z.string().min(2)).min(1) });
-const titlesSchema = z.object({ titles: z.array(z.string().min(4)) });
 
 function haikuAsker() {
   const anthropic = new Anthropic();
   const usage = { in: 0, out: 0, usd: 0 };
 
-  async function call<T>(system: string, prompt: string, schema: z.ZodType<T>, maxTokens = 1200): Promise<T> {
+  async function call<T>(system: string, prompt: string, schema: z.ZodType<T>, maxTokens = 500): Promise<T> {
     const res = await anthropic.messages.create({
       model: HAIKU_MODEL, max_tokens: maxTokens, system,
       messages: [{ role: "user", content: prompt }],
@@ -286,28 +276,13 @@ function haikuAsker() {
 
   return {
     usage,
-    async seeds(d: BrandBrainDraft): Promise<string[]> {
-      const brief = [
-        `Brand: ${d.name}`,
-        d.whatTheyDo ? `Does: ${d.whatTheyDo}` : "",
-        d.icp?.who ? `Customer: ${d.icp.who}` : "",
-        d.icp?.searchBehaviour ? `Search behaviour: ${d.icp.searchBehaviour}` : "",
-      ].filter(Boolean).join("\n");
+    async seeds(brief: string): Promise<string[]> {
       const out = await call(
         "You generate realistic Google search phrases a brand's buyers would type. Output ONLY JSON.",
         `${brief}\n\nList ${SEED_TARGET} specific search phrases (3–6 words each) this brand's customers would type on Google, mixing high-intent (comparison, buying) and informational (how-to, explainer). No brand names. Return JSON: {"phrases": string[]}`,
         seedsSchema,
       );
       return out.phrases.map((p) => p.toLowerCase().trim()).filter(Boolean).slice(0, SEED_TARGET);
-    },
-    async titles(brandName: string, phrases: string[]): Promise<string[]> {
-      if (phrases.length === 0) return [];
-      const out = await call(
-        "You write compelling, specific blog article titles. Output ONLY JSON.",
-        `Brand: ${brandName}. For each keyword below, write one article title (max 10 words, no clickbait, specific). Keep the same order.\nKeywords:\n${phrases.map((p, i) => `${i + 1}. ${p}`).join("\n")}\n\nReturn JSON: {"titles": string[]}`,
-        titlesSchema,
-      );
-      return out.titles;
     },
   };
 }

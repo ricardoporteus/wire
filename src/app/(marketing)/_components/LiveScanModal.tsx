@@ -189,7 +189,15 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
           </aside>
 
           <div className="ls-feed">
-            {error && <div className="ls-err">{error}</div>}
+            {error && (
+              <div className="ls-err">
+                <div>{error}</div>
+                <div className="ls-err-cta">
+                  <a className="ls-btn" href="/dashboard">Log in to try →</a>
+                  <button type="button" className="ls-ghost" onClick={() => { abortRef.current?.abort(); onClose(); }}>Try another site</button>
+                </div>
+              </div>
+            )}
 
             {fields.length > 0 && (
               <div className="ls-panel in">
