@@ -24,10 +24,16 @@ export async function fetchReadable(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, {
       redirect: "follow",
-      headers: { "user-agent": "WireBot/1.0 (+https://wire.example/bot)" },
+      headers: {
+        // A real browser UA: many sites reject non-browser agents outright.
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "accept-language": "en-US,en;q=0.9",
+      },
       signal: AbortSignal.timeout(12_000),
     });
-    if (!res.ok || !res.headers.get("content-type")?.includes("text/html")) return null;
+    const ct = res.headers.get("content-type") ?? "";
+    if (!res.ok || !(ct.includes("text/html") || ct.includes("xml"))) return null;
     const html = await res.text();
     const text = html
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
