@@ -29,7 +29,7 @@ import type {
 
 const HAIKU_MODEL = "claude-haiku-4-5";
 const HAIKU = { in: 1, out: 5 };    // $/1M tokens
-const DRAFT_MAX_TOKENS = 1800;      // lean draft keeps the scan fast
+const DRAFT_MAX_TOKENS = 4000;      // the brain JSON needs room; truncation triggers a slow failing retry
 const SEED_TARGET = 10;
 const KEEP_MAX = 14;
 const SERP_CHECKS = 2;              // parallel page-one checks on the top picks
