@@ -15,6 +15,8 @@ import {
   pgTable, pgEnum, text, varchar, integer, real, timestamp, jsonb, boolean,
   uuid, index, uniqueIndex, bigserial,
 } from "drizzle-orm/pg-core";
+import type { BrandBrainDraft } from "@/lib/brand-brain.zod";
+import type { DemoScanResult } from "@/lib/demo-scan-types";
 
 /* ---------------------------------- enums --------------------------------- */
 
@@ -364,3 +366,58 @@ export const rateLimits = pgTable("rate_limits", {
   count: integer("count").notNull().default(0),
   windowStart: timestamp("window_start", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/* ------------------------- demo scan (teaser lead) ------------------------ */
+/**
+ * Public, anonymous "Live Scan" lead magnet. A visitor enters a URL on the
+ * marketing site; we run a bounded real scan (scrape + Haiku brand draft +
+ * cached keyword measurement) and stream it into a modal. The brain draft is
+ * kept so a later sign-up can adopt it without re-scraping. No org, no auth.
+ */
+export const demoScanStatus = pgEnum("demo_scan_status", [
+  "queued", "scraping", "drafting", "measuring", "complete", "failed",
+]);
+
+export const demoScans = pgTable("demo_scans", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  url: text("url").notNull(),
+  domain: varchar("domain", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }),
+  status: demoScanStatus("status").notNull().default("queued"),
+  result: jsonb("result").$type<DemoScanResult>(),
+  brainDraft: jsonb("brain_draft").$type<BrandBrainDraft>(),
+  error: text("error"),
+  tokensIn: integer("tokens_in").notNull().default(0),
+  tokensOut: integer("tokens_out").notNull().default(0),
+  costUsdMicros: integer("cost_usd_micros").notNull().default(0),
+  claimedByOrgId: uuid("claimed_by_org_id").references(() => organizations.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (t) => [
+  uniqueIndex("demo_scans_token_uq").on(t.token),
+  index("demo_scans_domain_idx").on(t.domain, t.createdAt),
+]);
+
+/* ---------------------- keyword metrics cache (shared) -------------------- */
+/**
+ * Cross-tenant cache of measured keyword metrics. The same keyword has the same
+ * volume/difficulty for every brand in a market, so measuring it once per locale
+ * serves every later scan — this is what keeps the teaser scan's marginal
+ * DataForSEO cost near zero as it warms.
+ */
+export const keywordMetricsCache = pgTable("keyword_metrics", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  keyword: text("keyword").notNull(),
+  locationName: varchar("location_name", { length: 64 }).notNull(),
+  languageCode: varchar("language_code", { length: 8 }).notNull(),
+  searchVolume: integer("search_volume"),
+  kd: integer("kd"),
+  cpc: real("cpc"),
+  intent: varchar("intent", { length: 16 }),
+  trend: jsonb("trend").$type<number[]>().default([]),
+  measuredAt: timestamp("measured_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("keyword_metrics_uq").on(t.keyword, t.locationName, t.languageCode),
+  index("keyword_metrics_measured_idx").on(t.measuredAt),
+]);
