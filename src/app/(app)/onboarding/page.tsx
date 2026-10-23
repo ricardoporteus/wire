@@ -4,6 +4,7 @@
  * already onboarded → straight to the dashboard.
  */
 import { auth } from "@clerk/nextjs/server";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { OrganizationSwitcher } from "@clerk/nextjs";
@@ -30,9 +31,29 @@ function OnboardingHeader() {
   );
 }
 
-export default async function OnboardingPage() {
+/** Normalise a handoff URL from the marketing hero (query param or cookie). */
+function pickUrl(raw?: string | null): string | null {
+  if (!raw) return null;
+  let v = raw.trim();
+  try { v = decodeURIComponent(v); } catch { /* already decoded */ }
+  if (!v) return null;
+  if (!/^https?:\/\//i.test(v)) v = `https://${v}`;
+  try { return new URL(v).href; } catch { return null; }
+}
+
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ url?: string }>;
+}) {
   const { userId, orgId: clerkOrgId } = await auth();
   if (!userId) return null; // middleware protects this route; belt-and-braces
+
+  // URL handed over from the marketing homepage hero, to prefill the site step.
+  const sp = await searchParams;
+  const cookieStore = await cookies();
+  const prefillSiteUrl = pickUrl(sp?.url) ?? pickUrl(cookieStore.get("mavrix_onboard_url")?.value);
+
   if (!clerkOrgId) {
     return (
       <>
@@ -59,6 +80,7 @@ export default async function OnboardingPage() {
           initialBrainId={brain?.id ?? null}
           initialDraft={brain ? draftFromRow(brain) : null}
           initialAiDrafted={!!brain?.aiDraftedAt}
+          initialSiteUrl={prefillSiteUrl}
         />
       </main>
     </>

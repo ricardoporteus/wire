@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Avatar, type SpecialistId } from "./Avatars";
 import { SiteNav } from "./SiteNav";
 import { SiteFooter } from "./SiteFooter";
 import { Starfield } from "./Starfield";
+import { Count } from "./Count";
 
 const APP = "/dashboard";
 
@@ -18,7 +19,32 @@ const TEAM: { id: SpecialistId; role: string; color: string; desc: string }[] = 
 const NAME: Record<SpecialistId, string> = { scout: "Scout", ada: "Ada", iris: "Iris", quill: "Quill" };
 
 export function HomeV2() {
-  const [sent, setSent] = useState(false);
+  const [site, setSite] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [going, setGoing] = useState(false);
+
+  // Hand the hero URL to the real onboarding flow. Onboarding reads it (query
+  // param, or the cookie below) and prefills the site step, which drafts the
+  // Brand Brain and leads into the first sweep.
+  const startSweep = (e: FormEvent) => {
+    e.preventDefault();
+    setErr(null);
+    let url = site.trim();
+    if (!url) { setErr("Add your website to continue."); return; }
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    try { new URL(url); } catch { setErr("That doesn’t look like a valid website."); return; }
+    // A query param is dropped across the hosted sign-in bounce, so also stash
+    // the URL in a short-lived, cross-subdomain cookie that survives the
+    // marketing-host -> app-host -> Clerk round trip.
+    try {
+      const host = window.location.hostname;
+      const dom = /(^|\.)mavrix\.agency$/i.test(host) ? "; domain=.mavrix.agency" : "";
+      const sec = window.location.protocol === "https:" ? "; secure" : "";
+      document.cookie = `mavrix_onboard_url=${encodeURIComponent(url)}; path=/; max-age=1800; samesite=lax${dom}${sec}`;
+    } catch { /* cookies blocked; the query param still covers signed-in users */ }
+    setGoing(true);
+    window.location.href = `/onboarding?url=${encodeURIComponent(url)}`;
+  };
 
   return (
     <>
@@ -36,13 +62,13 @@ export function HomeV2() {
               <li><span className="ic">📈</span><span><b>Mavrix catches you up.</b> It measures what your buyers search, then writes and reshapes a month of on-brand content built to rank and get quoted.</span></li>
             </ul>
 
-            <form className="magnet" onSubmit={(e) => { e.preventDefault(); setSent(true); }}>
+            <form className="magnet" onSubmit={startSweep}>
               <label htmlFor="site">See what you could rank for 👇</label>
               <div className="row">
-                <div className="urlwrap"><span className="pre">https://</span><input id="site" type="text" placeholder="yourwebsite.com" autoComplete="off" /></div>
-                <button className="btn btn-lime mbtn" type="submit">Get 10 measured keywords + a 30-day plan →</button>
+                <div className="urlwrap"><span className="pre">https://</span><input id="site" type="text" placeholder="yourwebsite.com" autoComplete="off" value={site} onChange={(e) => setSite(e.target.value)} /></div>
+                <button className="btn btn-lime mbtn" type="submit" disabled={going}>{going ? "Starting…" : "Get 10 measured keywords + a 30-day plan →"}</button>
               </div>
-              {sent && <div className="result">Nice. On the real site this kicks off your first free sweep &mdash; 10 keywords with real search volume and a 30-day content plan, in minutes. <Link href={APP} style={{ textDecoration: "underline" }}>Start free &rsaquo;</Link></div>}
+              {err && <div className="result" style={{ background: "var(--negbg)", color: "var(--neg)" }}>{err}</div>}
               <p className="micro">Free · No card required · First plan in minutes · Zero technical skills needed</p>
             </form>
 
@@ -193,11 +219,33 @@ export function HomeV2() {
         </div>
       </div></section>
 
-      {/* CASE STUDIES (placeholder) */}
-      <section className="band" id="cases" style={{ background: "var(--bg-alt)" }}><div className="wrap center">
-        <span className="eyebrow cream">Case studies</span>
-        <h2 className="sec" style={{ marginTop: 14 }}>Customer results land here</h2>
-        <div className="ph">Verified before/after results and customer quotes go in this band at launch. We don&rsquo;t show invented reviews or traffic numbers, this space is held for real results only.</div>
+      {/* COMPOUNDING */}
+      <section className="band" id="compounding" style={{ background: "var(--bg-alt)" }}><div className="wrap">
+        <div className="results">
+          <div>
+            <span className="eyebrow lime">Compounding</span>
+            <h2 style={{ fontSize: 32, marginTop: 14 }}>Content that compounds into pipeline</h2>
+            <p className="lead" style={{ marginTop: 12 }}>One team publishing every week beats a burst once a quarter. The library you build keeps ranking and getting cited long after you hit publish.</p>
+            <div className="stat3">
+              <div className="s"><b><Count to={6} /></b><span>research stages per sweep</span></div>
+              <div className="s"><b><Count to={4} suffix="x" /></b><span>weekly beats monthly</span></div>
+              <div className="s"><b><Count to={12} /></b><span>briefs from one run</span></div>
+            </div>
+          </div>
+          <div className="chartcard">
+            <div className="ct"><b>Publishing cadence</b><span className="ill">Illustrative</span></div>
+            <svg viewBox="0 0 300 150" width="100%" height="150" role="img" aria-label="Illustrative upward trend of consistent weekly publishing">
+              <line x1="8" y1="118" x2="292" y2="118" stroke="rgba(255,255,255,.18)" />
+              <line x1="8" y1="80" x2="292" y2="80" stroke="rgba(255,255,255,.08)" />
+              <line x1="8" y1="42" x2="292" y2="42" stroke="rgba(255,255,255,.08)" />
+              <path d="M8,110 L52,104 L96,92 L140,80 L184,60 L228,40 L272,22 L292,18 L292,118 L8,118 Z" fill="url(#mk-chart2)" opacity="0.5" />
+              <path d="M8,110 L52,104 L96,92 L140,80 L184,60 L228,40 L272,22 L292,18" fill="none" stroke="#DBFE7A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="292" cy="18" r="4.5" fill="#DBFE7A" />
+              <defs><linearGradient id="mk-chart2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#DBFE7A" stopOpacity=".55" /><stop offset="1" stopColor="#DBFE7A" stopOpacity="0" /></linearGradient></defs>
+            </svg>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: "rgba(255,255,255,.5)", marginTop: 4 }}><span>Wk 1</span><span>Wk 4</span><span>Wk 8</span></div>
+          </div>
+        </div>
       </div></section>
 
       {/* WHO */}

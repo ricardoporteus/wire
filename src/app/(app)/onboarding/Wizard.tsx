@@ -32,11 +32,12 @@ function firstError(error: { formErrors: string[]; fieldErrors: Record<string, u
 }
 
 export function Wizard({
-  initialBrainId, initialDraft, initialAiDrafted,
+  initialBrainId, initialDraft, initialAiDrafted, initialSiteUrl,
 }: {
   initialBrainId: string | null;
   initialDraft: WizardDraft | null;
   initialAiDrafted: boolean;
+  initialSiteUrl?: string | null;
 }) {
   const router = useRouter();
   const [brainId, setBrainId] = useState(initialBrainId);
@@ -131,7 +132,7 @@ export function Wizard({
         </header>
 
         {meta.key === "site" && (
-          <SiteScanStep name={name} setName={setName} onReady={onSiteReady} />
+          <SiteScanStep name={name} setName={setName} onReady={onSiteReady} initialSiteUrl={initialSiteUrl ?? null} />
         )}
         {meta.key === "company" && <CompanyIcpStep draft={draft} patch={patch} aiDrafted={aiDrafted} />}
         {meta.key === "competitors" && <CompetitorsStep draft={draft} patch={patch} aiDrafted={aiDrafted} />}

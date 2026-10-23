@@ -19,13 +19,14 @@ const PROGRESS_LINES = [
  * the wait or start blank. All three paths resolve to `onReady(brainId, draft)`.
  */
 export function SiteScanStep({
-  name, setName, onReady,
+  name, setName, onReady, initialSiteUrl,
 }: {
   name: string;
   setName: (n: string) => void;
   onReady: (brainId: string, draft: WizardDraft, aiDrafted: boolean) => void;
+  initialSiteUrl?: string | null;
 }) {
-  const [siteUrl, setSiteUrl] = useState("");
+  const [siteUrl, setSiteUrl] = useState(initialSiteUrl ?? "");
   const [scanning, setScanning] = useState(false);
   const [line, setLine] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +34,15 @@ export function SiteScanStep({
   const brainIdRef = useRef<string | null>(null);
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+  // Clear the marketing handoff cookie once, so a prefilled URL doesn't linger
+  // into a later manual visit.
+  useEffect(() => {
+    try {
+      const host = window.location.hostname;
+      const dom = /(^|\.)mavrix\.agency$/i.test(host) ? "; domain=.mavrix.agency" : "";
+      document.cookie = `mavrix_onboard_url=; path=/; max-age=0${dom}`;
+    } catch { /* ignore */ }
+  }, []);
   useEffect(() => {
     if (!scanning) return;
     const t = setInterval(() => setLine((l) => (l + 1) % PROGRESS_LINES.length), 1800);
