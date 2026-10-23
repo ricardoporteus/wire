@@ -373,7 +373,6 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
               <span className="eg">✦</span>
               <h3>Your Content Strategy and examples are ready to review&hellip;</h3>
               <p>We&rsquo;ve measured your market, checked Google&rsquo;s page one and audited your brand. Where should we save your plan and briefs?</p>
-              <div className="mini"><div><div className="n">{counts.measured.toLocaleString()}</div><div className="l">searches measured</div></div><div><div className="n">{counts.kept}</div><div className="l">keywords kept</div></div></div>
               <form onSubmit={submitEmail}>
                 <input type="email" autoComplete="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
                 <div className="ferr">{emailErr}</div>
