@@ -372,7 +372,7 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
             <div className="ls-gatec">
               <span className="eg">✦</span>
               <h3>Your Content Strategy and examples are ready to review&hellip;</h3>
-              <p>We&rsquo;ve measured your market, checked Google&rsquo;s page one and audited your brand. Where should we save your plan and briefs?</p>
+              <p>We&rsquo;ve measured your market, checked Google&rsquo;s page one and audited your brand. Content and growth strategy is ready to deploy&hellip;</p>
               <form onSubmit={submitEmail}>
                 <input type="email" autoComplete="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
                 <div className="ferr">{emailErr}</div>
