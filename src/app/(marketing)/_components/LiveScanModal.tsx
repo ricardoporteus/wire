@@ -378,7 +378,7 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
                 <div className="ferr">{emailErr}</div>
                 <button className="ls-btn full" type="submit" disabled={savingEmail}>{savingEmail ? "Saving…" : "Unlock my plan →"}</button>
               </form>
-              <p className="fine">No spam. Your scan keeps running while you type.</p>
+              <p className="fine">NO CREDIT CARD NEEDED. You can review all for free</p>
             </div>
           </div>
         )}
