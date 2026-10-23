@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { Home } from "./_components/Home";
+import { HomeV2 } from "./_components/HomeV2";
 
 export const metadata: Metadata = {
-  title: "Mavrix: your AI marketing team",
+  title: "Mavrix: get found and recommended by ChatGPT, Google and AI",
   description:
-    "A four-person AI marketing team that measures what your buyers actually search, targets keywords you can win, protects your brand and writes the content. Get found on Google and quoted by AI.",
+    "Mavrix measures what your buyers actually search, then writes and reshapes a month of on-brand content built to rank on Google and get quoted in AI answers. Drop your website, get 10 measured keywords and a 30-day plan. Free to start.",
   openGraph: {
-    title: "Mavrix: your AI marketing team",
-    description: "Research, SEO and AEO, brand and writing, in one monthly sweep. Get found on Google, get quoted by AI.",
+    title: "Mavrix: get found and recommended by ChatGPT, Google and AI",
+    description: "Measured keywords, a month of on-brand content, built to rank and get cited. The output of an agency, for less than one freelancer.",
     url: "/",
   },
   alternates: { canonical: "/" },
 };
 
 export default function Page() {
-  return <Home />;
+  return <HomeV2 />;
 }
