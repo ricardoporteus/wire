@@ -14,7 +14,7 @@ import type { DemoEvent } from "@/lib/demo-scan-types";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const IP_MAX_PER_HOUR = 6;
+const IP_MAX_PER_HOUR = 60;
 const GLOBAL_MAX_PER_DAY = 500;
 
 export async function POST(req: Request) {
