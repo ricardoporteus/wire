@@ -187,6 +187,45 @@
   }
   @media (prefers-reduced-motion: reduce) { .btile { transition: none; } }
 
+  /* ===== App shell: full-width news ticker (row 1), left nav + content (row 2) ===== */
+  .app-shell { display: grid; grid-template-rows: auto 1fr; height: 100dvh; min-height: 0; background: var(--color-bg); }
+  .app-ticker { display: flex; align-items: center; gap: 14px; height: 46px; padding: 0 16px; background: var(--color-card); border-bottom: 1px solid var(--color-line); overflow: hidden; }
+  .app-ticker .wm { font-family: var(--font-display); font-weight: 700; font-size: 17px; color: var(--color-ink-green); letter-spacing: -.01em; flex: none; }
+  .app-ticker .menu { display: none; border: 1px solid var(--color-line); background: var(--color-card); color: var(--color-muted); cursor: pointer; font: 500 12px var(--font-body); padding: 5px 10px; border-radius: 100px; }
+  .app-live { display: inline-flex; align-items: center; gap: 7px; flex: none; font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; color: var(--color-muted); padding: 3px 9px; border: 1px solid var(--color-line); border-radius: 100px; }
+  .app-live .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-negative); }
+  .app-tickview { flex: 1; min-width: 0; overflow: hidden; -webkit-mask-image: linear-gradient(90deg,transparent,#000 28px,#000 calc(100% - 28px),transparent); mask-image: linear-gradient(90deg,transparent,#000 28px,#000 calc(100% - 28px),transparent); }
+  .app-ticktrack { display: inline-flex; align-items: center; white-space: nowrap; animation: appTick 48s linear infinite; }
+  .app-tickview:hover .app-ticktrack { animation-play-state: paused; }
+  @keyframes appTick { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  .app-tick { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--color-muted); padding: 0 22px; }
+  .app-tick b { color: var(--color-ink-green); font-weight: 600; }
+  .app-tick .sep { color: var(--color-muted); opacity: .5; }
+  .app-credits { flex: none; font-size: 12.5px; font-weight: 500; color: var(--color-muted); background: var(--color-bg-alt); border: 1px solid var(--color-line); border-radius: 100px; padding: 4px 11px; }
+  .app-credits:hover { border-color: var(--color-line); color: var(--color-ink-green); }
+
+  .app-body { display: grid; grid-template-columns: 236px 1fr; min-height: 0; }
+  .app-backdrop { display: none; }
+  .app-sidebar { background: var(--color-bg-alt); border-right: 1px solid var(--color-line); overflow-y: auto; padding: 16px 12px 20px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+  .app-navlist { display: flex; flex-direction: column; gap: 2px; margin-top: 14px; }
+  .app-navlink { display: block; padding: 7px 10px; border-radius: 8px; color: var(--color-muted); font-size: 14px; }
+  .app-navlink:hover { background: rgba(16,45,35,.05); color: var(--color-ink-green); }
+  .app-navlink[aria-current="true"] { background: var(--color-accent-tint); color: var(--color-ink-green); font-weight: 600; }
+  .app-sidefoot { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--color-line); display: flex; flex-direction: column; gap: 12px; }
+  .app-legal { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--color-muted); }
+
+  .app-content { overflow-y: auto; min-height: 0; }
+
+  @media (max-width: 760px) {
+    .app-ticker .menu { display: inline-block; }
+    .app-ticker .wm { display: none; }
+    .app-body { grid-template-columns: 1fr; }
+    .app-sidebar { position: fixed; top: 46px; bottom: 0; left: 0; width: 262px; z-index: 40; transform: translateX(-100%); transition: transform .2s ease; }
+    .app-sidebar.open { transform: translateX(0); box-shadow: 0 10px 40px rgba(16,45,35,.22); }
+    .app-backdrop { display: block; position: fixed; inset: 46px 0 0; background: rgba(16,45,35,.25); z-index: 35; }
+  }
+  @media (prefers-reduced-motion: reduce) { .app-ticktrack { animation: none; } .app-tickview { overflow-x: auto; } }
+
   /* Tab pills (SyncMaster "Tab Round" pattern) */
   .tab {
     font-family: var(--font-display); font-weight: 500; font-size: 15px;

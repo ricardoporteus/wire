@@ -1,17 +1,16 @@
 /**
- * App shell for every signed-in surface. Renders the top nav + live credit
- * balance (hidden on onboarding, which is its own focused flow).
+ * App shell for every signed-in surface: a full-width news ticker, the left
+ * navigation, and the page content. Onboarding renders without the shell.
  *
  * ClerkProvider lives here rather than in the root layout so that the public
  * marketing and legal pages ship no Clerk JavaScript.
  */
-import Link from "next/link";
 import { ClerkProvider } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
-import { eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { organizations } from "@/db/schema";
-import { AppHeader } from "./AppHeader";
+import { organizations, brandBrains, intelligenceRuns, documents, keywords, contentIdeas } from "@/db/schema";
+import { AppShell, type TickerItem } from "./AppShell";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { orgId: clerkOrgId } = await auth();
@@ -19,17 +18,38 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ? await db.query.organizations.findFirst({ where: eq(organizations.clerkOrgId, clerkOrgId) })
     : null;
 
+  // Live ticker — real, derivable facts only (no fabricated wins).
+  const ticker: TickerItem[] = [];
+  if (org) {
+    const brain = await db.query.brandBrains.findFirst({ where: eq(brandBrains.orgId, org.id) });
+    if (brain) {
+      const run = await db.query.intelligenceRuns.findFirst({
+        where: eq(intelligenceRuns.brainId, brain.id),
+        orderBy: [desc(intelligenceRuns.createdAt)],
+      });
+      const [draftRows, kwRows, ideaRows] = await Promise.all([
+        db.select({ n: count() }).from(documents).where(and(eq(documents.brainId, brain.id), eq(documents.status, "draft"))),
+        run ? db.select({ n: count() }).from(keywords).where(eq(keywords.runId, run.id)) : Promise.resolve([{ n: 0 }]),
+        run ? db.select({ n: count() }).from(contentIdeas).where(eq(contentIdeas.runId, run.id)) : Promise.resolve([{ n: 0 }]),
+      ]);
+      const now = new Date();
+      const nextSweep = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 6));
+      const days = Math.max(0, Math.ceil((nextSweep.getTime() - now.getTime()) / 86_400_000));
+
+      if (run) ticker.push({ label: "Last intelligence run", value: `${kwRows[0].n} keywords, ${ideaRows[0].n} ideas` });
+      if (draftRows[0].n > 0) {
+        ticker.push({ label: `${draftRows[0].n} draft${draftRows[0].n === 1 ? "" : "s"}`, value: "ready to review and publish" });
+      }
+      ticker.push({ label: "Next monthly sweep", value: days === 0 ? "due today" : `in ${days} day${days === 1 ? "" : "s"}` });
+      ticker.push({ label: "Credits", value: `${org.creditsBalance} remaining this cycle` });
+    }
+  }
+
   return (
     <ClerkProvider>
-      <AppHeader creditsBalance={org ? org.creditsBalance : null} />
-      {children}
-      <footer className="mx-auto mt-16 max-w-6xl px-6 py-8 text-caption text-muted">
-        <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-line pt-6">
-          <Link href="/legal/terms" className="hover:text-ink-green">Terms</Link>
-          <Link href="/legal/privacy" className="hover:text-ink-green">Privacy</Link>
-          <Link href="/legal/ai-disclosure" className="hover:text-ink-green">AI disclosure</Link>
-        </div>
-      </footer>
+      <AppShell creditsBalance={org ? org.creditsBalance : null} ticker={ticker}>
+        {children}
+      </AppShell>
     </ClerkProvider>
   );
 }
