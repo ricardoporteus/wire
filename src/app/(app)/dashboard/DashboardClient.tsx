@@ -147,7 +147,7 @@ export function DashboardClient({
   const { inProgress, reviewClaims, reviewDocs, coverage, freshness, credits } = overview;
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-12">
+    <main className="mx-auto max-w-6xl px-6 py-12">
       <div>
         <span className="eyebrow">{brainName}</span>
         <h1 className="mt-4 text-h2 text-ink-green">Dashboard</h1>
