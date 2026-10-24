@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Figtree, Inter } from "next/font/google";
+import { Figtree, Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
 const figtree = Figtree({ subsets: ["latin"], variable: "--font-display", weight: ["400", "500", "600", "700"] });
 const inter = Inter({ subsets: ["latin"], variable: "--font-body", weight: ["400", "500", "600"] });
+const plexMono = IBM_Plex_Mono({ subsets: ["latin"], variable: "--font-mono", weight: ["500"] });
 
 // No em dashes in shipped copy, titles included: the product promises it, so the
 // site keeps to it.
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
  */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${figtree.variable} ${inter.variable}`}>
+    <html lang="en" className={`${figtree.variable} ${inter.variable} ${plexMono.variable}`}>
       <body>{children}</body>
     </html>
   );

@@ -69,6 +69,8 @@ const ICON = {
   coin: svg(<><circle cx="12" cy="12" r="9" /><path d="M12 7v10M9.5 9.2a2.5 2 0 0 1 5 0c0 2.6-5 1.4-5 4a2.5 2 0 0 0 5 0" /></>),
   grid: svg(<><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>),
   refresh: svg(<><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 3v5h-5" /></>),
+  chart: svg(<><path d="M3 3v18h18" /><path d="M19 7l-5 6-3-3-4 5" /></>),
+  sparkle: svg(<><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4L12 3z" /></>),
 };
 
 function CoverageRing({ pct }: { pct: number }) {
@@ -149,6 +151,9 @@ export function DashboardClient({
       <div>
         <span className="eyebrow">{brainName}</span>
         <h1 className="mt-4 text-h2 text-ink-green">Dashboard</h1>
+        <p className="mt-2 text-body-sm text-muted">
+          Here&apos;s what&apos;s moving{freshness.nextSweepDays ? ` · next sweep in ${freshness.nextSweepDays} days` : ""}.
+        </p>
       </div>
 
       {rerunErr === "insufficient_credits"
@@ -228,6 +233,20 @@ export function DashboardClient({
           )}
         </section>
 
+        {/* Content performance — Tier 2, awaiting the Search Console connection */}
+        <section className="btile btile--soon md:col-span-2">
+          <div className="flex items-center justify-between">
+            <span className="btile-label">{ICON.chart} Content performance</span>
+            <span className="text-micro text-muted">Soon</span>
+          </div>
+          <p className="mt-3 text-body-sm text-muted">
+            Clicks, impressions and average position for the pages Mavrix publishes.
+          </p>
+          <a href="/settings" className="mt-3 inline-block text-caption font-semibold text-accent-strong">
+            Connect Search Console →
+          </a>
+        </section>
+
         {/* In progress + fact-check review */}
         <section className="btile md:col-span-2">
           <div className="flex items-center justify-between">
@@ -254,6 +273,20 @@ export function DashboardClient({
               {reviewDocs > 1 ? ` across ${reviewDocs} drafts` : ""}.
             </p>
           )}
+        </section>
+
+        {/* Answer-box wins — Tier 2, awaiting the Search Console connection */}
+        <section className="btile btile--soon md:col-span-2">
+          <div className="flex items-center justify-between">
+            <span className="btile-label">{ICON.sparkle} Answer-box wins</span>
+            <span className="text-micro text-muted">Soon</span>
+          </div>
+          <p className="mt-3 text-body-sm text-muted">
+            Featured snippets and AI-answer citations your published pieces earn.
+          </p>
+          <a href="/settings" className="mt-3 inline-block text-caption font-semibold text-accent-strong">
+            Connect Search Console →
+          </a>
         </section>
 
         {/* Credits & burn */}

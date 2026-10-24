@@ -176,10 +176,14 @@
     transition: transform .14s ease, border-color .14s ease;
   }
   .btile:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--color-ink-green) 13%, var(--color-line)); }
+  /* Placeholder tile: data not connected yet. Dashed, flat, muted — clearly
+     a slot to be filled, never faked with fabricated numbers. */
+  .btile--soon { border-style: dashed; box-shadow: none; background: var(--color-bg-alt); }
+  .btile--soon:hover { transform: none; border-color: var(--color-line); }
   .btile-label {
     display: inline-flex; align-items: center; gap: 7px;
-    font-family: var(--font-display); font-weight: 600;
-    font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-muted);
+    font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 500;
+    font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-muted);
   }
   @media (prefers-reduced-motion: reduce) { .btile { transition: none; } }
 
