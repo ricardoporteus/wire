@@ -168,6 +168,21 @@
   }
   .card--lg { border-radius: var(--radius-lg); padding: 36px; }
 
+  /* Dashboard bento tiles — more compact than .card, with a small header label,
+     to match the overview design. Additive: used only on the dashboard. */
+  .btile {
+    background: var(--color-card); border: 1px solid var(--color-line);
+    border-radius: 18px; box-shadow: var(--shadow-card); padding: 18px 19px; min-width: 0;
+    transition: transform .14s ease, border-color .14s ease;
+  }
+  .btile:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--color-ink-green) 13%, var(--color-line)); }
+  .btile-label {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--font-display); font-weight: 600;
+    font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--color-muted);
+  }
+  @media (prefers-reduced-motion: reduce) { .btile { transition: none; } }
+
   /* Tab pills (SyncMaster "Tab Round" pattern) */
   .tab {
     font-family: var(--font-display); font-weight: 500; font-size: 15px;

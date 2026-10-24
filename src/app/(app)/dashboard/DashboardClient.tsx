@@ -60,6 +60,17 @@ const REASON_COLOR: Record<string, string> = {
 const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—";
 
+const svg = (paths: React.ReactNode) => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths}</svg>
+);
+const ICON = {
+  target: svg(<><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></>),
+  pencil: svg(<><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></>),
+  coin: svg(<><circle cx="12" cy="12" r="9" /><path d="M12 7v10M9.5 9.2a2.5 2 0 0 1 5 0c0 2.6-5 1.4-5 4a2.5 2 0 0 0 5 0" /></>),
+  grid: svg(<><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>),
+  refresh: svg(<><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 3v5h-5" /></>),
+};
+
 function CoverageRing({ pct }: { pct: number }) {
   const r = 34, c = 2 * Math.PI * r;
   return (
@@ -173,9 +184,9 @@ export function DashboardClient({
       <div className="mt-8 grid gap-4 md:grid-cols-4">
 
         {/* Next to write (hero) */}
-        <section className="card flex flex-col md:col-span-2 md:row-span-2">
+        <section className="btile flex flex-col md:col-span-2 md:row-span-2">
           <div className="flex items-center justify-between">
-            <span className="eyebrow eyebrow--cream">Next to write</span>
+            <span className="btile-label">{ICON.target} Next to write</span>
             <span className="text-micro text-muted">{freshIdeas.length} ranked</span>
           </div>
           {topIdeas.length === 0 ? (
@@ -195,7 +206,7 @@ export function DashboardClient({
                   </div>
                   {i.doc === null ? (
                     <button
-                      className="flex-none rounded-pill bg-accent px-4 py-2 text-caption font-semibold text-ink-green disabled:opacity-60"
+                      className="flex-none rounded-pill bg-lime px-4 py-2 text-caption font-semibold text-ink-green disabled:opacity-60"
                       disabled={writing}
                       onClick={() => write(i.id)}
                     >
@@ -218,9 +229,9 @@ export function DashboardClient({
         </section>
 
         {/* In progress + fact-check review */}
-        <section className="card md:col-span-2">
+        <section className="btile md:col-span-2">
           <div className="flex items-center justify-between">
-            <span className="eyebrow">In progress</span>
+            <span className="btile-label">{ICON.pencil} In progress</span>
             <span className="text-micro text-muted">{inProgress.length ? `${inProgress.length} in flight` : "none"}</span>
           </div>
           {inProgress.length === 0 ? (
@@ -246,9 +257,9 @@ export function DashboardClient({
         </section>
 
         {/* Credits & burn */}
-        <section className="card md:col-span-2">
+        <section className="btile md:col-span-2">
           <div className="flex items-center justify-between">
-            <span className="eyebrow">Credits</span>
+            <span className="btile-label">{ICON.coin} Credits</span>
             <a href="/billing" className="text-caption font-semibold text-accent-strong">Top up →</a>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
@@ -283,10 +294,10 @@ export function DashboardClient({
         </section>
 
         {/* P1 coverage */}
-        <section className="card flex items-center gap-5 md:col-span-2">
+        <section className="btile flex items-center gap-5 md:col-span-2">
           <CoverageRing pct={coverage.pct} />
           <div className="min-w-0">
-            <span className="eyebrow">P1 coverage</span>
+            <span className="btile-label">{ICON.grid} P1 coverage</span>
             <p className="mt-2 text-body-sm font-semibold text-ink-green">
               {coverage.p1Covered} of {coverage.p1Total} P1 keywords
             </p>
@@ -298,9 +309,9 @@ export function DashboardClient({
         </section>
 
         {/* Research engine freshness */}
-        <section className="card md:col-span-2">
+        <section className="btile md:col-span-2">
           <div className="flex items-center justify-between">
-            <span className="eyebrow">Research engine</span>
+            <span className="btile-label">{ICON.refresh} Research engine</span>
             <span className="text-micro text-muted">last sweep {fmtDate(freshness.lastSweepAt)}</span>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
