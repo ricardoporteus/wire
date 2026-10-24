@@ -185,11 +185,14 @@ export function DashboardClient({
         <p className="mt-8 text-muted">Finish onboarding to fire your first intelligence run.</p>
       )}
 
-      {/* ---- Bento overview: the at-a-glance command center ---- */}
-      <div className="mt-8 grid gap-4 md:grid-cols-4">
+      {/* ---- Overview: two columns — write/performance (left), ops (right) ---- */}
+      <div className="mt-8 grid items-start gap-4 md:grid-cols-2">
+
+        {/* LEFT column: Next to write · Content performance · Answer-box wins */}
+        <div className="grid gap-4">
 
         {/* Next to write (hero) */}
-        <section className="btile flex flex-col md:col-span-2 md:row-span-2">
+        <section className="btile flex flex-col">
           <div className="flex items-center justify-between">
             <span className="btile-label">{ICON.target} Next to write</span>
             <span className="text-micro text-muted">{freshIdeas.length} ranked</span>
@@ -234,7 +237,7 @@ export function DashboardClient({
         </section>
 
         {/* Content performance — Tier 2, awaiting the Search Console connection */}
-        <section className="btile btile--soon md:col-span-2">
+        <section className="btile btile--soon">
           <div className="flex items-center justify-between">
             <span className="btile-label">{ICON.chart} Content performance</span>
             <span className="text-micro text-muted">Soon</span>
@@ -247,8 +250,27 @@ export function DashboardClient({
           </a>
         </section>
 
+        {/* Answer-box wins — Tier 2, awaiting the Search Console connection */}
+        <section className="btile btile--soon">
+          <div className="flex items-center justify-between">
+            <span className="btile-label">{ICON.sparkle} Answer-box wins</span>
+            <span className="text-micro text-muted">Soon</span>
+          </div>
+          <p className="mt-3 text-body-sm text-muted">
+            Featured snippets and AI-answer citations your published pieces earn.
+          </p>
+          <a href="/settings" className="mt-3 inline-block text-caption font-semibold text-accent-strong">
+            Connect Search Console →
+          </a>
+        </section>
+
+        </div>
+
+        {/* RIGHT column: In progress · Credits · Research engine · P1 coverage */}
+        <div className="grid gap-4">
+
         {/* In progress + fact-check review */}
-        <section className="btile md:col-span-2">
+        <section className="btile">
           <div className="flex items-center justify-between">
             <span className="btile-label">{ICON.pencil} In progress</span>
             <span className="text-micro text-muted">{inProgress.length ? `${inProgress.length} in flight` : "none"}</span>
@@ -275,22 +297,8 @@ export function DashboardClient({
           )}
         </section>
 
-        {/* Answer-box wins — Tier 2, awaiting the Search Console connection */}
-        <section className="btile btile--soon md:col-span-2">
-          <div className="flex items-center justify-between">
-            <span className="btile-label">{ICON.sparkle} Answer-box wins</span>
-            <span className="text-micro text-muted">Soon</span>
-          </div>
-          <p className="mt-3 text-body-sm text-muted">
-            Featured snippets and AI-answer citations your published pieces earn.
-          </p>
-          <a href="/settings" className="mt-3 inline-block text-caption font-semibold text-accent-strong">
-            Connect Search Console →
-          </a>
-        </section>
-
         {/* Credits & burn */}
-        <section className="btile md:col-span-2">
+        <section className="btile">
           <div className="flex items-center justify-between">
             <span className="btile-label">{ICON.coin} Credits</span>
             <a href="/billing" className="text-caption font-semibold text-accent-strong">Top up →</a>
@@ -326,23 +334,8 @@ export function DashboardClient({
           )}
         </section>
 
-        {/* P1 coverage */}
-        <section className="btile flex items-center gap-5 md:col-span-2">
-          <CoverageRing pct={coverage.pct} />
-          <div className="min-w-0">
-            <span className="btile-label">{ICON.grid} P1 coverage</span>
-            <p className="mt-2 text-body-sm font-semibold text-ink-green">
-              {coverage.p1Covered} of {coverage.p1Total} P1 keywords
-            </p>
-            <p className="mt-1 text-caption text-muted">
-              {Math.max(0, coverage.p1Total - coverage.p1Covered)} opportunities still open.
-            </p>
-            <a href="/audit" className="mt-2 inline-block text-caption font-semibold text-accent-strong">See the gap →</a>
-          </div>
-        </section>
-
         {/* Research engine freshness */}
-        <section className="btile md:col-span-2">
+        <section className="btile">
           <div className="flex items-center justify-between">
             <span className="btile-label">{ICON.refresh} Research engine</span>
             <span className="text-micro text-muted">last sweep {fmtDate(freshness.lastSweepAt)}</span>
@@ -370,6 +363,23 @@ export function DashboardClient({
             )}
           </div>
         </section>
+
+        {/* P1 coverage */}
+        <section className="btile flex items-center gap-5">
+          <CoverageRing pct={coverage.pct} />
+          <div className="min-w-0">
+            <span className="btile-label">{ICON.grid} P1 coverage</span>
+            <p className="mt-2 text-body-sm font-semibold text-ink-green">
+              {coverage.p1Covered} of {coverage.p1Total} P1 keywords
+            </p>
+            <p className="mt-1 text-caption text-muted">
+              {Math.max(0, coverage.p1Total - coverage.p1Covered)} opportunities still open.
+            </p>
+            <a href="/audit" className="mt-2 inline-block text-caption font-semibold text-accent-strong">See the gap →</a>
+          </div>
+        </section>
+
+        </div>
 
       </div>
 
