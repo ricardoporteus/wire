@@ -21,6 +21,14 @@ type Idea = {
 };
 type CompetitorIntel = { competitor: string; topics: string[]; targetKeywords: string[]; weakness: string };
 type Trend = { trend: string; opportunity: string };
+type Overview = {
+  inProgress: { id: string; title: string; status: string }[];
+  reviewClaims: number;
+  reviewDocs: number;
+  coverage: { p1Total: number; p1Covered: number; pct: number };
+  freshness: { lastSweepAt: string | null; kwCount: number; ideaCount: number; competitorCount: number; nextSweepDays: number };
+  credits: { balance: number; weeklyBurn: number; weeksLeft: number | null; spent30: number; breakdown: { reason: string; credits: number }[] };
+};
 
 const RUNNING = new Set([
   "queued", "researching_keywords", "analyzing_competitors",
@@ -37,8 +45,36 @@ const INTENTS: { key: string; label: string }[] = [
 const PRIORITY_BADGE = (p: number) =>
   p <= 1 ? "badge--attention" : p === 2 ? "badge--opportunity" : "badge--draft";
 
+const STATUS_LABEL: Record<string, string> = {
+  diagnosing: "Diagnosing", awaiting_confirm: "Needs confirm", generating: "Writing", draft: "Draft",
+};
+const REASON_LABEL: Record<string, string> = {
+  generation: "Generation", regeneration: "Revisions", intelligence_run: "Research",
+  repurpose: "Repurpose", diagnosis: "Diagnosis", transcription: "Transcription", adjustment: "Adjustment",
+};
+const REASON_COLOR: Record<string, string> = {
+  generation: "var(--color-accent-strong)", intelligence_run: "var(--color-accent)",
+  repurpose: "var(--color-lime)", regeneration: "var(--color-accent-tint)",
+  diagnosis: "var(--color-cream)", transcription: "var(--color-navy)", adjustment: "var(--color-muted)",
+};
+const fmtDate = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—";
+
+function CoverageRing({ pct }: { pct: number }) {
+  const r = 34, c = 2 * Math.PI * r;
+  return (
+    <svg width="84" height="84" viewBox="0 0 84 84" className="flex-none" aria-hidden="true">
+      <circle cx="42" cy="42" r={r} fill="none" stroke="var(--color-line)" strokeWidth="9" />
+      <circle cx="42" cy="42" r={r} fill="none" stroke="var(--color-accent-strong)" strokeWidth="9" strokeLinecap="round"
+        strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} transform="rotate(-90 42 42)" />
+      <text x="42" y="47" textAnchor="middle" fontSize="19" fontWeight="700" fill="var(--color-ink-green)"
+        style={{ fontVariantNumeric: "tabular-nums" }}>{pct}%</text>
+    </svg>
+  );
+}
+
 export function DashboardClient({
-  brainName, runId, runStatus, runStartedAt, keywords, ideas, competitorIntel, trends, bestPractices, creditsBalance,
+  brainName, runId, runStatus, runStartedAt, keywords, ideas, competitorIntel, trends, bestPractices, overview,
 }: {
   brainName: string;
   runId: string | null;
@@ -49,7 +85,7 @@ export function DashboardClient({
   competitorIntel: CompetitorIntel[];
   trends: Trend[];
   bestPractices: string[];
-  creditsBalance: number;
+  overview: Overview;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState(INTENTS[0].key);
@@ -94,27 +130,14 @@ export function DashboardClient({
   // to make a piece disappear the moment you started it, leaving no way back to
   // the draft short of knowing its URL.
   const freshIdeas = ideas;
+  const topIdeas = freshIdeas.slice(0, 4);
+  const { inProgress, reviewClaims, reviewDocs, coverage, freshness, credits } = overview;
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <span className="eyebrow">{brainName}</span>
-          <h1 className="mt-4 text-h2 text-ink-green">This month&apos;s opportunities</h1>
-        </div>
-        <div className="flex flex-none flex-col items-end gap-2">
-          <span className="badge badge--draft whitespace-nowrap">{creditsBalance} credits</span>
-          {!progress && (
-            <button
-              className="btn-ghost whitespace-nowrap"
-              disabled={rerunning}
-              onClick={rerun}
-              title="Runs a fresh intelligence report on your domain (100 credits)"
-            >
-              {rerunning ? "Starting…" : "↻ Re-run intelligence"}
-            </button>
-          )}
-        </div>
+      <div>
+        <span className="eyebrow">{brainName}</span>
+        <h1 className="mt-4 text-h2 text-ink-green">Dashboard</h1>
       </div>
 
       {rerunErr === "insufficient_credits"
@@ -146,9 +169,169 @@ export function DashboardClient({
         <p className="mt-8 text-muted">Finish onboarding to fire your first intelligence run.</p>
       )}
 
+      {/* ---- Bento overview: the at-a-glance command center ---- */}
+      <div className="mt-8 grid gap-4 md:grid-cols-4">
+
+        {/* Next to write (hero) */}
+        <section className="card flex flex-col md:col-span-2 md:row-span-2">
+          <div className="flex items-center justify-between">
+            <span className="eyebrow eyebrow--cream">Next to write</span>
+            <span className="text-micro text-muted">{freshIdeas.length} ranked</span>
+          </div>
+          {topIdeas.length === 0 ? (
+            <p className="mt-4 flex-1 text-body-sm text-muted">
+              Your ranked ideas appear here once the intelligence run finishes.
+            </p>
+          ) : (
+            <ul className="mt-4 grid flex-1 content-start gap-3">
+              {topIdeas.map((i) => (
+                <li key={i.id} className="flex items-start gap-3 border-t border-line pt-3 first:border-0 first:pt-0">
+                  <span className={`badge ${PRIORITY_BADGE(i.priority)} mt-0.5 flex-none`}>P{i.priority}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-body-sm font-semibold text-ink-green">{i.title}</p>
+                    <p className="mt-1 text-micro text-muted">
+                      {i.format.replaceAll("_", " ")}{i.whyNow ? ` · ${i.whyNow}` : ""}
+                    </p>
+                  </div>
+                  {i.doc === null ? (
+                    <button
+                      className="flex-none rounded-pill bg-accent px-4 py-2 text-caption font-semibold text-ink-green disabled:opacity-60"
+                      disabled={writing}
+                      onClick={() => write(i.id)}
+                    >
+                      {writing ? "…" : "Write"}
+                    </button>
+                  ) : i.doc.done ? (
+                    <a href={`/write/${i.doc.id}`} className="flex-none self-center text-caption font-semibold text-positive">Done</a>
+                  ) : (
+                    <a href={`/write/${i.doc.id}`} className="flex-none self-center text-caption font-semibold text-accent-strong">Open →</a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {freshIdeas.length > topIdeas.length && (
+            <a href="#queue" className="mt-4 pt-1 text-caption font-semibold text-accent-strong">
+              See all {freshIdeas.length} ideas →
+            </a>
+          )}
+        </section>
+
+        {/* In progress + fact-check review */}
+        <section className="card md:col-span-2">
+          <div className="flex items-center justify-between">
+            <span className="eyebrow">In progress</span>
+            <span className="text-micro text-muted">{inProgress.length ? `${inProgress.length} in flight` : "none"}</span>
+          </div>
+          {inProgress.length === 0 ? (
+            <p className="mt-3 text-body-sm text-muted">No drafts in flight. Start one from an idea.</p>
+          ) : (
+            <ul className="mt-3 grid gap-2">
+              {inProgress.map((d) => (
+                <li key={d.id} className="flex items-center gap-2 text-body-sm">
+                  <span className="badge badge--draft flex-none">{STATUS_LABEL[d.status] ?? d.status}</span>
+                  <span className="min-w-0 flex-1 truncate text-ink">{d.title}</span>
+                  <a href={`/write/${d.id}`} className="flex-none text-caption font-semibold text-accent-strong">Open</a>
+                </li>
+              ))}
+            </ul>
+          )}
+          {reviewClaims > 0 && (
+            <p className="mt-3 text-caption text-ink">
+              <span className="badge badge--attention mr-2">{reviewClaims} to review</span>
+              fact-check {reviewClaims === 1 ? "item" : "items"} to confirm before publishing
+              {reviewDocs > 1 ? ` across ${reviewDocs} drafts` : ""}.
+            </p>
+          )}
+        </section>
+
+        {/* Credits & burn */}
+        <section className="card md:col-span-2">
+          <div className="flex items-center justify-between">
+            <span className="eyebrow">Credits</span>
+            <a href="/billing" className="text-caption font-semibold text-accent-strong">Top up →</a>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-h3 tabular-nums text-ink-green">{credits.balance}</span>
+            <span className="text-caption text-muted">
+              {credits.weeksLeft == null
+                ? "balance"
+                : credits.weeksLeft > 52
+                  ? "over a year at your pace"
+                  : `about ${credits.weeksLeft} weeks at your pace`}
+            </span>
+          </div>
+          {credits.breakdown.length > 0 ? (
+            <>
+              <div className="mt-3 flex h-2 overflow-hidden rounded-pill bg-bg-alt">
+                {credits.breakdown.map((b) => (
+                  <span key={b.reason} style={{ width: `${(b.credits / credits.spent30) * 100}%`, background: REASON_COLOR[b.reason] ?? "var(--color-muted)" }} />
+                ))}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-micro text-muted">
+                {credits.breakdown.slice(0, 4).map((b) => (
+                  <span key={b.reason} className="inline-flex items-center gap-1.5">
+                    <span style={{ background: REASON_COLOR[b.reason] ?? "var(--color-muted)", width: 8, height: 8, borderRadius: 9999, display: "inline-block" }} />
+                    {REASON_LABEL[b.reason] ?? b.reason} {Math.round((b.credits / credits.spent30) * 100)}%
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="mt-3 text-body-sm text-muted">No spend in the last 30 days.</p>
+          )}
+        </section>
+
+        {/* P1 coverage */}
+        <section className="card flex items-center gap-5 md:col-span-2">
+          <CoverageRing pct={coverage.pct} />
+          <div className="min-w-0">
+            <span className="eyebrow">P1 coverage</span>
+            <p className="mt-2 text-body-sm font-semibold text-ink-green">
+              {coverage.p1Covered} of {coverage.p1Total} P1 keywords
+            </p>
+            <p className="mt-1 text-caption text-muted">
+              {Math.max(0, coverage.p1Total - coverage.p1Covered)} opportunities still open.
+            </p>
+            <a href="/audit" className="mt-2 inline-block text-caption font-semibold text-accent-strong">See the gap →</a>
+          </div>
+        </section>
+
+        {/* Research engine freshness */}
+        <section className="card md:col-span-2">
+          <div className="flex items-center justify-between">
+            <span className="eyebrow">Research engine</span>
+            <span className="text-micro text-muted">last sweep {fmtDate(freshness.lastSweepAt)}</span>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+            <div><div className="text-h4 tabular-nums text-ink-green">{freshness.kwCount}</div><div className="text-micro text-muted">keywords</div></div>
+            <div><div className="text-h4 tabular-nums text-ink-green">{freshness.ideaCount}</div><div className="text-micro text-muted">ideas</div></div>
+            <div><div className="text-h4 tabular-nums text-ink-green">{freshness.competitorCount}</div><div className="text-micro text-muted">competitors</div></div>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            {progress ? (
+              <span className="text-caption text-muted">A run is in progress…</span>
+            ) : (
+              <>
+                <button
+                  className="rounded-pill border border-line px-4 py-2 text-caption font-semibold text-ink-green disabled:opacity-60"
+                  disabled={rerunning}
+                  onClick={rerun}
+                  title="Runs a fresh intelligence report on your domain (100 credits)"
+                >
+                  {rerunning ? "Starting…" : "↻ Run now"}
+                </button>
+                <span className="text-micro text-muted">auto in {freshness.nextSweepDays} days</span>
+              </>
+            )}
+          </div>
+        </section>
+
+      </div>
+
       {/* Ranked ideas queue — the handoff to the writer */}
       {freshIdeas.length > 0 && (
-        <section className="mt-10">
+        <section id="queue" className="mt-12 scroll-mt-6">
           <h2 className="text-h4 text-ink-green">Recommended this month</h2>
           <p className="mt-1 text-body-sm text-muted">{freshIdeas.length} pieces, ranked by opportunity.</p>
           <div className="mt-5 grid gap-3">
