@@ -132,7 +132,7 @@ export function DashboardClient({
   // to make a piece disappear the moment you started it, leaving no way back to
   // the draft short of knowing its URL.
   const freshIdeas = ideas;
-  const topIdeas = freshIdeas.slice(0, 4);
+  const topIdeas = freshIdeas.slice(0, 3);
   const { inProgress, reviewClaims, reviewDocs, coverage, freshness, credits } = overview;
 
   return (
