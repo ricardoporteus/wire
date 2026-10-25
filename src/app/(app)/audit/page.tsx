@@ -65,10 +65,10 @@ export default async function AuditPage({
     <main className="mx-auto max-w-6xl px-6 py-12">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <span className="eyebrow">Audit</span>
-          <h1 className="mt-4 text-h2 text-ink-green">SEO &amp; AEO audit</h1>
+          <span className="eyebrow">Research · Scout &amp; Ada</span>
+          <h1 className="mt-4 text-h2 text-ink-green">Research</h1>
           <p className="mt-2 text-muted">
-            What the research found for {brain.name}, run by run.
+            Scout and Ada&apos;s monthly sweep of your market — keywords, answer-engine opportunities, competitors and trends for {brain.name}.
           </p>
         </div>
         <RerunButton running={running} />
@@ -105,6 +105,9 @@ export default async function AuditPage({
 
       {/* ---- Keywords from this run --------------------------------------- */}
       <Section title="Keywords from this run" count={runKeywords.length}>
+        <a href="/keywords" className="mb-3 inline-block text-caption font-semibold text-accent-strong hover:underline">
+          Browse all keywords, every run →
+        </a>
         {runKeywords.length === 0 ? (
           <p className="text-body-sm text-muted">No keywords were saved for this run.</p>
         ) : (

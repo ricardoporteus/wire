@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { rerunIntelligence, writeThisIdea } from "./actions";
 import { RunProgress } from "./RunProgress";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
-import { formatDifficulty, formatVolume } from "@/lib/seo-labels";
 
 type Keyword = {
   id: string; phrase: string; intent: string;
@@ -35,12 +34,6 @@ const RUNNING = new Set([
   "finding_gaps", "finding_aeo", "compiling",
 ]);
 
-const INTENTS: { key: string; label: string }[] = [
-  { key: "high_intent", label: "High intent" },
-  { key: "informational", label: "Informational" },
-  { key: "long_tail", label: "Long-tail" },
-  { key: "aeo_question", label: "AEO questions" },
-];
 
 const PRIORITY_BADGE = (p: number) =>
   p <= 1 ? "badge--attention" : p === 2 ? "badge--opportunity" : "badge--draft";
@@ -87,7 +80,7 @@ function CoverageRing({ pct }: { pct: number }) {
 }
 
 export function DashboardClient({
-  brainName, runId, runStatus, runStartedAt, keywords, ideas, competitorIntel, trends, bestPractices, overview,
+  brainName, runId, runStatus, runStartedAt, keywords, ideas, competitorIntel, overview,
 }: {
   brainName: string;
   runId: string | null;
@@ -96,12 +89,9 @@ export function DashboardClient({
   keywords: Keyword[];
   ideas: Idea[];
   competitorIntel: CompetitorIntel[];
-  trends: Trend[];
-  bestPractices: string[];
   overview: Overview;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState(INTENTS[0].key);
   const [writing, startWrite] = useTransition();
   const [rerunning, startRerun] = useTransition();
   // Optimistically show progress the instant a run starts, before the next fetch.
@@ -138,7 +128,6 @@ export function DashboardClient({
       router.push(`/write/${documentId}`);
     });
 
-  const shown = keywords.filter((k) => k.intent === tab);
   // Everything except dismissed stays on the list. Filtering to "suggested" used
   // to make a piece disappear the moment you started it, leaving no way back to
   // the draft short of knowing its URL.
@@ -150,7 +139,7 @@ export function DashboardClient({
     <main className="mx-auto max-w-6xl px-6 py-12">
       <div>
         <span className="eyebrow">{brainName}</span>
-        <h1 className="mt-4 text-h2 text-ink-green">Dashboard</h1>
+        <h1 className="mt-4 text-h2 text-ink-green">Home</h1>
         <p className="mt-2 text-body-sm text-muted">
           Here&apos;s what&apos;s moving{freshness.nextSweepDays ? ` · next sweep in ${freshness.nextSweepDays} days` : ""}.
         </p>
@@ -383,111 +372,6 @@ export function DashboardClient({
 
       </div>
 
-      {/* Keyword intelligence with intent tabs */}
-      {keywords.length > 0 && (
-        <section className="mt-12">
-          <h2 className="text-h4 text-ink-green">Keyword intelligence</h2>
-          <div className="mt-4 flex flex-wrap gap-1" role="tablist">
-            {INTENTS.map((it) => {
-              const n = keywords.filter((k) => k.intent === it.key).length;
-              if (n === 0) return null;
-              return (
-                <button
-                  key={it.key}
-                  role="tab"
-                  aria-selected={tab === it.key}
-                  className="tab"
-                  onClick={() => setTab(it.key)}
-                >
-                  {it.label} <span className="text-muted">({n})</span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="card mt-4 overflow-x-auto">
-            <table className="w-full text-body-sm">
-              <thead>
-                <tr className="border-b border-line text-left text-caption text-muted">
-                  <th className="py-2 pr-4 font-medium">Phrase</th>
-                  <th className="py-2 pr-4 font-medium">Priority</th>
-                  <th className="py-2 pr-4 font-medium">Volume</th>
-                  <th className="py-2 pr-4 font-medium">Difficulty</th>
-                  <th className="py-2 font-medium">Snippet</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((k) => (
-                  <tr key={k.id} className="border-b border-line last:border-0">
-                    <td className="py-2 pr-4 text-ink">{k.phrase}</td>
-                    <td className="py-2 pr-4">
-                      <span className={`badge ${PRIORITY_BADGE(k.priority)}`}>P{k.priority}</span>
-                    </td>
-                    <td className="py-2 pr-4 whitespace-nowrap text-muted">{formatVolume(k.searchVolume)}</td>
-                    <td className="py-2 pr-4 whitespace-nowrap text-muted">{formatDifficulty(k.kd, k.difficulty) ?? "—"}</td>
-                    <td className="py-2 text-muted">{k.aeoFormat ?? "—"}</td>
-                  </tr>
-                ))}
-                {shown.length === 0 && (
-                  <tr><td colSpan={5} className="py-3 text-muted">No keywords in this bucket yet.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {/* Competitor cards */}
-      {competitorIntel.length > 0 && (
-        <section className="mt-12">
-          <h2 className="text-h4 text-ink-green">Competitors</h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {competitorIntel.map((c, idx) => (
-              <div key={idx} className="card">
-                <h3 className="text-h5 text-ink-green">{c.competitor}</h3>
-                <p className="mt-2 text-body-sm text-ink">
-                  <span className="badge badge--opportunity mr-2">opening</span>{c.weakness}
-                </p>
-                {c.targetKeywords?.length > 0 && (
-                  <p className="mt-3 text-caption text-muted">
-                    Targets: {c.targetKeywords.slice(0, 6).join(" · ")}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Trends + best practices */}
-      {(trends.length > 0 || bestPractices.length > 0) && (
-        <section className="mt-12 grid gap-6 md:grid-cols-2">
-          {trends.length > 0 && (
-            <div>
-              <h2 className="text-h5 text-ink-green">Trends to ride</h2>
-              <ul className="mt-3 grid gap-2">
-                {trends.map((t, i) => (
-                  <li key={i} className="card">
-                    <p className="text-body-sm font-medium text-ink-green">{t.trend}</p>
-                    <p className="mt-1 text-caption text-muted">{t.opportunity}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {bestPractices.length > 0 && (
-            <div>
-              <h2 className="text-h5 text-ink-green">Best-practice refresh</h2>
-              <ul className="mt-3 grid gap-2 text-body-sm text-ink">
-                {bestPractices.map((b, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="text-accent-strong">•</span>{b}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
-      )}
     </main>
   );
 }

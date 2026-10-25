@@ -154,8 +154,6 @@ export default async function DashboardPage() {
       }))}
       ideas={decorated}
       competitorIntel={run?.competitorIntel ?? []}
-      trends={run?.trends ?? []}
-      bestPractices={run?.bestPractices ?? []}
       overview={overview}
     />
   );

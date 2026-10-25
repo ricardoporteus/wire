@@ -10,12 +10,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 
-const NAV = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/content", label: "Content" },
-  { href: "/audit", label: "Audit" },
-  { href: "/keywords", label: "Keywords" },
-  { href: "/write", label: "Write" },
+const NAV: { href: string; label: string; who?: string }[] = [
+  { href: "/dashboard", label: "Home" },
+  { href: "/audit", label: "Research", who: "Scout · Ada" },
+  { href: "/content", label: "Content", who: "Quill · Iris" },
+  { href: "/write", label: "Write", who: "Quill" },
   { href: "/settings", label: "Settings" },
   { href: "/billing", label: "Billing" },
 ];
@@ -77,7 +76,8 @@ export function AppShell({
                   className="app-navlink"
                   onClick={() => setOpen(false)}
                 >
-                  {n.label}
+                  <span className="app-navname">{n.label}</span>
+                  {n.who && <span className="app-navsub">{n.who}</span>}
                 </Link>
               );
             })}
