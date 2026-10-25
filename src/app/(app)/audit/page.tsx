@@ -22,6 +22,7 @@ import {
 import { RerunButton } from "./RerunButton";
 import { ResearchKeywords } from "./ResearchKeywords";
 import { RunHistory } from "./RunHistory";
+import { KeywordBrowser } from "../keywords/KeywordBrowser";
 
 export default async function AuditPage({
   searchParams,
@@ -47,7 +48,7 @@ export default async function AuditPage({
   // Permalinked run if it belongs to this brain, otherwise the most recent.
   const selected = (runParam && runs.find((r) => r.id === runParam)) || runs[0];
 
-  const [runKeywords, runIdeas] = await Promise.all([
+  const [runKeywords, runIdeas, allKeywords] = await Promise.all([
     db.query.keywords.findMany({
       where: and(eq(keywords.brainId, brain.id), eq(keywords.runId, selected.id)),
       orderBy: [keywords.priority],
@@ -55,6 +56,10 @@ export default async function AuditPage({
     db.query.contentIdeas.findMany({
       where: and(eq(contentIdeas.brainId, brain.id), eq(contentIdeas.runId, selected.id)),
       orderBy: [contentIdeas.rank],
+    }),
+    db.query.keywords.findMany({
+      where: eq(keywords.brainId, brain.id),
+      orderBy: [keywords.priority, desc(keywords.createdAt)],
     }),
   ]);
 
@@ -107,15 +112,24 @@ export default async function AuditPage({
 
       {/* ---- Keywords from this run --------------------------------------- */}
       <Section title="Keywords from this run" count={runKeywords.length}>
-        <a href="/keywords" className="mb-3 inline-block text-caption font-semibold text-accent-strong hover:underline">
-          Browse all keywords, every run →
-        </a>
         <ResearchKeywords
           keywords={runKeywords.map((k) => ({
             id: k.id, phrase: k.phrase, intent: k.intent, priority: k.priority,
             difficulty: k.difficulty, kd: k.kd, searchVolume: k.searchVolume,
             aeoFormat: k.aeoFormat, rationale: k.rationale, recommendedFormat: k.recommendedFormat,
             variants: k.variants,
+          }))}
+        />
+      </Section>
+
+      {/* ---- All keywords, every run -------------------------------------- */}
+      <Section title="All keywords" count={allKeywords.length}>
+        <KeywordBrowser
+          keywords={allKeywords.map((k) => ({
+            id: k.id, phrase: k.phrase, intent: k.intent,
+            difficulty: k.difficulty, kd: k.kd, searchVolume: k.searchVolume,
+            variants: k.variants ?? [], priority: k.priority, rationale: k.rationale,
+            aeoFormat: k.aeoFormat, active: k.active, createdAt: k.createdAt.toISOString(),
           }))}
         />
       </Section>
