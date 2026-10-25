@@ -13,6 +13,7 @@ import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 const NAV: { href: string; label: string; who?: string }[] = [
   { href: "/dashboard", label: "Home" },
   { href: "/audit", label: "Research", who: "Scout · Ada" },
+  { href: "/write", label: "Write", who: "Quill" },
   { href: "/content", label: "Content", who: "Quill · Iris" },
   { href: "/performance", label: "Performance", who: "Ada" },
   { href: "/brand", label: "Brand", who: "Iris" },
