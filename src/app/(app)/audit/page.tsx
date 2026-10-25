@@ -16,10 +16,11 @@ import { db } from "@/lib/db";
 import { brandBrains, intelligenceRuns, keywords, contentIdeas } from "@/db/schema";
 import { requireOrg } from "@/lib/org";
 import {
-  INTENT_LABEL, PRIORITY_BADGE, RUN_STATUS_BADGE, RUN_STATUS_LABEL,
-  TRIGGER_LABEL, formatDateTime, formatDuration, RUNNING_STATUSES, formatDifficulty, formatVolume,
+  RUN_STATUS_BADGE, RUN_STATUS_LABEL,
+  TRIGGER_LABEL, formatDateTime, formatDuration, RUNNING_STATUSES,
 } from "@/lib/seo-labels";
 import { RerunButton } from "./RerunButton";
+import { ResearchKeywords } from "./ResearchKeywords";
 
 export default async function AuditPage({
   searchParams,
@@ -108,48 +109,14 @@ export default async function AuditPage({
         <a href="/keywords" className="mb-3 inline-block text-caption font-semibold text-accent-strong hover:underline">
           Browse all keywords, every run →
         </a>
-        {runKeywords.length === 0 ? (
-          <p className="text-body-sm text-muted">No keywords were saved for this run.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-body-sm">
-              <thead>
-                <tr className="border-b border-line text-caption uppercase tracking-wide text-muted">
-                  <th className="whitespace-nowrap py-2 pr-4 text-left font-medium">Phrase<InfoTip text={TIPS.phrase} /></th>
-                  <th className="whitespace-nowrap py-2 pr-4 text-left font-medium">Intent<InfoTip text={TIPS.intent} /></th>
-                  <th className="whitespace-nowrap py-2 pr-4 text-left font-medium">Priority<InfoTip text={TIPS.priority} /></th>
-                  <th className="whitespace-nowrap py-2 pr-4 text-left font-medium">Volume<InfoTip text={TIPS.volume} /></th>
-                  <th className="whitespace-nowrap py-2 pr-4 text-left font-medium">Difficulty<InfoTip text={TIPS.difficulty} /></th>
-                  <th className="whitespace-nowrap py-2 text-left font-medium">Why it matters<InfoTip text={TIPS.why} align="right" /></th>
-                </tr>
-              </thead>
-              <tbody>
-                {runKeywords.map((k) => (
-                  <tr key={k.id} className="border-b border-line align-top">
-                    <td className="py-2.5 pr-4 font-medium text-ink-green">
-                      {k.phrase}
-                      {k.variants && k.variants.length > 0 && (
-                        <span className="mt-0.5 block text-caption font-normal text-muted">also: {k.variants.join(", ")}</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 pr-4 text-muted">{INTENT_LABEL[k.intent] ?? k.intent}</td>
-                    <td className="py-2.5 pr-4">
-                      <span className={`badge ${PRIORITY_BADGE(k.priority)}`}>P{k.priority}</span>
-                    </td>
-                    <td className="py-2.5 pr-4 whitespace-nowrap text-muted">{k.intent === "aeo_question" ? "n/a" : formatVolume(k.searchVolume)}</td>
-                    <td className="py-2.5 pr-4 whitespace-nowrap text-muted">{k.intent === "aeo_question" ? "n/a" : formatDifficulty(k.kd, k.difficulty) ?? "—"}</td>
-                    <td className="py-2.5 text-muted">
-                      {whyItMatters(k)}
-                      {k.recommendedFormat && (
-                        <span className="mt-0.5 block text-caption">Write it as: {k.recommendedFormat.replace(/_/g, " ")}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <ResearchKeywords
+          keywords={runKeywords.map((k) => ({
+            id: k.id, phrase: k.phrase, intent: k.intent, priority: k.priority,
+            difficulty: k.difficulty, kd: k.kd, searchVolume: k.searchVolume,
+            aeoFormat: k.aeoFormat, rationale: k.rationale, recommendedFormat: k.recommendedFormat,
+            variants: k.variants,
+          }))}
+        />
       </Section>
 
       {/* ---- Competitors --------------------------------------------------- */}
@@ -271,57 +238,6 @@ export default async function AuditPage({
 
 /* -------------------------------------------------------------------------- */
 
-/** Plain-language explanations for the keyword table's column headers. */
-const TIPS = {
-  phrase: "The exact search phrase or question your audience types — a keyword phrase (e.g. “AI content marketing tool”) or an answer-engine question the research found them asking. Each becomes a target for a piece of content.",
-  intent: "What the searcher is trying to do. High intent = ready to act (commercial); Informational = still researching; Long-tail = specific, lower-volume phrases; AEO question = something people ask AI and search engines. Intent shapes the format and angle of the piece Mavrix writes.",
-  priority: "How urgently to target this, from P1 to P3. P1 is red-hot — high value and winnable now, so write these first. Priority ranks each keyword's opportunity: how well it fits your buyer, search volume, difficulty, intent, and what Google's results page looks like.",
-  volume: "How many times a month people search this exact phrase on Google in your main market, from measured search data. Close variants (listed under the phrase) are targeted by the same piece. Shows 'n/a' for answer-engine questions.",
-  difficulty: "How hard it is to reach Google's first page, on a 0–100 scale measured from the strength of the pages already ranking: under 30 is low, 30–59 medium, 60+ high. Older keywords found before measurement show an estimate marked 'est.'. Shows 'n/a' for answer-engine questions.",
-  why: "Why this phrase is worth your time: the opportunity or angle the research found. For featured-snippet questions it tells you the format to win the answer box — a paragraph, a list, or a table.",
-} as const;
-
-/**
- * A small "(i)" marker with a hover/focus tooltip explaining a column. Pure CSS
- * (group-hover + group-focus-within) so it works in this server component with
- * no client JS. Anchored below the header to avoid the table's overflow clip;
- * pass align="right" for the last column so the popup opens inward.
- */
-function InfoTip({ text, align = "left" }: { text: string; align?: "left" | "right" }) {
-  return (
-    <span className="group relative ml-1 inline-flex align-middle">
-      <button
-        type="button"
-        aria-label={text}
-        className="flex h-4 w-4 items-center justify-center rounded-full border border-line text-[10px] font-semibold normal-case leading-none text-muted transition-colors hover:border-ink-green hover:text-ink-green focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-strong"
-      >
-        i
-      </button>
-      <span
-        role="tooltip"
-        className={`pointer-events-none absolute top-[calc(100%_+_6px)] z-20 w-64 whitespace-normal rounded-md border border-line bg-card p-3 text-left text-caption font-normal normal-case leading-relaxed tracking-normal text-ink opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${align === "right" ? "right-0" : "left-0"}`}
-      >
-        {text}
-      </span>
-    </span>
-  );
-}
-
-/**
- * "Why it matters" cell text. Prefer the model's rationale/angle. For
- * answer-engine questions that predate the angle field (or where the model
- * omitted it), fall back to the captured snippet format so the highest-priority
- * rows still say something actionable instead of a bare dash.
- */
-function whyItMatters(k: { rationale: string | null; intent: string; aeoFormat: string | null }): string {
-  if (k.rationale) return k.rationale;
-  if (k.intent === "aeo_question") {
-    return k.aeoFormat
-      ? `Featured-snippet target — win it with a ${k.aeoFormat}.`
-      : "Answer-engine target — write a direct, structured answer to win the AI/snippet result.";
-  }
-  return "—";
-}
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
