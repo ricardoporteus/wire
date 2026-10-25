@@ -14,7 +14,6 @@ const NAV: { href: string; label: string; who?: string }[] = [
   { href: "/dashboard", label: "Home" },
   { href: "/audit", label: "Research", who: "Scout · Ada" },
   { href: "/content", label: "Content", who: "Quill · Iris" },
-  { href: "/write", label: "Write", who: "Quill" },
   { href: "/settings", label: "Settings" },
   { href: "/billing", label: "Billing" },
 ];

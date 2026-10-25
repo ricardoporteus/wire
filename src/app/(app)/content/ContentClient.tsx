@@ -8,6 +8,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { writeThisIdea } from "../dashboard/actions";
+import { NewDocument } from "../write/NewDocument";
 
 type Idea = {
   id: string; title: string; format: string;
@@ -52,6 +53,15 @@ export function ContentClient({
       <span className="eyebrow">{brainName}</span>
       <h1 className="mt-4 text-h2 text-ink-green">Content</h1>
       <p className="mt-2 text-body-sm text-muted">Everything in flight — what to write next, what&apos;s in progress, and what&apos;s published.</p>
+
+      {/* New piece — the compose entry, lifted in from the old Write page */}
+      <section className="mt-8">
+        <h2 className="text-h4 text-ink-green">New piece</h2>
+        <p className="mt-1 text-body-sm text-muted">
+          Paste text, a URL, or an audio/video link. Mavrix diagnoses what it should become, grounded in your Brand Brain and keyword intelligence, before it writes a word.
+        </p>
+        <div className="mt-4"><NewDocument /></div>
+      </section>
 
       {empty && (
         <p className="mt-10 text-muted">
