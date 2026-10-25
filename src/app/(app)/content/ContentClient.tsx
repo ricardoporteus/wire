@@ -53,6 +53,9 @@ export function ContentClient({
       <span className="eyebrow">{brainName}</span>
       <h1 className="mt-4 text-h2 text-ink-green">Content</h1>
       <p className="mt-2 text-body-sm text-muted">Everything in flight — what to write next, what&apos;s in progress, and what&apos;s published.</p>
+      <a href="/content/library" className="mt-3 inline-block text-caption font-semibold text-accent-strong">
+        Library — exports &amp; repurpose packs →
+      </a>
 
       {/* New piece — the compose entry, lifted in from the old Write page */}
       <section className="mt-8">
