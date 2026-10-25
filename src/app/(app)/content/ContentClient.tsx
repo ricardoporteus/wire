@@ -67,7 +67,7 @@ export function ContentClient({
           <p className="mt-1 text-body-sm text-muted">
             {recommended.length} piece{recommended.length === 1 ? "" : "s"}, ranked by opportunity.
           </p>
-          <div className="mt-5 grid gap-3">
+          <div className="mt-5 flex flex-col gap-3">
             {recommended.map((i) => (
               <div key={i.id} className="card flex items-start justify-between gap-4">
                 <div className="min-w-0">
@@ -101,13 +101,13 @@ export function ContentClient({
         <section className="mt-12">
           <h2 className="text-h4 text-ink-green">Drafts</h2>
           <p className="mt-1 text-body-sm text-muted">{drafts.length} in progress.</p>
-          <div className="mt-5 grid gap-3">
+          <div className="mt-5 flex flex-col gap-3">
             {drafts.map((d) => (
               <a key={d.id} href={`/write/${d.id}`} className="card flex items-center justify-between gap-4 transition-colors hover:border-accent-strong/40">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="badge badge--draft">{STATUS_LABEL[d.status] ?? d.status}</span>
-                    <h3 className="truncate text-h5 text-ink-green">{d.title}</h3>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="badge badge--draft flex-none">{STATUS_LABEL[d.status] ?? d.status}</span>
+                    <h3 className="min-w-0 truncate text-h5 text-ink-green">{d.title}</h3>
                   </div>
                   <p className="mt-1 text-micro text-muted">Updated {fmtDate(d.updatedAt)}</p>
                 </div>
@@ -123,13 +123,13 @@ export function ContentClient({
         <section className="mt-12">
           <h2 className="text-h4 text-ink-green">Published</h2>
           <p className="mt-1 text-body-sm text-muted">{published.length} finished piece{published.length === 1 ? "" : "s"}.</p>
-          <div className="mt-5 grid gap-3">
+          <div className="mt-5 flex flex-col gap-3">
             {published.map((d) => (
               <a key={d.id} href={`/write/${d.id}`} className="card flex items-center justify-between gap-4 transition-colors hover:border-accent-strong/40">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="badge badge--published">Published</span>
-                    <h3 className="truncate text-h5 text-ink-green">{d.title}</h3>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="badge badge--published flex-none">Published</span>
+                    <h3 className="min-w-0 truncate text-h5 text-ink-green">{d.title}</h3>
                   </div>
                   <p className="mt-1 text-micro text-muted">Updated {fmtDate(d.updatedAt)}</p>
                 </div>

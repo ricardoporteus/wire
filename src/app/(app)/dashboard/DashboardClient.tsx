@@ -197,7 +197,7 @@ export function DashboardClient({
                   <span className={`badge ${PRIORITY_BADGE(i.priority)} mt-0.5 flex-none`}>P{i.priority}</span>
                   <div className="min-w-0 flex-1">
                     <p className="line-clamp-2 text-body-sm font-semibold text-ink-green">{i.title}</p>
-                    <p className="mt-1 text-micro text-muted">
+                    <p className="mt-1 line-clamp-3 text-micro text-muted">
                       {i.format.replaceAll("_", " ")}{i.whyNow ? ` · ${i.whyNow}` : ""}
                     </p>
                   </div>
