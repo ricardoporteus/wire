@@ -80,9 +80,8 @@ function CoverageRing({ pct }: { pct: number }) {
 }
 
 export function DashboardClient({
-  brainName, runId, runStatus, runStartedAt, keywords, ideas, competitorIntel, overview,
+  runId, runStatus, runStartedAt, keywords, ideas, competitorIntel, overview,
 }: {
-  brainName: string;
   runId: string | null;
   runStatus: string | null;
   runStartedAt: string | null;
@@ -137,13 +136,6 @@ export function DashboardClient({
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">
-      <div>
-        <span className="eyebrow">{brainName}</span>
-        <h1 className="mt-4 text-h2 text-ink-green">Dashboard</h1>
-        <p className="mt-2 text-body-sm text-muted">
-          Here&apos;s what&apos;s moving{freshness.nextSweepDays ? ` · next sweep in ${freshness.nextSweepDays} days` : ""}.
-        </p>
-      </div>
 
       {rerunErr === "insufficient_credits"
         ? <UpgradeNotice className="mt-4" />

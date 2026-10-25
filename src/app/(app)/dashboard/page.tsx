@@ -144,7 +144,6 @@ export default async function DashboardPage() {
 
   return (
     <DashboardClient
-      brainName={brain.name}
       runId={run?.id ?? null}
       runStatus={run?.status ?? null}
       runStartedAt={run?.startedAt ? run.startedAt.toISOString() : null}
