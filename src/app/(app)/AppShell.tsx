@@ -12,6 +12,7 @@ import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/content", label: "Content" },
   { href: "/audit", label: "Audit" },
   { href: "/keywords", label: "Keywords" },
   { href: "/write", label: "Write" },

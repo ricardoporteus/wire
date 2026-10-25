@@ -230,7 +230,7 @@ export function DashboardClient({
             </ul>
           )}
           {freshIdeas.length > topIdeas.length && (
-            <a href="#queue" className="mt-4 pt-1 text-caption font-semibold text-accent-strong">
+            <a href="/content" className="mt-4 pt-1 text-caption font-semibold text-accent-strong">
               See all {freshIdeas.length} ideas →
             </a>
           )}
@@ -382,51 +382,6 @@ export function DashboardClient({
         </div>
 
       </div>
-
-      {/* Ranked ideas queue — the handoff to the writer */}
-      {freshIdeas.length > 0 && (
-        <section id="queue" className="mt-12 scroll-mt-6">
-          <h2 className="text-h4 text-ink-green">Recommended this month</h2>
-          <p className="mt-1 text-body-sm text-muted">{freshIdeas.length} pieces, ranked by opportunity.</p>
-          <div className="mt-5 grid gap-3">
-            {freshIdeas.map((i) => (
-              <div key={i.id} className="card flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`badge ${PRIORITY_BADGE(i.priority)}`}>P{i.priority}</span>
-                    <h3 className="text-h5 text-ink-green">{i.title}</h3>
-                  </div>
-                  <p className="mt-2 text-caption text-muted">
-                    <span className="badge badge--draft mr-2">{i.format.replaceAll("_", " ")}</span>
-                    {i.whyNow}
-                  </p>
-                  {i.targetAeoQuestion && (
-                    <p className="mt-1 text-micro text-muted">Answers: “{i.targetAeoQuestion}”</p>
-                  )}
-                </div>
-                {/* Three states: not started, in flight, done. The last two link
-                    straight back to the draft so leaving the page never loses it. */}
-                {i.doc === null ? (
-                  <button className="btn-accent flex-none" disabled={writing} onClick={() => write(i.id)}>
-                    {writing ? "Opening…" : "Write this"}
-                  </button>
-                ) : i.doc.done ? (
-                  <a
-                    href={`/write/${i.doc.id}`}
-                    className="flex-none rounded-pill bg-positive px-6 py-3.5 font-display text-[15px] font-semibold text-ink-green"
-                  >
-                    Completed
-                  </a>
-                ) : (
-                  <a href={`/write/${i.doc.id}`} className="btn-ghost flex-none whitespace-nowrap">
-                    In progress →
-                  </a>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Keyword intelligence with intent tabs */}
       {keywords.length > 0 && (
