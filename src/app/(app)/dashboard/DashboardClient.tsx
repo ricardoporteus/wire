@@ -189,7 +189,7 @@ export function DashboardClient({
       <div className="mt-8 grid items-start gap-4 md:grid-cols-2">
 
         {/* LEFT column: Next to write · Content performance · Answer-box wins */}
-        <div className="grid gap-4">
+        <div className="grid min-w-0 gap-4">
 
         {/* Next to write (hero) */}
         <section className="btile flex flex-col">
@@ -267,7 +267,7 @@ export function DashboardClient({
         </div>
 
         {/* RIGHT column: In progress · Credits · Research engine · P1 coverage */}
-        <div className="grid gap-4">
+        <div className="grid min-w-0 gap-4">
 
         {/* In progress + fact-check review */}
         <section className="btile">
