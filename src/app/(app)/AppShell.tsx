@@ -11,7 +11,7 @@ import { usePathname } from "next/navigation";
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 
 const NAV: { href: string; label: string; who?: string }[] = [
-  { href: "/dashboard", label: "Home" },
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/audit", label: "Research", who: "Scout · Ada" },
   { href: "/write", label: "Write", who: "Quill" },
   { href: "/content", label: "Content", who: "Quill · Iris" },

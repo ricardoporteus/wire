@@ -139,7 +139,7 @@ export function DashboardClient({
     <main className="mx-auto max-w-6xl px-6 py-12">
       <div>
         <span className="eyebrow">{brainName}</span>
-        <h1 className="mt-4 text-h2 text-ink-green">Home</h1>
+        <h1 className="mt-4 text-h2 text-ink-green">Dashboard</h1>
         <p className="mt-2 text-body-sm text-muted">
           Here&apos;s what&apos;s moving{freshness.nextSweepDays ? ` · next sweep in ${freshness.nextSweepDays} days` : ""}.
         </p>
@@ -267,7 +267,7 @@ export function DashboardClient({
           {inProgress.length === 0 ? (
             <p className="mt-3 text-body-sm text-muted">No drafts in flight. Start one from an idea.</p>
           ) : (
-            <ul className="mt-3 grid gap-2">
+            <ul className="mt-3 flex flex-col gap-2">
               {inProgress.map((d) => (
                 <li key={d.id} className="flex items-center gap-2 text-body-sm">
                   <span className="badge badge--draft flex-none">{STATUS_LABEL[d.status] ?? d.status}</span>
