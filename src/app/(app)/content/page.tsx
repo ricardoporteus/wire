@@ -47,5 +47,14 @@ export default async function ContentPage() {
       return a.rank - b.rank;
     });
 
-  return <ContentClient brainName={brain.name} ideas={decorated} />;
+  // Your actual pieces, newest first (docs are already ordered by updatedAt).
+  const IN_FLIGHT = new Set(["diagnosing", "awaiting_confirm", "generating", "draft"]);
+  const toDoc = (d: (typeof docs)[number]) => ({
+    id: d.id, title: d.title ?? "Untitled draft", status: d.status,
+    updatedAt: d.updatedAt ? d.updatedAt.toISOString() : null,
+  });
+  const drafts = docs.filter((d) => IN_FLIGHT.has(d.status)).map(toDoc);
+  const published = docs.filter((d) => d.status === "final").map(toDoc);
+
+  return <ContentClient brainName={brain.name} ideas={decorated} drafts={drafts} published={published} />;
 }
