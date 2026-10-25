@@ -21,6 +21,7 @@ import {
 } from "@/lib/seo-labels";
 import { RerunButton } from "./RerunButton";
 import { ResearchKeywords } from "./ResearchKeywords";
+import { RunHistory } from "./RunHistory";
 
 export default async function AuditPage({
   searchParams,
@@ -192,45 +193,15 @@ export default async function AuditPage({
 
       {/* ---- Run history --------------------------------------------------- */}
       <Section title="Run history" count={runs.length}>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-body-sm">
-            <thead>
-              <tr className="border-b border-line text-caption uppercase tracking-wide text-muted">
-                <th className="py-2 pr-4 text-left font-medium">Date</th>
-                <th className="py-2 pr-4 text-left font-medium">Trigger</th>
-                <th className="py-2 pr-4 text-left font-medium">Status</th>
-                <th className="py-2 pr-4 text-left font-medium">Duration</th>
-                <th className="py-2 text-left font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {runs.map((r) => {
-                const isSelected = r.id === selected.id;
-                return (
-                  <tr key={r.id} className={`border-b border-line ${isSelected ? "bg-accent-tint" : ""}`}>
-                    <td className="py-2.5 pr-4 text-ink-green">{formatDateTime(r.createdAt)}</td>
-                    <td className="py-2.5 pr-4 text-muted">{TRIGGER_LABEL[r.trigger] ?? r.trigger}</td>
-                    <td className="py-2.5 pr-4">
-                      <span className={`badge ${RUN_STATUS_BADGE(r.status)}`}>
-                        {RUN_STATUS_LABEL[r.status] ?? r.status}
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-4 text-muted">{formatDuration(r.startedAt, r.completedAt)}</td>
-                    <td className="py-2.5 text-right">
-                      {isSelected ? (
-                        <span className="text-caption text-muted">Viewing</span>
-                      ) : (
-                        <Link href={`/audit?run=${r.id}`} className="text-caption text-accent-ink hover:underline">
-                          View report
-                        </Link>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <RunHistory
+          runs={runs.map((r) => ({
+            id: r.id, trigger: r.trigger, status: r.status,
+            createdAt: r.createdAt.toISOString(),
+            startedAt: r.startedAt ? r.startedAt.toISOString() : null,
+            completedAt: r.completedAt ? r.completedAt.toISOString() : null,
+          }))}
+          selectedId={selected.id}
+        />
       </Section>
     </main>
   );

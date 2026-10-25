@@ -7,6 +7,7 @@
  */
 import { useState } from "react";
 import { INTENT_LABEL, PRIORITY_BADGE, formatVolume, formatDifficulty } from "@/lib/seo-labels";
+import { usePaging, PagerBar } from "@/components/Pager";
 
 export type Kw = {
   id: string; phrase: string; intent: string; priority: number;
@@ -65,6 +66,8 @@ export function ResearchKeywords({ keywords }: { keywords: Kw[] }) {
   const available = INTENTS.filter((it) => keywords.some((k) => k.intent === it.key));
   const [tab, setTab] = useState<string>(available[0]?.key ?? "high_intent");
   const rows = keywords.filter((k) => k.intent === tab);
+  const { page, setPage, pageSize, setPageSize, pageCount, from, to } = usePaging(rows.length, tab);
+  const pageRows = rows.slice(from, to);
 
   if (keywords.length === 0) {
     return <p className="text-body-sm text-muted">No keywords were saved for this run.</p>;
@@ -90,7 +93,7 @@ export function ResearchKeywords({ keywords }: { keywords: Kw[] }) {
       </div>
 
       {tab === "aeo_question" ? (
-        <AeoView rows={rows} />
+        <AeoView rows={pageRows} />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-body-sm">
@@ -105,7 +108,7 @@ export function ResearchKeywords({ keywords }: { keywords: Kw[] }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((k) => (
+              {pageRows.map((k) => (
                 <tr key={k.id} className="border-b border-line align-top">
                   <td className="py-2.5 pr-4 font-medium text-ink-green">
                     {k.phrase}
@@ -129,6 +132,7 @@ export function ResearchKeywords({ keywords }: { keywords: Kw[] }) {
           </table>
         </div>
       )}
+      <PagerBar page={page} count={pageCount} onPage={setPage} pageSize={pageSize} onPageSize={setPageSize} />
     </div>
   );
 }

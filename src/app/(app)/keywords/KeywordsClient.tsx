@@ -9,6 +9,7 @@
  */
 import { useMemo, useState } from "react";
 import { INTENTS, INTENT_LABEL, PRIORITY_BADGE, formatDateTime, formatDifficulty, formatVolume } from "@/lib/seo-labels";
+import { usePaging, PagerBar } from "@/components/Pager";
 
 type Keyword = {
   id: string;
@@ -52,6 +53,9 @@ export function KeywordsClient({ brandName, keywords }: { brandName: string; key
       return true;
     });
   }, [keywords, intent, priority, query]);
+
+  const { page, setPage, pageSize, setPageSize, pageCount, from, to } = usePaging(shown.length, `${intent}|${priority}|${query}`);
+  const pageRows = shown.slice(from, to);
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">
@@ -135,7 +139,7 @@ export function KeywordsClient({ brandName, keywords }: { brandName: string; key
                 </tr>
               </thead>
               <tbody>
-                {shown.map((k) => (
+                {pageRows.map((k) => (
                   <tr key={k.id} className={`border-b border-line align-top ${k.active ? "" : "opacity-55"}`}>
                     <td className="py-2.5 pr-4 font-medium text-ink-green">
                       {k.phrase}
@@ -162,6 +166,8 @@ export function KeywordsClient({ brandName, keywords }: { brandName: string; key
               <p className="py-6 text-center text-body-sm text-muted">No keywords match those filters.</p>
             )}
           </div>
+
+          <PagerBar page={page} count={pageCount} onPage={setPage} pageSize={pageSize} onPageSize={setPageSize} />
         </>
       )}
     </main>
