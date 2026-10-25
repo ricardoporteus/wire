@@ -234,7 +234,7 @@ export function DashboardClient({
           <p className="mt-3 text-body-sm text-muted">
             Clicks, impressions and average position for the pages Mavrix publishes.
           </p>
-          <a href="/settings" className="mt-3 inline-block text-caption font-semibold text-accent-strong">
+          <a href="/performance" className="mt-3 inline-block text-caption font-semibold text-accent-strong">
             Connect Search Console →
           </a>
         </section>
@@ -248,7 +248,7 @@ export function DashboardClient({
           <p className="mt-3 text-body-sm text-muted">
             Featured snippets and AI-answer citations your published pieces earn.
           </p>
-          <a href="/settings" className="mt-3 inline-block text-caption font-semibold text-accent-strong">
+          <a href="/performance" className="mt-3 inline-block text-caption font-semibold text-accent-strong">
             Connect Search Console →
           </a>
         </section>

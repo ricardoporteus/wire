@@ -1,9 +1,13 @@
 "use client";
 
+/**
+ * Brand — Iris's knowledge base (the Brand Brain). Promoted out of Settings
+ * into its own area: company & ICP, voice, values, approved facts and formats.
+ * This is what both agents read at runtime.
+ */
 import { useRef, useState, useTransition } from "react";
-import { OrganizationProfile } from "@clerk/nextjs";
 import { savePartial } from "../onboarding/actions";
-import { requestFactsRefresh, getApprovedFacts } from "./actions";
+import { requestFactsRefresh, getApprovedFacts } from "../settings/actions";
 import { CompanyIcpStep } from "../onboarding/steps/CompanyIcpStep";
 import { CompetitorsStep } from "../onboarding/steps/CompetitorsStep";
 import { VoiceStep } from "../onboarding/steps/VoiceStep";
@@ -19,14 +23,13 @@ const SECTIONS = [
   { title: "Formats", Step: FormatsStep },
 ] as const;
 
-export function SettingsClient({
+export function BrandClient({
   brainId, brainName, initialDraft,
 }: {
   brainId: string;
   brainName: string;
   initialDraft: WizardDraft;
 }) {
-  const [tab, setTab] = useState<"brain" | "team">("brain");
   const [draft, setDraft] = useState<WizardDraft>(initialDraft);
   const [saved, setSaved] = useState(false);
   const [pending, start] = useTransition();
@@ -53,7 +56,6 @@ export function SettingsClient({
     }
     const startedAt = Date.now();
     pollRef.current = setInterval(async () => {
-      // Give up after 4 minutes rather than poll forever.
       if (Date.now() - startedAt > 240_000) {
         if (pollRef.current) clearInterval(pollRef.current);
         setRefreshing(false);
@@ -89,60 +91,45 @@ export function SettingsClient({
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
-      <span className="eyebrow">{brainName}</span>
-      <h1 className="mt-4 text-h2 text-ink-green">Settings</h1>
+      <span className="eyebrow">Brand Brain · Iris</span>
+      <h1 className="mt-4 text-h2 text-ink-green">Brand</h1>
+      <p className="mt-2 text-body-sm text-muted">
+        {brainName}&apos;s knowledge base. This is what both agents read at runtime — edits apply to the next research run and every new piece.
+      </p>
 
-      <div className="mt-6 flex gap-1" role="tablist">
-        <button role="tab" aria-selected={tab === "brain"} className="tab" onClick={() => setTab("brain")}>Brand Brain</button>
-        <button role="tab" aria-selected={tab === "team"} className="tab" onClick={() => setTab("team")}>Team</button>
-      </div>
-
-      {tab === "brain" && (
-        <div className="mt-8 grid gap-12 pb-24">
-          <p className="text-body-sm text-muted">
-            This is what both agents read at runtime. Edits apply to the next intelligence run and every new piece.
-          </p>
-
-          <section className="card">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="max-w-xl">
-                <h2 className="text-h4 text-ink-green">Approved facts</h2>
-                <p className="mt-1 text-body-sm text-muted">
-                  The writer may only state specifics — prices, program names, ages, awards — that appear in this list.
-                  Refresh it to pull the current figures straight from your live site so nothing goes out of date.
-                </p>
-              </div>
-              <button className="btn-primary shrink-0" disabled={refreshing} onClick={refreshFacts}>
-                {refreshing ? "Refreshing…" : "Refresh facts from live site"}
-              </button>
+      <div className="mt-8 grid gap-12 pb-24">
+        <section className="card">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-xl">
+              <h2 className="text-h4 text-ink-green">Approved facts</h2>
+              <p className="mt-1 text-body-sm text-muted">
+                The writer may only state specifics — prices, program names, ages, awards — that appear in this list.
+                Refresh it to pull the current figures straight from your live site so nothing goes out of date.
+              </p>
             </div>
-            {refreshMsg && (
-              <p className="mt-3 text-caption text-ink">{refreshMsg}</p>
-            )}
+            <button className="btn-primary shrink-0" disabled={refreshing} onClick={refreshFacts}>
+              {refreshing ? "Refreshing…" : "Refresh facts from live site"}
+            </button>
+          </div>
+          {refreshMsg && <p className="mt-3 text-caption text-ink">{refreshMsg}</p>}
+        </section>
+
+        {SECTIONS.map(({ title, Step }) => (
+          <section key={title}>
+            <h2 className="mb-4 text-h4 text-ink-green">{title}</h2>
+            <Step draft={draft} patch={patch} />
           </section>
+        ))}
 
-          {SECTIONS.map(({ title, Step }) => (
-            <section key={title}>
-              <h2 className="mb-4 text-h4 text-ink-green">{title}</h2>
-              <Step draft={draft} patch={patch} />
-            </section>
-          ))}
-          <div className="fixed inset-x-0 bottom-0 border-t border-line bg-card/95 backdrop-blur">
-            <div className="mx-auto flex max-w-5xl items-center gap-3 px-6 py-3">
-              <button className="btn-accent" disabled={pending} onClick={save}>
-                {pending ? "Saving…" : saved ? "Saved ✓" : "Save changes"}
-              </button>
-              <span className="text-micro text-muted">The Boundless skills prove this schema — every field is per-brand config.</span>
-            </div>
+        <div className="fixed inset-x-0 bottom-0 border-t border-line bg-card/95 backdrop-blur">
+          <div className="mx-auto flex max-w-5xl items-center gap-3 px-6 py-3">
+            <button className="btn-accent" disabled={pending} onClick={save}>
+              {pending ? "Saving…" : saved ? "Saved ✓" : "Save changes"}
+            </button>
+            <span className="text-micro text-muted">Edits apply to the next run and every new piece.</span>
           </div>
         </div>
-      )}
-
-      {tab === "team" && (
-        <div className="mt-8">
-          <OrganizationProfile routing="hash" />
-        </div>
-      )}
+      </div>
     </main>
   );
 }
