@@ -52,10 +52,7 @@ export function ContentClient({
       <span className="eyebrow">{brainName}</span>
       <h1 className="mt-4 text-h2 text-ink-green">Content</h1>
       <p className="mt-2 text-body-sm text-muted">Everything in flight — what to write next, what&apos;s in progress, and what&apos;s published.</p>
-      <div className="mt-3 flex flex-wrap gap-4">
-        <a href="/write" className="text-caption font-semibold text-accent-strong">New piece →</a>
-        <a href="/content/library" className="text-caption font-semibold text-accent-strong">Library — exports &amp; repurpose packs →</a>
-      </div>
+      <a href="/write" className="mt-3 inline-block text-caption font-semibold text-accent-strong">New piece →</a>
 
       {empty && (
         <p className="mt-10 text-muted">
@@ -94,6 +91,10 @@ export function ContentClient({
           </div>
         </section>
       )}
+
+      <a href="/content/library" className="mt-6 inline-block text-caption font-semibold text-accent-strong">
+        Library — exports &amp; repurpose packs →
+      </a>
 
       {/* Drafts */}
       {drafts.length > 0 && (
