@@ -19,6 +19,13 @@ const AG_GLOW: Record<SpecialistId, string> = {
   scout: "rgba(169,219,255,.7)", ada: "rgba(219,254,122,.7)", iris: "rgba(240,185,72,.7)", quill: "rgba(120,230,160,.7)",
 };
 
+// Blocks revealed one at a time, in order. Each maps to a rail stage for the glow.
+const BLOCKS = ["site", "brand", "keywords", "pageone", "audit"] as const;
+type BlockId = (typeof BLOCKS)[number];
+const BLOCK_STAGE: Record<BlockId, string> = { site: "scraping", brand: "drafting", keywords: "measuring", pageone: "pageone", audit: "audit" };
+const DWELL: Record<BlockId, number> = { site: 1600, brand: 2400, keywords: 3000, pageone: 2400, audit: 3000 };
+const ROW_STAGGER = 340; // ms between each Ada keyword row revealing (text types in as it lands)
+
 function setDemoCookie(token: string) {
   try {
     const dom = /(^|\.)mavrix\.agency$/i.test(location.hostname) ? "; domain=.mavrix.agency" : "";
@@ -28,19 +35,22 @@ function setDemoCookie(token: string) {
 }
 
 export function LiveScanModal({ url, onClose }: { url: string; onClose: () => void }) {
-  const [stage, setStage] = useState<string>("scraping");
   const [fields, setFields] = useState<[string, string][]>([]);
   const [keywords, setKeywords] = useState<DemoKeyword[]>([]);
   const [pageOne, setPageOne] = useState<DemoPageOne[]>([]);
   const [brand, setBrand] = useState<DemoBrand | null>(null);
   const [briefs, setBriefs] = useState<DemoBrief[]>([]);
+  const [siteRead, setSiteRead] = useState<{ pages: number; preview: string } | null>(null);
   const [counts, setCounts] = useState({ measured: 0, kept: 0, briefs: 0 });
   const [token, setToken] = useState<string | null>(null);
   const [finished, setFinished] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
-  const [log, setLog] = useState<string[]>([]);
-  const [shown, setShown] = useState<string[]>([]);
+
+  // Sequential reveal: which block's shell is visible, and which have filled.
+  const [activeBlock, setActiveBlock] = useState<BlockId | null>(null);
+  const [shown, setShown] = useState<BlockId[]>([]);
+  const [filled, setFilled] = useState<BlockId[]>([]);
 
   const [gateOpen, setGateOpen] = useState(false);
   const [gatePassed, setGatePassed] = useState(false);
@@ -54,26 +64,70 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
   const tokenRef = useRef<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
 
-  // Reveal each block's shell on a fast fixed schedule so sections appear
-  // staggered and early (with a "working" state), then fill as data arrives.
-  useEffect(() => {
-    const schedule: [number, string][] = [[1400, "brand"], [4400, "keywords"], [7600, "pageone"], [10800, "audit"]];
-    const timers = schedule.map(([ms, id]) => window.setTimeout(() => setShown((s) => (s.includes(id) ? s : [...s, id])), ms));
-    return () => timers.forEach(clearTimeout);
-  }, []);
-  // Open the email gate only once the brand audit block is revealed and filled.
-  useEffect(() => {
-    if (gateOpen || gatePassed || error) return;
-    if (shown.includes("audit") && brand) {
-      const t = window.setTimeout(() => setGateOpen(true), 3500);
-      return () => clearTimeout(t);
+  // Refs mirror the data so the sequential driver reads fresh values.
+  const r = {
+    site: useRef(false), fields: useRef(0), keywords: useRef(0), pageOne: useRef(0), brand: useRef(false),
+    finished: useRef(false), error: useRef(false),
+  };
+  useEffect(() => { r.site.current = siteRead != null; }, [siteRead]);
+  useEffect(() => { r.fields.current = fields.length; }, [fields]);
+  useEffect(() => { r.keywords.current = keywords.length; }, [keywords]);
+  useEffect(() => { r.pageOne.current = pageOne.length; }, [pageOne]);
+  useEffect(() => { r.brand.current = brand != null; }, [brand]);
+  useEffect(() => { r.finished.current = finished; }, [finished]);
+  useEffect(() => { r.error.current = error != null; }, [error]);
+
+  const scrollDown = () => { const el = feedRef.current; if (el) el.scrollTop = el.scrollHeight; };
+  useEffect(() => { scrollDown(); }, [shown, filled, gatePassed, briefs]);
+
+  function ready(id: BlockId): boolean {
+    switch (id) {
+      case "site": return r.site.current;
+      case "brand": return r.fields.current > 0;
+      case "keywords": return r.keywords.current > 0;
+      case "pageone": return r.pageOne.current > 0;
+      case "audit": return r.brand.current;
     }
-  }, [shown, brand, gateOpen, gatePassed, error]);
-  // Keep the newest section in view as it appears.
+  }
+
+  // The sequential driver: reveal a block, wait for its data, fill it, dwell, next.
   useEffect(() => {
-    const el = feedRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [log, shown, fields, keywords, pageOne, brand, briefs, gatePassed]);
+    let cancelled = false;
+    const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+    (async () => {
+      for (const id of BLOCKS) {
+        if (cancelled || r.error.current) return;
+        setActiveBlock(id);
+        setShown((s) => (s.includes(id) ? s : [...s, id]));
+        const t0 = Date.now();
+        // wait for this block's data (or give up if the scan ends without it)
+        while (!cancelled && !ready(id)) {
+          if (r.error.current) return;
+          if (r.finished.current) break;
+          if (Date.now() - t0 > 30000) break;
+          await sleep(140);
+        }
+        if (cancelled || r.error.current) return;
+        if (!ready(id)) { setShown((s) => s.filter((x) => x !== id)); continue; } // no data → skip (e.g. page one)
+        const workedFor = Date.now() - t0;
+        if (workedFor < 900) await sleep(900 - workedFor); // let the "working" state read
+        if (cancelled) return;
+        setFilled((f) => (f.includes(id) ? f : [...f, id]));
+        // keywords reveal row-by-row — hold until the cascade finishes, then dwell
+        const dwell = id === "keywords" ? Math.min(r.keywords.current, 16) * ROW_STAGGER + 1200 : DWELL[id];
+        await sleep(dwell);
+      }
+      if (cancelled || r.error.current) return;
+      setActiveBlock(null);
+      await sleep(500);
+      scrollDown();
+      if (!cancelled) setGateOpen(true);
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // timer
   useEffect(() => {
@@ -131,12 +185,7 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
   function handle(ev: DemoEvent) {
     switch (ev.t) {
       case "token": setToken(ev.token); tokenRef.current = ev.token; break;
-      case "stage": {
-        setStage(ev.stage);
-        const m = ev.message;
-        if (m) setLog((l) => (l[l.length - 1] === m ? l : [...l, m]));
-        break;
-      }
+      case "siteRead": setSiteRead({ pages: ev.pages, preview: ev.preview }); break;
       case "brandField": { const label = ev.label, value = ev.value; setFields((f) => (f.some(([l]) => l === label) ? f : [...f, [label, value]])); break; }
       case "keyword": setKeywords((k) => [...k, ev.row]); break;
       case "pageone": setPageOne((p) => [...p, ev.card]); break;
@@ -173,10 +222,11 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
     window.location.href = tk ? `/onboarding?demo=${encodeURIComponent(tk)}` : "/dashboard";
   }
 
-  const stageIdx = finished && !error ? STAGES.length : STAGES.findIndex((s) => s.key === stage);
-  const activeAg = stageIdx >= 0 && stageIdx < STAGES.length ? STAGES[stageIdx].ag : null;
-  const showPlan = gatePassed && (briefs.length > 0 || finished);
-  const showPromo = showPlan && finished && !error;
+  // Rail progress follows the active block (or everything done once gated).
+  const doneCount = (gateOpen || gatePassed) ? STAGES.length : (activeBlock ? STAGES.findIndex((s) => s.key === BLOCK_STAGE[activeBlock]) : 0);
+  const activeAg = activeBlock ? STAGES.find((s) => s.key === BLOCK_STAGE[activeBlock])?.ag ?? null : null;
+  const showPlan = gatePassed;
+  const showPromo = gatePassed && finished && !error;
 
   return (
     <div className="ls-scrim" role="dialog" aria-modal="true" aria-label="Live scan">
@@ -199,10 +249,10 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
             </div>
             <div className="ls-stages">
               {STAGES.map((s, i) => {
-                const state = i < stageIdx ? "done" : i === stageIdx ? "active" : "";
+                const state = i < doneCount ? "done" : (activeBlock && s.key === BLOCK_STAGE[activeBlock]) ? "active" : "";
                 return (
                   <div key={s.key} className={`ls-stg ${state}`}>
-                    <span className="ic">{i < stageIdx ? "✓" : i + 1}</span>{s.label}
+                    <span className="ic">{i < doneCount ? "✓" : i + 1}</span>{s.label}
                   </div>
                 );
               })}
@@ -216,14 +266,7 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
 
           <div className="ls-feed" ref={feedRef}>
             {shown.length === 0 && !error && (
-              <div className="ls-panel in">
-                <div className="ls-card ls-activity">
-                  {log.length === 0 && <div className="ls-actln cur"><span className="d" /> Starting your scan…</div>}
-                  {log.map((l, i) => (
-                    <div key={i} className={`ls-actln${i === log.length - 1 ? " cur" : ""}`}><span className="d" /> {l}</div>
-                  ))}
-                </div>
-              </div>
+              <div className="ls-panel in"><div className="ls-card"><Working label="Starting your scan" /></div></div>
             )}
             {error && (
               <div className="ls-err">
@@ -235,11 +278,25 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
               </div>
             )}
 
+            {shown.includes("site") && !error && (
+              <div className="ls-panel in">
+                <div className="ls-phead"><b>Scout</b> · reading {safeHost(url)}</div>
+                <div className="ls-card">
+                  {filled.includes("site") && siteRead ? (
+                    <div className="ls-bbrain">
+                      <div className="ls-fld"><div className="l">Pages read</div><div className="v">{siteRead.pages} page{siteRead.pages === 1 ? "" : "s"} scanned</div></div>
+                      {siteRead.preview && <div className="ls-fld"><div className="l">On the page</div><div className="v"><Typewriter text={siteRead.preview + "…"} cps={120} /></div></div>}
+                    </div>
+                  ) : <Working label="Fetching your homepage" />}
+                </div>
+              </div>
+            )}
+
             {shown.includes("brand") && !error && (
               <div className="ls-panel in">
                 <div className="ls-phead"><b>Scout</b> · learning your brand</div>
                 <div className="ls-card">
-                  {fields.length > 0 ? (
+                  {filled.includes("brand") && fields.length > 0 ? (
                     <div className="ls-bbrain">
                       {fields.map(([l, v]) => (
                         <div key={l} className="ls-fld"><div className="l">{l}</div><div className="v"><Typewriter text={v} /></div></div>
@@ -254,30 +311,18 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
               <div className="ls-panel in">
                 <div className="ls-phead"><b>Ada</b> · measuring real demand</div>
                 <div className="ls-card">
-                  {keywords.length > 0 ? (
-                    <table className="ls-tbl">
-                      <thead><tr><th>Keyword</th><th>Volume</th><th>KD</th><th>Priority</th></tr></thead>
-                      <tbody>
-                        {keywords.map((k) => (
-                          <tr key={k.phrase} className="in">
-                            <td className="kw"><Typewriter text={k.phrase} cps={90} /></td>
-                            <td>{k.volume != null ? `${k.volume.toLocaleString()}/mo` : "—"}</td>
-                            <td><span className="ls-kd"><span className="ls-trk"><i style={{ width: `${k.kd ?? 0}%`, background: kdColor(k.kd) }} /></span>{k.kd ?? "—"}</span></td>
-                            <td><span className={`ls-pz p${k.priority}`}>P{k.priority}</span></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  {filled.includes("keywords") && keywords.length > 0 ? (
+                    <KeywordRows rows={keywords} stagger={ROW_STAGGER} />
                   ) : <Working label="Measuring real search demand" />}
                 </div>
               </div>
             )}
 
-            {shown.includes("pageone") && !error && !(finished && pageOne.length === 0) && (
+            {shown.includes("pageone") && !error && (
               <div className="ls-panel in">
                 <div className="ls-phead"><b>Ada</b> · what Google&rsquo;s page one rewards</div>
                 <div className="ls-card">
-                  {pageOne.length > 0 ? (
+                  {filled.includes("pageone") && pageOne.length > 0 ? (
                     <div className="ls-p1grid">
                       {pageOne.map((c) => (
                         <div key={c.phrase} className="ls-poc">
@@ -299,7 +344,7 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
             {shown.includes("audit") && !error && (
               <div className="ls-panel in">
                 <div className="ls-card ls-audit">
-                  {brand ? (
+                  {filled.includes("audit") && brand ? (
                     <>
                       <div className="ah">Here&rsquo;s what Mavrix now knows about {brand.name}.</div>
                       <div className="asub">A full brand audit — the same detail that lives in your Settings. This is why every piece sounds like you and targets your real buyer.</div>
@@ -340,7 +385,7 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
               </div>
             )}
 
-            {showPlan && (
+            {showPlan && briefs.length > 0 && (
               <div className="ls-panel in">
                 <div className="ls-phead"><b>Quill</b> · your 30-day plan</div>
                 <div className="ls-card">
@@ -366,7 +411,7 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
           </div>
         </div>
 
-        {/* email gate — opens only after the brand audit block is shown */}
+        {/* email gate — opens only after every block has filled and the feed scrolled to the end */}
         {gateOpen && !gatePassed && (
           <div className="ls-overlay">
             <div className="ls-gatec">
@@ -406,6 +451,33 @@ export function LiveScanModal({ url, onClose }: { url: string; onClose: () => vo
 /** A pulsing "working" line shown in a block before its data arrives. */
 function Working({ label }: { label: string }) {
   return <div className="ls-working"><span className="d" /> {label}…</div>;
+}
+
+/** Ada's keyword table — rows cascade in one at a time, each phrase typing as it lands. */
+function KeywordRows({ rows, stagger = 340 }: { rows: DemoKeyword[]; stagger?: number }) {
+  const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const [n, setN] = useState(reduce ? rows.length : 1);
+  useEffect(() => {
+    if (reduce || n >= rows.length) return;
+    const id = window.setTimeout(() => setN((x) => Math.min(x + 1, rows.length)), stagger);
+    return () => clearTimeout(id);
+  }, [n, rows.length, stagger, reduce]);
+  return (
+    <table className="ls-tbl">
+      <thead><tr><th>Keyword</th><th>Volume</th><th>KD</th><th>Priority</th></tr></thead>
+      <tbody>
+        {rows.slice(0, n).map((k) => (
+          <tr key={k.phrase} className="in">
+            {/* same key across re-renders → only the newly revealed row mounts and types */}
+            <td className="kw"><Typewriter text={k.phrase} cps={90} /></td>
+            <td>{k.volume != null ? `${k.volume.toLocaleString()}/mo` : "—"}</td>
+            <td><span className="ls-kd"><span className="ls-trk"><i style={{ width: `${k.kd ?? 0}%`, background: kdColor(k.kd) }} /></span>{k.kd ?? "—"}</span></td>
+            <td><span className={`ls-pz p${k.priority}`}>P{k.priority}</span></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
 }
 
 /** Types `text` in once on mount (skips to full text under reduced motion). */

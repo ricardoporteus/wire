@@ -62,6 +62,7 @@ export type DemoScanResult = {
 export type DemoEvent =
   | { t: "token"; token: string }
   | { t: "stage"; stage: string; message?: string }
+  | { t: "siteRead"; pages: number; preview: string }
   | { t: "brandField"; label: string; value: string }
   | { t: "keyword"; row: DemoKeyword }
   | { t: "pageone"; card: DemoPageOne }

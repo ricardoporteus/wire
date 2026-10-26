@@ -78,6 +78,11 @@ export async function runDemoScan(
     if (pages.length === 0) {
       throw new Error("We can't preview enterprise sites here. Log in to try.");
     }
+    onProgress({
+      t: "siteRead",
+      pages: pages.length,
+      preview: (pages.find((p) => p.path === "/")?.text ?? pages[0]?.text ?? "").replace(/\s+/g, " ").slice(0, 170),
+    });
 
     /* 2. draft + measurement IN PARALLEL */
     onProgress({ t: "stage", stage: "drafting", message: "Learning your brand" });
@@ -189,6 +194,7 @@ export async function runDemoScan(
 function replay(result: DemoScanResult, token: string, onProgress: DemoProgress) {
   onProgress({ t: "token", token });
   onProgress({ t: "stage", stage: "scraping", message: `Reading ${result.domain}` });
+  onProgress({ t: "siteRead", pages: 1, preview: result.brand.whatTheyDo.slice(0, 170) });
   for (const [label, value] of brandFields(result.brand)) onProgress({ t: "brandField", label, value });
   onProgress({ t: "stage", stage: "measuring" });
   for (const row of result.keywords) onProgress({ t: "keyword", row });
