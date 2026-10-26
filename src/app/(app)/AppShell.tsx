@@ -12,13 +12,13 @@ import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 
 const NAV: { href: string; label: string; who?: string }[] = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/audit", label: "Research", who: "Scout · Ada" },
-  { href: "/write", label: "Write", who: "Quill" },
-  { href: "/content", label: "Content", who: "Quill · Iris" },
+  { href: "/audit", label: "Keyword Research", who: "Scout · Ada" },
+  { href: "/write", label: "Write / Convert", who: "Quill" },
+  { href: "/content", label: "Content Library", who: "Quill · Iris" },
   { href: "/performance", label: "Performance", who: "Ada" },
-  { href: "/brand", label: "Brand", who: "Iris" },
-  { href: "/settings", label: "Settings" },
-  { href: "/billing", label: "Billing" },
+  { href: "/brand", label: "Brand / ICP", who: "Iris" },
+  { href: "/settings", label: "Settings / Billing" },
+  { href: "/billing", label: "Plans" },
 ];
 
 export type TickerItem = { label: string; value: string };
