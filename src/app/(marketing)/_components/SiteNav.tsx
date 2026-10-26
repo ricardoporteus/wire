@@ -31,6 +31,7 @@ export function SiteNav({ active }: { active?: Product["id"] }) {
               </div>
             </div>
             <Link href="/how-it-works">How it works</Link>
+            <Link href="/resources">Resources</Link>
             <Link href="/#pricing">Pricing</Link>
           </div>
           <div className="right">
@@ -68,6 +69,7 @@ export function SiteNav({ active }: { active?: Product["id"] }) {
           </Link>
         ))}
         <Link href="/how-it-works" onClick={close}>How it works</Link>
+        <Link href="/resources" onClick={close}>Resources</Link>
         <Link href="/#pricing" onClick={close}>Pricing</Link>
         <Link href={APP} onClick={close}>Sign in</Link>
         <Link href={APP} className="mcta" onClick={close}>Start free</Link>
