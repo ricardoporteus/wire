@@ -18,7 +18,6 @@ const NAV: { href: string; label: string; who?: string }[] = [
   { href: "/performance", label: "Performance", who: "Ada" },
   { href: "/brand", label: "Brand / ICP", who: "Iris" },
   { href: "/settings", label: "Settings / Billing" },
-  { href: "/billing", label: "Plans" },
 ];
 
 export type TickerItem = { label: string; value: string };
@@ -53,7 +52,7 @@ export function AppShell({
         {/* duplicated once for a seamless marquee loop */}
         <div className="app-tickview"><div className="app-ticktrack">{ticks("a")}{ticks("b")}</div></div>
         {creditsBalance !== null && (
-          <Link href="/billing" className="app-credits tabular-nums" title="Credit balance">
+          <Link href="/settings" className="app-credits tabular-nums" title="Credit balance">
             {creditsBalance} credits
           </Link>
         )}

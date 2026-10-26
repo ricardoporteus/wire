@@ -282,7 +282,7 @@ export function DashboardClient({
         <section className="btile">
           <div className="flex items-center justify-between">
             <span className="btile-label">{ICON.coin} Credits</span>
-            <a href="/billing" className="text-caption font-semibold text-accent-strong">Top up →</a>
+            <a href="/settings" className="text-caption font-semibold text-accent-strong">Top up →</a>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-h3 tabular-nums text-ink-green">{credits.balance}</span>
