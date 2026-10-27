@@ -10,6 +10,8 @@ import type { CategorySlug } from "@/content/resources/types";
 const SLUGS = new Set(CATEGORIES.map((c) => c.slug));
 const isCategory = (s: string): s is CategorySlug => SLUGS.has(s as CategorySlug);
 
+export const revalidate = 3600;
+
 export function generateStaticParams() {
   return CATEGORIES.map((c) => ({ category: c.slug }));
 }

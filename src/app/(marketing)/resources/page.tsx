@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   },
 };
 
+// Re-render hourly so scheduled articles appear on their day without a deploy.
+export const revalidate = 3600;
+
 export default async function ResourcesHub() {
   const [featured, grid, ...railCards] = await Promise.all([
     getFeatured(),
@@ -49,7 +52,7 @@ export default async function ResourcesHub() {
       </header>
 
       <main className="wrap rh-main">
-        <FeaturePiece article={featured} />
+        {featured && <FeaturePiece article={featured} />}
 
         {/* Category rails — the three pillars with their latest pieces */}
         <section className="rh-rails" aria-label="Browse by category">

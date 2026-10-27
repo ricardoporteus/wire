@@ -61,6 +61,15 @@ export type Article = {
   datePublished: string; // ISO date
   dateModified: string; // ISO date
   readingMinutes: number;
+  /**
+   * Review gate. Omit both and the piece is live immediately (the original
+   * seed set). For the drip workflow, a converted article lands as "draft"
+   * (never public) until approved to "scheduled" with a future `publishAt`,
+   * at which point it goes public automatically once that date passes.
+   */
+  status?: "draft" | "scheduled";
+  publishAt?: string; // ISO date it goes live; defaults to datePublished
+
   /** True for the single hub feature piece. */
   featured?: boolean;
   /** True for a category's cornerstone piece that clusters link up to. */

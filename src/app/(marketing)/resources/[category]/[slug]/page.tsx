@@ -10,8 +10,13 @@ import type { CategorySlug } from "@/content/resources/types";
 const CATS = new Set<CategorySlug>(["ai-search", "seo", "content-gtm"]);
 const isCategory = (s: string): s is CategorySlug => CATS.has(s as CategorySlug);
 
+// Re-render hourly, and allow a scheduled slug (not prerendered at build because
+// it was still future-dated) to render on demand once its publishAt passes.
+export const revalidate = 3600;
+export const dynamicParams = true;
+
 export async function generateStaticParams() {
-  const all = await getAllArticles();
+  const all = await getAllArticles(); // live only — future/draft slugs render on demand later
   return all.map((a) => ({ category: a.category, slug: a.slug }));
 }
 
