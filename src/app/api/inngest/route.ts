@@ -5,6 +5,7 @@ import { runIntelligence, scheduleMonthlyRuns } from "@/jobs/intelligence-pipeli
 import { ingestSource, diagnoseDocument, generateDocument } from "@/jobs/content-writer-pipeline";
 import { repurposeDocument } from "@/jobs/repurposer";
 import { refreshBrandFactsJob, scheduleBrandFactsRefresh } from "@/jobs/brand-facts";
+import { finalizeBatchDoc } from "@/jobs/batch";
 
 // Each Inngest step runs inside one invocation of this route. Pinned rather
 // than left to the project default: the measured keyword research steps take
@@ -23,5 +24,6 @@ export const { GET, POST, PUT } = serve({
     repurposeDocument,
     refreshBrandFactsJob,
     scheduleBrandFactsRefresh,
+    finalizeBatchDoc,
   ],
 });

@@ -17,9 +17,9 @@
 import { inngest } from "@/lib/inngest";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
-import { brandBrains, sources, documents, keywords, contentIdeas, docEvents } from "@/db/schema";
+import { brandBrains, sources, documents, keywords, contentIdeas, docEvents, organizations } from "@/db/schema";
 import { brandBrainSchema, type BrandBrain } from "@/lib/brand-brain.zod";
-import { debitCredits, recordUsage, refundCredits } from "@/lib/credits";
+import { debitCredits, recordUsage, refundCredits, CREDIT_COSTS } from "@/lib/credits";
 import { transcribeMedia } from "@/lib/transcription";
 import { factCheck, stripClaims, STRIP_VERDICTS } from "@/jobs/fact-check";
 import { fence } from "@/lib/untrusted";
@@ -50,6 +50,19 @@ async function emitDoc(
     await db.insert(docEvents).values({ documentId, phase, kind, message, meta: meta ?? null });
   } catch {
     /* disposable feed — never fail a write because an event didn't persist */
+  }
+}
+
+/**
+ * Tell the bulk-write batch finalizer that a document reached a terminal state.
+ * No-op unless the document belongs to a batch (the handler loads batchId). Safe
+ * to call from anywhere a batch doc settles (success or failure).
+ */
+async function settleBatchDoc(documentId: string): Promise<void> {
+  try {
+    await inngest.send({ name: "wire/batch.doc.settled", data: { documentId } });
+  } catch {
+    /* the batch-state poll also finalizes, so a missed event self-heals */
   }
 }
 
@@ -215,15 +228,21 @@ export const diagnoseDocument = inngest.createFunction(
         await refundCredits({ orgId: data.orgId, brainId: d.brainId, reason: "diagnosis", refType: "document", refId: data.documentId })
           .catch(() => {});
       }
+      if (d.batchId) await settleBatchDoc(data.documentId);
     },
   },
   { event: "wire/document.diagnose.requested" },
   async ({ event, step }) => {
-    const { documentId, orgId } = event.data as { documentId: string; orgId: string };
+    // autoGenerate: bulk writer chains straight into generation with no manual
+    // confirm, so a batch of 10 writes end-to-end from one click.
+    const { documentId, orgId, autoGenerate = false } = event.data as {
+      documentId: string; orgId: string; autoGenerate?: boolean;
+    };
 
     const doc = await step.run("load-doc", () =>
       db.query.documents.findFirst({ where: eq(documents.id, documentId) }));
     if (!doc) return { ok: false };
+    const inBatch = !!doc.batchId;
 
     const brain = await loadBrain(doc.brainId);
     const source = doc.sourceId
@@ -249,6 +268,7 @@ export const diagnoseDocument = inngest.createFunction(
           await refundCredits({ orgId, brainId: doc.brainId, reason: "transcription", refType: "document", refId: documentId }).catch(() => {});
         }
       });
+      if (inBatch) await settleBatchDoc(documentId);
       return { ok: false, thin: true };
     }
 
@@ -309,6 +329,7 @@ export const diagnoseDocument = inngest.createFunction(
           await refundCredits({ orgId, brainId: doc.brainId, reason: "transcription", refType: "document", refId: documentId }).catch(() => {});
         }
       });
+      if (inBatch) await settleBatchDoc(documentId);
       return { ok: false, offTopic: true };
     }
 
@@ -333,6 +354,22 @@ export const diagnoseDocument = inngest.createFunction(
         updatedAt: new Date(),
       }).where(eq(documents.id, documentId));
     });
+
+    // Bulk writer: skip the manual confirm and go straight to generation. If the
+    // balance ran short mid-batch, mark this one failed so the batch can still
+    // complete (and its email fire) instead of hanging on awaiting_confirm.
+    if (autoGenerate) {
+      await step.run("auto-generate", async () => {
+        const fresh = await db.query.organizations.findFirst({ where: eq(organizations.id, orgId) });
+        if (fresh && fresh.creditsBalance >= CREDIT_COSTS.generation) {
+          await inngest.send({ name: "wire/document.generate.requested", data: { documentId, orgId } });
+        } else {
+          await db.update(documents).set({ status: "failed", updatedAt: new Date() }).where(eq(documents.id, documentId));
+          await emitDoc(documentId, "generate", "error", "Out of credits before this piece could be written.", { stage: "writing" });
+          if (inBatch) await settleBatchDoc(documentId);
+        }
+      });
+    }
 
     return { ok: true };
     // UI: the diagnosis card renders with [Write it] (GO) and the alternative
@@ -415,10 +452,14 @@ export const generateDocument = inngest.createFunction(
       if (!documentId) return;
       const d = await db.query.documents.findFirst({ where: eq(documents.id, documentId) });
       if (!d || d.status !== "generating") return;
+      // A batch piece with no draft yet is a terminal failure (so the batch can
+      // complete); a standalone piece reverts to a recoverable state as before.
+      const next = d.bodyMarkdown ? "draft" : d.batchId ? "failed" : "awaiting_confirm";
       await db.update(documents)
-        .set({ status: d.bodyMarkdown ? "draft" : "awaiting_confirm", updatedAt: new Date() })
+        .set({ status: next, updatedAt: new Date() })
         .where(eq(documents.id, documentId));
       await emitDoc(documentId, "generate", "error", "Generation didn't finish — please try writing again.");
+      if (d.batchId) await settleBatchDoc(documentId);
     },
   },
   { event: "wire/document.generate.requested" },
@@ -568,6 +609,8 @@ export const generateDocument = inngest.createFunction(
         // web-search) cost, which checked.costUsdMicros already carries.
         costUsdMicros: costMicros(gen.usage.input_tokens, gen.usage.output_tokens) + checked.costUsdMicros,
       }));
+
+    if (doc.batchId) await settleBatchDoc(documentId);
 
     return { ok: true, violations: violations.length };
   },

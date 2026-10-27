@@ -60,6 +60,8 @@ export const ledgerReason = pgEnum("ledger_reason", [
   "repurpose", "transcription", "top_up", "plan_grant", "adjustment",
 ]);
 
+export const batchStatus = pgEnum("batch_status", ["writing", "done", "failed"]);
+
 /* ------------------------------ organizations ----------------------------- */
 /** Mirror of the Clerk Organization — synced by webhook, never authored here. */
 export const organizations = pgTable("organizations", {
@@ -274,11 +276,32 @@ export const sources = pgTable("sources", {
 }, (t) => [index("sources_brain_idx").on(t.brainId)]);
 
 /* --------------------------------- documents ------------------------------ */
+/* ------------------------------ write batches ----------------------------- */
+/**
+ * A bulk-write run: one row groups the documents written together from the
+ * Content page's bulk writer. Used to show batch progress, fire one completion
+ * email, and bundle the finished pieces for download. Mavrix-admin feature.
+ */
+export const writeBatches = pgTable("write_batches", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  brainId: uuid("brain_id").notNull().references(() => brandBrains.id, { onDelete: "cascade" }),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  status: batchStatus("status").notNull().default("writing"),
+  total: integer("total").notNull().default(0),
+  notifyEmail: text("notify_email"),
+  notifiedAt: timestamp("notified_at", { withTimezone: true }),
+  createdByClerkUserId: varchar("created_by", { length: 64 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (t) => [index("write_batches_org_idx").on(t.orgId, t.createdAt)]);
+
 export const documents = pgTable("documents", {
   id: uuid("id").defaultRandom().primaryKey(),
   brainId: uuid("brain_id").notNull().references(() => brandBrains.id, { onDelete: "cascade" }),
   sourceId: uuid("source_id").references(() => sources.id, { onDelete: "set null" }),
   ideaId: uuid("idea_id").references(() => contentIdeas.id, { onDelete: "set null" }),
+  /** Set when the piece was created by the bulk writer; groups a batch. */
+  batchId: uuid("batch_id").references(() => writeBatches.id, { onDelete: "set null" }),
   format: docFormat("format").notNull(),
   status: docStatus("status").notNull().default("diagnosing"),
 
@@ -313,7 +336,7 @@ export const documents = pgTable("documents", {
   createdByClerkUserId: varchar("created_by", { length: 64 }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [index("documents_brain_idx").on(t.brainId)]);
+}, (t) => [index("documents_brain_idx").on(t.brainId), index("documents_batch_idx").on(t.batchId)]);
 
 /* ---------------------------------- exports ------------------------------- */
 export const exports = pgTable("exports", {

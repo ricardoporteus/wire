@@ -22,3 +22,6 @@ export const CREDIT_COSTS = {
 } as const;
 
 export const PLAN_GRANTS = { launch: 500, growth: 1400, scale: 4000, trial: 150 } as const;
+
+/** One bulk-written piece: diagnosis + generation, billed as for a single piece. */
+export const PER_PIECE_CREDITS = CREDIT_COSTS.diagnosis + CREDIT_COSTS.generation;
