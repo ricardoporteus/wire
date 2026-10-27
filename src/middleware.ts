@@ -6,6 +6,9 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 const isProtected = createRouteMatcher([
   "/onboarding(.*)", "/dashboard(.*)", "/brains(.*)", "/write(.*)", "/settings(.*)", "/billing(.*)",
   "/audit(.*)", "/keywords(.*)", "/blog-queue(.*)",
+  // These three live in the (app) group too, whose layout needs Clerk context.
+  // Without them the apex served the pages in place and they 500'd.
+  "/content(.*)", "/performance(.*)", "/brand(.*)",
 ]);
 
 /**
