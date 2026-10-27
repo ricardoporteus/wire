@@ -8,8 +8,10 @@
  * article); this page is the surface you review before and after that.
  */
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getQueue, CATEGORY_BY_SLUG, TYPE_LABEL, AUTHORS } from "@/content/resources";
 import type { QueueItem, QueueLane } from "@/content/resources";
+import { requireOrg, isResourcesAdminOrg } from "@/lib/org";
 
 const SITE = "https://mavrix.agency";
 
@@ -31,6 +33,10 @@ function rel(iso: string): string {
 }
 
 export default async function BlogQueuePage() {
+  // The Resources library is Mavrix's own; other orgs don't have this surface.
+  const { org } = await requireOrg();
+  if (!isResourcesAdminOrg(org)) redirect("/dashboard");
+
   const queue = await getQueue();
   const drafts = queue.filter((q) => q.lane === "draft");
   const scheduled = queue.filter((q) => q.lane === "scheduled"); // already sorted soonest-first

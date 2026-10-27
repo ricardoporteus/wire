@@ -10,12 +10,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 
-const NAV: { href: string; label: string; who?: string }[] = [
+const NAV: { href: string; label: string; who?: string; adminOnly?: boolean }[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/audit", label: "Keyword Research", who: "Scout · Ada" },
   { href: "/write", label: "Write / Convert", who: "Quill" },
   { href: "/content", label: "Content Library", who: "Quill · Iris" },
-  { href: "/blog-queue", label: "Blog Schedule", who: "Quill · Ada" },
+  { href: "/blog-queue", label: "Blog Schedule", who: "Quill · Ada", adminOnly: true },
   { href: "/performance", label: "Performance", who: "Ada" },
   { href: "/brand", label: "Brand / ICP", who: "Iris" },
   { href: "/settings", label: "Settings / Billing" },
@@ -24,10 +24,11 @@ const NAV: { href: string; label: string; who?: string }[] = [
 export type TickerItem = { label: string; value: string };
 
 export function AppShell({
-  creditsBalance, ticker, children,
+  creditsBalance, ticker, showBlogSchedule = false, children,
 }: {
   creditsBalance: number | null;
   ticker: TickerItem[];
+  showBlogSchedule?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -35,6 +36,9 @@ export function AppShell({
 
   // Onboarding is its own focused flow — no shell.
   if (pathname?.startsWith("/onboarding")) return <>{children}</>;
+
+  // Blog Schedule is Mavrix-only; drop it from the nav for every other org.
+  const nav = NAV.filter((n) => !n.adminOnly || showBlogSchedule);
 
   const items = ticker.length ? ticker : [{ label: "Welcome to Mavrix", value: "your content engine" }];
   const ticks = (key: string) =>
@@ -68,7 +72,7 @@ export function AppShell({
             hidePersonal
           />
           <nav className="app-navlist">
-            {NAV.map((n) => {
+            {nav.map((n) => {
               const active = pathname === n.href || pathname?.startsWith(n.href + "/");
               return (
                 <Link

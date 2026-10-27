@@ -10,6 +10,7 @@ import { auth } from "@clerk/nextjs/server";
 import { and, count, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { organizations, brandBrains, intelligenceRuns, documents, keywords, contentIdeas } from "@/db/schema";
+import { isResourcesAdminOrg } from "@/lib/org";
 import { AppShell, type TickerItem } from "./AppShell";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -45,9 +46,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     }
   }
 
+  // Blog Schedule is a Mavrix-only admin surface (global Resources library).
+  const showBlogSchedule = !!org && isResourcesAdminOrg(org);
+
   return (
     <ClerkProvider>
-      <AppShell creditsBalance={org ? org.creditsBalance : null} ticker={ticker}>
+      <AppShell creditsBalance={org ? org.creditsBalance : null} ticker={ticker} showBlogSchedule={showBlogSchedule}>
         {children}
       </AppShell>
     </ClerkProvider>
