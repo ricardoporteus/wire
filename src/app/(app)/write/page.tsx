@@ -7,7 +7,7 @@ import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { brandBrains } from "@/db/schema";
-import { requireOrg, isResourcesAdminOrg } from "@/lib/org";
+import { requireOrg } from "@/lib/org";
 import { NewDocument } from "./NewDocument";
 
 export default async function WritePage() {
@@ -18,9 +18,6 @@ export default async function WritePage() {
   const brain = await db.query.brandBrains.findFirst({ where: eq(brandBrains.orgId, org.id) });
   if (!brain?.wizardCompletedAt) redirect("/onboarding");
 
-  // #1/#2 media-conversion fixes are Mavrix-admin-first until approved.
-  const isAdmin = isResourcesAdminOrg(org);
-
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
       <span className="eyebrow">Write · Quill</span>
@@ -28,7 +25,7 @@ export default async function WritePage() {
       <p className="mt-2 text-body-sm text-muted">
         Paste text, a URL, or an audio/video link. Mavrix diagnoses what it should become, grounded in your Brand Brain and keyword intelligence, before it writes a word.
       </p>
-      <div className="mt-6"><NewDocument isAdmin={isAdmin} /></div>
+      <div className="mt-6"><NewDocument /></div>
     </main>
   );
 }
