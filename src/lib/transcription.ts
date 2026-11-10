@@ -56,6 +56,21 @@ export async function transcribeMedia(url: string): Promise<Transcript> {
     return transcribeWithAssemblyAI(mediaUrl);
   }
 
+  // Spotify exposes no feed, so we match the show/episode title to Apple's
+  // directory (which does carry the RSS feed). Works for podcasts also listed on
+  // Apple; Spotify exclusives have no feed anywhere and fail with guidance.
+  if (isSpotify(clean)) {
+    const resolved = await resolveSpotify(clean);
+    if (!resolved) {
+      throw new TranscriptionError(
+        "Couldn't match this Spotify link to a downloadable feed — it may be a Spotify exclusive. " +
+          "Paste the show's RSS feed or its YouTube version instead.",
+      );
+    }
+    const mediaUrl = resolved.episodeUrl ?? (await resolveToMediaFile(resolved.feedUrl!));
+    return transcribeWithAssemblyAI(mediaUrl);
+  }
+
   // Podcast feeds and episode pages resolve to a direct enclosure; direct files
   // pass straight through.
   const mediaUrl = await resolveToMediaFile(clean);
@@ -108,6 +123,95 @@ async function resolveApplePodcast(url: string): Promise<{ feedUrl?: string; epi
     if (typeof episodeUrl === "string" && episodeUrl) return { feedUrl, episodeUrl };
   }
   return feedUrl ? { feedUrl } : null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Spotify → Apple directory match → RSS feed / episode enclosure             */
+/* -------------------------------------------------------------------------- */
+
+function isSpotify(url: string) {
+  return /(?:open\.spotify\.com|spotify\.link)\//i.test(url);
+}
+
+/** Normalize a title for a tolerant comparison (case, punctuation, spacing). */
+function normTitle(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+/** A title is a confident match if one normalized form contains the other. */
+function titlesMatch(a: string, b: string): boolean {
+  const na = normTitle(a);
+  const nb = normTitle(b);
+  if (na.length < 4 || nb.length < 4) return false;
+  return na === nb || na.includes(nb) || nb.includes(na);
+}
+
+/** iTunes podcast / episode search (free, no key). Returns [] on any failure. */
+async function itunesSearch(term: string, entity: "podcast" | "podcastEpisode"): Promise<Record<string, unknown>[]> {
+  try {
+    const r = await fetch(
+      `https://itunes.apple.com/search?media=podcast&entity=${entity}&limit=5&term=${encodeURIComponent(term)}`,
+      { headers: { "user-agent": "Mozilla/5.0", accept: "application/json" } },
+    );
+    if (!r.ok) return [];
+    return ((await r.json()) as { results?: Record<string, unknown>[] }).results ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Read the public title Spotify exposes without auth. Show pages carry the show
+ * name in an og:title meta tag; episode pages are client-rendered and don't, so
+ * we use Spotify's public oEmbed endpoint for the episode title instead.
+ */
+async function spotifyTitle(url: string, isEpisode: boolean): Promise<string | null> {
+  try {
+    if (isEpisode) {
+      const r = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`, {
+        headers: { "user-agent": "Mozilla/5.0", accept: "application/json" },
+      });
+      if (!r.ok) return null;
+      const d = (await r.json()) as { title?: string };
+      return d.title?.trim() || null;
+    }
+    const r = await fetch(url, {
+      headers: { "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", "accept-language": "en-US,en" },
+    });
+    if (!r.ok) return null;
+    const html = await r.text();
+    const m = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i);
+    return m ? decodeEntities(m[1]).trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve a Spotify podcast URL to a transcribable feed/episode by matching its
+ * public title in Apple's directory. A confident title match is required, so an
+ * unmatched (e.g. Spotify-exclusive) link returns null rather than risk grabbing
+ * the wrong show's audio.
+ *
+ *   /show/<id>    → show name → podcast search → feedUrl (its latest episode)
+ *   /episode/<id> → episode title → podcastEpisode search → direct enclosure
+ */
+async function resolveSpotify(url: string): Promise<{ feedUrl?: string; episodeUrl?: string } | null> {
+  const isEpisode = /open\.spotify\.com\/(?:embed\/)?episode\//i.test(url);
+  const title = await spotifyTitle(url, isEpisode);
+  if (!title) return null;
+
+  if (isEpisode) {
+    const eps = await itunesSearch(title, "podcastEpisode");
+    const match = eps.find((r) => titlesMatch(String(r.trackName ?? ""), title));
+    const episodeUrl = match?.episodeUrl;
+    return typeof episodeUrl === "string" && episodeUrl ? { episodeUrl } : null;
+  }
+
+  const shows = await itunesSearch(title, "podcast");
+  const show = shows.find((r) => titlesMatch(String(r.collectionName ?? ""), title));
+  const feedUrl = show?.feedUrl;
+  return typeof feedUrl === "string" && feedUrl ? { feedUrl } : null;
 }
 
 /* -------------------------------------------------------------------------- */

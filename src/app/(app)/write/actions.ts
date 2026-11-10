@@ -129,10 +129,15 @@ export async function createFromMediaLink(url: string) {
     return { ok: false as const, error: "That doesn't look like a valid link." };
   }
 
-  // Spotify player pages expose no downloadable media and Spotify has no public
-  // feed lookup, so reject them up front with guidance rather than charging,
-  // failing, and refunding.
-  if (/(?:open\.spotify\.com|spotify\.link)/i.test(u)) {
+  const { org, brain, userId } = await brainAndUser();
+
+  // Apple Podcasts links are player pages too, but Apple's lookup API maps them
+  // to a real RSS feed, so transcription resolves them server-side for all orgs.
+
+  // Spotify player pages expose no downloadable media and Spotify has no feed id,
+  // so resolution is a best-effort name match against Apple's directory — it can
+  // mis-resolve, so it's Mavrix-admin-first for now. Other orgs get guidance.
+  if (/(?:open\.spotify\.com|spotify\.link)/i.test(u) && !isResourcesAdminOrg(org)) {
     return {
       ok: false as const,
       error:
@@ -141,20 +146,6 @@ export async function createFromMediaLink(url: string) {
     };
   }
 
-  const { org, brain, userId } = await brainAndUser();
-
-  // Apple Podcasts links are player pages too, but Apple's lookup API maps them
-  // to a real RSS feed — so transcription resolves them server-side. This is a
-  // Mavrix-admin-first feature; other orgs still get the RSS/YouTube guidance.
-  const isApple = /(?:podcasts\.apple\.com|music\.apple\.com)/i.test(u);
-  if (isApple && !isResourcesAdminOrg(org)) {
-    return {
-      ok: false as const,
-      error:
-        "Apple Podcasts links are player pages we can't download. Use the show's RSS feed or a direct episode MP3 " +
-        "(most podcasts link one in their show notes), or a YouTube link.",
-    };
-  }
   // Needs the transcription charge now, plus diagnosis afterwards.
   if (org.creditsBalance < CREDIT_COSTS.transcription + CREDIT_COSTS.diagnosis) {
     return { ok: false as const, error: NO_CREDITS };

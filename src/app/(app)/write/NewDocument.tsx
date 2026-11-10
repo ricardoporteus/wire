@@ -12,12 +12,12 @@ const MAX_UPLOAD_MB = 500;
 type Mode = "write" | "convert";
 type ConvertKind = "url" | "media";
 
-// What actually works today. Spotify player pages are NOT downloadable, so
-// they're deliberately excluded (the note under the badges spells that out).
-// Apple Podcasts links resolve to the show's RSS feed via Apple's lookup API —
-// an admin-first feature, so the badge only shows for admins.
-const MEDIA_PLATFORMS = ["YouTube", "Podcast RSS / episode", "Google Drive · Dropbox file", "MP3 · M4A · WAV", "MP4 · MOV · WEBM"];
-const MEDIA_PLATFORMS_ADMIN = ["YouTube", "Apple Podcasts link", "Podcast RSS / episode", "Google Drive · Dropbox file", "MP3 · M4A · WAV", "MP4 · MOV · WEBM"];
+// What actually works today. Apple Podcasts links resolve to the show's RSS feed
+// via Apple's lookup API (all orgs). Spotify links are matched to the show's feed
+// in Apple's directory — best-effort, so Mavrix-admin-first (admins also see the
+// Spotify badge).
+const MEDIA_PLATFORMS = ["YouTube", "Apple Podcasts link", "Podcast RSS / episode", "Google Drive · Dropbox file", "MP3 · M4A · WAV", "MP4 · MOV · WEBM"];
+const MEDIA_PLATFORMS_ADMIN = ["YouTube", "Apple Podcasts link", "Spotify link", "Podcast RSS / episode", "Google Drive · Dropbox file", "MP3 · M4A · WAV", "MP4 · MOV · WEBM"];
 
 export function NewDocument({ isAdmin = false }: { isAdmin?: boolean }) {
   const router = useRouter();
@@ -169,12 +169,12 @@ export function NewDocument({ isAdmin = false }: { isAdmin?: boolean }) {
                 <p className="mt-2 text-micro text-muted">
                   {isAdmin ? (
                     <>
-                      Not supported: Spotify player links (they&apos;re not downloadable).
-                      Paste the show&apos;s RSS feed or its YouTube version instead.
+                      Spotify &amp; Apple links are matched to the show&apos;s public feed. Spotify exclusives
+                      aren&apos;t downloadable anywhere — paste the show&apos;s RSS feed or its YouTube version instead.
                     </>
                   ) : (
                     <>
-                      Not supported: Spotify &amp; Apple Podcasts player links (they&apos;re not downloadable).
+                      Not supported: Spotify player links (they&apos;re not downloadable).
                       Paste the show&apos;s RSS feed or its YouTube version instead.
                     </>
                   )}
