@@ -1,6 +1,7 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "wire-dev", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 }
+    { "name": "wire-dev", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 },
+    { "name": "wire-mkt", "runtimeExecutable": "sh", "runtimeArgs": ["-c", "NEXT_PUBLIC_APP_HOST=app.localhost:3100 npx next dev -p 3100"], "port": 3100, "url": "http://localhost:3100/" }
   ]
 }

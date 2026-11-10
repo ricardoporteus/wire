@@ -9,9 +9,13 @@ import { CREDIT_COSTS } from "@/lib/credit-costs";
 type Mode = "write" | "convert";
 type ConvertKind = "url" | "media";
 
-const MEDIA_PLATFORMS = ["YouTube", "Spotify", "Apple Podcasts", "Podcast RSS / episode", "MP3 · M4A · WAV", "MP4 · MOV · WEBM"];
+// What actually works today. Spotify/Apple player pages are NOT downloadable, so
+// they're deliberately excluded (the admin build spells that out below).
+const MEDIA_PLATFORMS = ["YouTube", "Podcast RSS / episode", "Google Drive · Dropbox file", "MP3 · M4A · WAV", "MP4 · MOV · WEBM"];
+// Legacy copy still shown to non-admin orgs until the admin build is approved.
+const MEDIA_PLATFORMS_LEGACY = ["YouTube", "Spotify", "Apple Podcasts", "Podcast RSS / episode", "MP3 · M4A · WAV", "MP4 · MOV · WEBM"];
 
-export function NewDocument() {
+export function NewDocument({ isAdmin = false }: { isAdmin?: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("write");
   const [convertKind, setConvertKind] = useState<ConvertKind>("media");
@@ -73,7 +77,9 @@ export function NewDocument() {
           {convertKind === "media" ? (
             <input
               className="input"
-              placeholder="Paste a YouTube, Spotify or Apple Podcasts link, a podcast RSS/episode, or an audio/video file URL"
+              placeholder={isAdmin
+                ? "Paste a YouTube link, a podcast RSS/episode, a Google Drive/Dropbox file, or a direct audio/video file URL"
+                : "Paste a YouTube, Spotify or Apple Podcasts link, a podcast RSS/episode, or an audio/video file URL"}
               value={media}
               onChange={(e) => setMedia(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && go()}
@@ -98,11 +104,19 @@ export function NewDocument() {
 
             <p className="mt-4 text-micro font-medium uppercase tracking-wide text-muted">What works</p>
             {convertKind === "media" ? (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {MEDIA_PLATFORMS.map((p) => (
-                  <span key={p} className="badge badge--draft">{p}</span>
-                ))}
-              </div>
+              <>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {(isAdmin ? MEDIA_PLATFORMS : MEDIA_PLATFORMS_LEGACY).map((p) => (
+                    <span key={p} className="badge badge--draft">{p}</span>
+                  ))}
+                </div>
+                {isAdmin && (
+                  <p className="mt-2 text-micro text-muted">
+                    Not supported: Spotify &amp; Apple Podcasts player links (they&apos;re not downloadable).
+                    Paste the show&apos;s RSS feed or its YouTube version instead.
+                  </p>
+                )}
+              </>
             ) : (
               <p className="mt-2 text-body-sm text-muted">Any public article or blog post with readable text.</p>
             )}

@@ -85,7 +85,8 @@
 .mkt .tag .t{color:#fff; font-size:13px;}
 .mkt h1.htitle{color:#fff; font-size:54px; line-height:1.02; margin-top:22px; max-width:600px;} .mkt h1.htitle .hl{color:var(--lime); position:relative; display:inline-block;}
 @media(max-width:960px){ .mkt h1.htitle{font-size:38px;} }
-.mkt .hero .sub{color:rgba(255,255,255,.74); font-size:17px; margin-top:20px; max-width:520px;}
+.mkt .hero .sub{color:rgba(255,255,255,.80); font-size:18px; margin-top:20px; max-width:520px;}
+.mkt .hero .sub b{color:#fff;}
 .mkt .chips{display:flex; flex-wrap:wrap; gap:9px; margin-top:22px;}
 .mkt .chip{display:inline-flex; align-items:center; gap:7px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.16); color:#fff; font-size:13px; font-weight:600; padding:7px 13px; border-radius:var(--pill);}
 .mkt .chip .tick{color:var(--lime); font-weight:800;}
@@ -233,7 +234,8 @@
 @media(max-width:900px){ .mkt .team-grid{grid-template-columns:1fr 1fr;} }
 @media(max-width:520px){ .mkt .team-grid{grid-template-columns:1fr;} }
 .mkt .member{border:1px solid var(--line); border-radius:var(--radius-lg); background:var(--card); box-shadow:0 8px 24px -12px rgba(8,8,12,.12); overflow:hidden; display:flex; flex-direction:column;}
-.mkt .member .h{display:flex; align-items:center; gap:12px; padding:18px;}
+.mkt .member .h{display:flex; align-items:flex-start; gap:12px; padding:20px 20px 0;}
+.mkt .member .h>div{min-width:0;}
 .mkt .member .h .avatar{width:52px; height:52px; flex:none;}
 .mkt .member h3{font-size:18px;} .mkt .member .role{font-size:12px; font-weight:700; margin-top:2px;}
 .mkt .member .q{padding:0 18px; font-size:13px; color:var(--muted); font-style:italic;}
@@ -379,12 +381,13 @@
 .mkt .po{display:grid; grid-template-columns:1fr 1fr; gap:44px; align-items:center;}
 @media(max-width:900px){ .mkt .po{grid-template-columns:1fr; gap:30px;} }
 .mkt .callout{background:var(--sky); color:var(--sky-ink); border-radius:12px; padding:12px 14px; font-weight:700; font-size:13.5px; margin-top:14px;}
-.mkt .steps{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:38px;}
-@media(max-width:900px){ .mkt .steps{grid-template-columns:1fr 1fr;} }
+.mkt .steps{display:grid; grid-template-columns:repeat(4,1fr); gap:28px; margin-top:40px;}
+@media(max-width:900px){ .mkt .steps{grid-template-columns:1fr 1fr; gap:24px;} }
 @media(max-width:560px){ .mkt .steps{grid-template-columns:1fr;} }
-.mkt .step{background:var(--card); border:1px solid var(--line); border-radius:var(--radius-md); padding:20px;}
+.mkt .step{background:transparent; border:0; border-radius:0; padding:0;}
 .mkt .step .no{font-size:13px; font-weight:800; color:var(--sky-ink); letter-spacing:.05em;}
-.mkt .step h3{font-size:17px; margin-top:12px;} .mkt .step p{font-size:14px; color:var(--muted); margin-top:8px;}
+.mkt .step .sic{font-size:34px; line-height:1;}
+.mkt .step h3{font-size:17px; margin-top:14px;} .mkt .step p{font-size:14px; color:var(--muted); margin-top:8px;}
 .mkt .vstable{width:100%; border-collapse:collapse; margin-top:34px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden;}
 .mkt .vstable th,.mkt .vstable td{padding:15px 16px; text-align:left; border-bottom:1px solid var(--line2); font-size:14px;}
 .mkt .vstable thead th{background:var(--bg-alt); font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);}
@@ -405,7 +408,7 @@
 .mkt .nums .st span{display:block; color:rgba(255,255,255,.7); font-size:13px; margin-top:6px;}
 .mkt .nums .cap{grid-column:1/-1; color:rgba(255,255,255,.4); font-size:11.5px; margin-top:4px;}
 .mkt .ph{background:var(--bg-alt); border:1px dashed var(--line); border-radius:var(--radius-md); padding:26px; text-align:center; color:var(--muted2); font-size:13.5px; margin-top:34px;}
-.mkt .member .mdesc{font-size:14px; color:var(--muted); margin-top:13px;}
+.mkt .member .mdesc{font-size:13.5px; line-height:1.55; color:var(--muted); margin:0; padding:14px 20px 22px;}
 .mkt .lead.c{margin-left:auto; margin-right:auto;}
 
 /* ---- Live Scan modal (dark mission-control theater) ---- */

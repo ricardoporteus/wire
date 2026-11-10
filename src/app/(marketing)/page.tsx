@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { HomeV2 } from "./_components/HomeV2";
 
 export const metadata: Metadata = {
-  title: "Mavrix: get found and recommended by ChatGPT, Google and AI",
+  title: "Mavrix: new customers can’t find you. We fix that.",
   description:
-    "Mavrix measures what your buyers actually search, then writes and reshapes a month of on-brand content built to rank on Google and get quoted in AI answers. Drop your website, get 10 measured keywords and a 30-day plan. Free to start.",
+    "New customers can’t find you. Mavrix gets you found and recommended by ChatGPT, Google and AI answers, so you convert more customers. Drop your link for a free audit and a 30-day growth plan. Free to start.",
   openGraph: {
-    title: "Mavrix: get found and recommended by ChatGPT, Google and AI",
-    description: "Measured keywords, a month of on-brand content, built to rank and get cited. The output of an agency, for less than one freelancer.",
+    title: "Mavrix: new customers can’t find you. We fix that.",
+    description: "Get found and recommended by ChatGPT, Google and AI answers, and convert more customers. On-brand content built to rank and get cited.",
     url: "/",
   },
   alternates: { canonical: "/" },

@@ -196,6 +196,68 @@ export function Home() {
         </div>
       </section>
 
+      {/* THE DIFFERENCE (moved from the homepage) */}
+      <section className="band" style={{ background: "var(--bg-alt)" }}><div className="wrap">
+        <div className="measure">
+          <div>
+            <span className="eyebrow">The difference</span>
+            <h2 className="bigline" style={{ marginTop: 16 }}>Most AI tools guess your keywords. <span className="hl">Mavrix measures them.</span></h2>
+            <p className="lead">Publishing is pointless if no one searches the topic. In our testing across three brands, only 3 to 13% of the keywords AI picked on its own had any real search volume. Mavrix measures every one before it writes a word.</p>
+            <div className="proof3">
+              <div className="pf"><span className="n">1</span><h4>People search it</h4><p>Real monthly Google search volume on every keyword.</p></div>
+              <div className="pf"><span className="n">2</span><h4>You can win it</h4><p>A 0 to 100 difficulty score: under 30 low, 30&ndash;59 medium, 60+ high.</p></div>
+              <div className="pf"><span className="n">3</span><h4>Your buyer types it</h4><p>Fit rated against your Brand Brain, so it matches who you sell to.</p></div>
+            </div>
+          </div>
+          <div className="frame"><Bar u="app.mavrix.agency/keywords" />
+            <div className="scr">
+              <div className="scrh"><div><b>Ranked opportunities</b><span className="s">903 measured · 30 kept · 10 P1</span></div><span className="badge rank">ranked</span></div>
+              <table className="tbl" style={{ marginTop: 10 }}><thead><tr><th>Keyword</th><th>Volume</th><th>KD</th><th>Priority</th></tr></thead><tbody>
+                <tr><td className="kw">aeo vs seo</td><td>1,900/mo</td><td><span className="kd"><span className="track"><i style={{ width: "17%", background: "#1E7A44" }} /></span>17</span></td><td><span className="pill hi">P1</span></td></tr>
+                <tr><td className="kw">answer engine optimization</td><td>2,400/mo</td><td><span className="kd"><span className="track"><i style={{ width: "43%", background: "#C9922B" }} /></span>43</span></td><td><span className="pill hi">P1</span></td></tr>
+                <tr><td className="kw">automated seo tools</td><td>720/mo</td><td><span className="kd"><span className="track"><i style={{ width: "19%", background: "#1E7A44" }} /></span>19</span></td><td><span className="pill hi">P1</span></td></tr>
+                <tr><td className="kw">how to get cited by chatgpt</td><td>110/mo</td><td><span className="kd"><span className="track"><i style={{ width: "9%", background: "#1E7A44" }} /></span>9</span></td><td><span className="pill md">P2</span></td></tr>
+              </tbody></table>
+            </div>
+          </div>
+        </div>
+      </div></section>
+
+      {/* PAGE ONE CHECK (moved from the homepage) */}
+      <section className="band"><div className="wrap">
+        <div className="po">
+          <div className="frame"><Bar u="app.mavrix.agency/page-one" />
+            <div className="scr">
+              <div className="scrh"><div><b>Page-one check</b><span className="s">Keyword: &ldquo;answer engine optimization&rdquo;</span></div><span className="badge rank">live</span></div>
+              <div className="lines" style={{ marginTop: 12 }}>
+                <div className="ln"><span className="dt" style={{ background: "#1E7A44" }} /><span>AI Overview present, structure to be the cited answer</span></div>
+                <div className="ln"><span className="dt" style={{ background: "#1E7A44" }} /><span>People Also Ask: 4 real questions pulled from Google</span></div>
+                <div className="ln"><span className="dt" style={{ background: "#C9922B" }} /><span>No featured snippet yet, an opening to claim one</span></div>
+              </div>
+              <div className="callout">Write it as: a listicle with a 40-word definition up top.</div>
+            </div>
+          </div>
+          <div>
+            <span className="eyebrow cream">The Page-One Check</span>
+            <h2 className="sec" style={{ marginTop: 16 }}>Before you write, see what page one rewards</h2>
+            <p className="lead">For your top keywords, Mavrix runs a live check on Google&rsquo;s first page: is there an AI Overview, a People Also Ask box, a featured snippet? Then it recommends the exact format that ranks and shapes each piece to be the answer those boxes quote.</p>
+            <p className="lead">In our testing, 29 of 30 Google results pages we checked showed an AI Overview, and none showed a featured snippet. That is where your buyers now land, so that is what Mavrix writes for.</p>
+          </div>
+        </div>
+      </div></section>
+
+      {/* BUILT ON REAL SEARCH DATA (moved from the homepage) */}
+      <section className="band" style={{ background: "var(--bg-alt)" }}><div className="wrap">
+        <div className="center"><span className="eyebrow">Built on real search data</span><h2 className="sec" style={{ marginTop: 14 }}>Measured, not guessed</h2></div>
+        <div className="nums" style={{ marginTop: 34 }}>
+          <div className="st"><b>400+</b><span>real searches measured per sweep</span></div>
+          <div className="st"><b>0&ndash;100</b><span>difficulty score on every keyword</span></div>
+          <div className="st"><b>30</b><span>days of ranked content per sweep</span></div>
+          <div className="st"><b>29/30</b><span>results pages showed an AI Overview</span></div>
+          <div className="cap">Figures are Mavrix product mechanics and findings from our own testing across three brands. No customer results are implied.</div>
+        </div>
+      </div></section>
+
       {/* RESULTS */}
       <section className="band"><div className="wrap">
         <div className="results">

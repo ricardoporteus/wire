@@ -105,11 +105,35 @@ async function transcribeWithAssemblyAI(mediaUrl: string): Promise<Transcript> {
 const AUDIO_EXT = /\.(mp3|m4a|mp4|wav|aac|ogg|flac|webm|mov)(\?|#|$)/i;
 
 /**
+ * Rewrite common share links to a direct-download URL AssemblyAI can fetch.
+ * Google Drive and Dropbox "share" pages serve HTML, not the file, so a raw
+ * paste used to fail with a confusing "not a direct file" error — these were the
+ * most common real failures. Unknown links pass through unchanged.
+ */
+export function rewriteShareLink(url: string): string {
+  // Google Drive: .../file/d/<id>/view, /open?id=<id>, usercontent /open?id=<id>
+  const driveId =
+    url.match(/drive\.google\.com\/file\/d\/([A-Za-z0-9_-]+)/)?.[1] ||
+    url.match(/drive\.(?:google|usercontent\.google)\.com\/(?:open|uc|download)\?(?:[^#]*&)?id=([A-Za-z0-9_-]+)/)?.[1];
+  if (driveId) return `https://drive.usercontent.google.com/download?id=${driveId}&export=download`;
+
+  // Dropbox: force a direct download via the direct host with dl=1.
+  if (/dropbox\.com\//i.test(url)) {
+    let d = url.replace(/^https?:\/\/(?:www\.)?dropbox\.com/i, "https://dl.dropboxusercontent.com");
+    if (/[?&]dl=0\b/i.test(d)) d = d.replace(/([?&])dl=0\b/i, "$1dl=1");
+    else if (!/[?&]dl=1\b/i.test(d)) d += (d.includes("?") ? "&" : "?") + "dl=1";
+    return d;
+  }
+  return url;
+}
+
+/**
  * A direct media file is returned unchanged. An RSS feed (or a link that serves
  * XML) is parsed for its first audio enclosure. Anything else is rejected with a
  * message, rather than handed to AssemblyAI to fail obscurely.
  */
-async function resolveToMediaFile(url: string): Promise<string> {
+async function resolveToMediaFile(input: string): Promise<string> {
+  const url = rewriteShareLink(input);
   if (AUDIO_EXT.test(url)) return url;
 
   // Probe the content type. Some podcast hosts serve files without an extension.
@@ -135,7 +159,8 @@ async function resolveToMediaFile(url: string): Promise<string> {
   }
 
   throw new TranscriptionError(
-    "That link is not a direct audio or video file. Use the download or RSS link for the episode, not the player page.",
+    "That link isn't a direct audio or video file. Paste a direct file URL (MP3, M4A, MP4…), a podcast RSS/episode link, " +
+      "a Google Drive or Dropbox file link, or a YouTube URL — not a Spotify/Apple player page.",
   );
 }
 
