@@ -11,7 +11,7 @@ import { and, asc, eq, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { documents, sources, brandBrains, organizations, exports as exportsTable, docEvents } from "@/db/schema";
 import { inngest } from "@/lib/inngest";
-import { requireOrg } from "@/lib/org";
+import { requireOrg, isResourcesAdminOrg } from "@/lib/org";
 import { CREDIT_COSTS, debitCredits } from "@/lib/credits";
 import { limit, type RateLimitResult } from "@/lib/rate-limit";
 import { fetchArticleText } from "@/jobs/content-writer-pipeline";
@@ -170,6 +170,60 @@ export async function createFromMediaLink(url: string) {
       orgId: org.id, brainId: brain.id, reason: "transcription",
       refType: "document", refId: doc.id,
     });
+  } catch {
+    await db.update(documents).set({ status: "archived" }).where(eq(documents.id, doc.id));
+    return { ok: false as const, error: NO_CREDITS };
+  }
+
+  await inngest.send({
+    name: "wire/source.ingest.requested",
+    data: { sourceId: src.id, documentId: doc.id, orgId: org.id },
+  });
+  return { ok: true as const, documentId: doc.id };
+}
+
+/** Vercel Blob public host — the only origin createFromUpload will accept. */
+const BLOB_HOST = /\.public\.blob\.vercel-storage\.com$/i;
+
+/**
+ * Finish an uploaded media file (Mavrix-admin only). The browser has already
+ * uploaded the file to Vercel Blob (see /api/blob/upload); this takes the
+ * resulting public URL, creates the source + document, charges transcription up
+ * front, and hands off to the same async ingest pipeline a pasted media link
+ * uses — so uploads transcribe and write exactly like a YouTube or RSS link.
+ */
+export async function createFromUpload(input: { url: string; filename: string; contentType?: string }) {
+  const { org, brain, userId } = await brainAndUser();
+  if (!isResourcesAdminOrg(org)) return { ok: false as const, error: "forbidden" };
+
+  let u: URL;
+  try { u = new URL(input.url); } catch { return { ok: false as const, error: "That upload link isn't valid." }; }
+  if (u.protocol !== "https:" || !BLOB_HOST.test(u.hostname)) {
+    return { ok: false as const, error: "Upload must be a Vercel Blob file." };
+  }
+
+  // audio vs video is only for the record + light UI hinting; both transcribe.
+  const name = (input.filename || u.pathname).toLowerCase();
+  const isVideo = (input.contentType ?? "").startsWith("video/") || /\.(mp4|mov|webm|mkv|avi)(\?|#|$)/i.test(name);
+  const kind = isVideo ? "video_link" : "audio_link";
+
+  if (org.creditsBalance < CREDIT_COSTS.transcription + CREDIT_COSTS.diagnosis) {
+    return { ok: false as const, error: NO_CREDITS };
+  }
+
+  const [src] = await db.insert(sources).values({
+    brainId: brain.id, kind, status: "pending", originalUrl: input.url,
+    createdByClerkUserId: userId,
+  }).returning({ id: sources.id });
+
+  const [doc] = await db.insert(documents).values({
+    brainId: brain.id, sourceId: src.id, format: "article",
+    status: "diagnosing", createdByClerkUserId: userId,
+  }).returning({ id: documents.id });
+
+  // Charge up front so transcription can never run for free; ingest refunds on failure.
+  try {
+    await debitCredits({ orgId: org.id, brainId: brain.id, reason: "transcription", refType: "document", refId: doc.id });
   } catch {
     await db.update(documents).set({ status: "archived" }).where(eq(documents.id, doc.id));
     return { ok: false as const, error: NO_CREDITS };

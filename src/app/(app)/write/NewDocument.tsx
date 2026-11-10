@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createFromPaste, createFromUrl, createFromMediaLink } from "./actions";
+import { upload } from "@vercel/blob/client";
+import { createFromPaste, createFromUrl, createFromMediaLink, createFromUpload } from "./actions";
 import { UpgradeNotice } from "@/components/UpgradeNotice";
 import { CREDIT_COSTS } from "@/lib/credit-costs";
+
+const MAX_UPLOAD_MB = 500;
 
 type Mode = "write" | "convert";
 type ConvertKind = "url" | "media";
@@ -13,7 +16,7 @@ type ConvertKind = "url" | "media";
 // they're deliberately excluded (the note under the badges spells that out).
 const MEDIA_PLATFORMS = ["YouTube", "Podcast RSS / episode", "Google Drive · Dropbox file", "MP3 · M4A · WAV", "MP4 · MOV · WEBM"];
 
-export function NewDocument() {
+export function NewDocument({ isAdmin = false }: { isAdmin?: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("write");
   const [convertKind, setConvertKind] = useState<ConvertKind>("media");
@@ -22,6 +25,36 @@ export function NewDocument() {
   const [media, setMedia] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadPct, setUploadPct] = useState(0);
+
+  // Upload a local audio/video file straight to Blob, then transcribe + write it
+  // through the same pipeline a pasted media link uses.
+  const onFile = async (file: File) => {
+    setError(null);
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      setError(`That file is over ${MAX_UPLOAD_MB} MB. Split it into shorter parts.`);
+      return;
+    }
+    setUploading(true);
+    setUploadPct(0);
+    try {
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/blob/upload",
+        contentType: file.type || undefined,
+        onUploadProgress: (p) => setUploadPct(Math.round(p.percentage)),
+      });
+      const res = await createFromUpload({ url: blob.url, filename: file.name, contentType: file.type });
+      if (res.ok) { router.push(`/write/${res.documentId}`); return; }
+      setError(res.error === "forbidden" ? "File upload isn't enabled for this workspace yet." : res.error);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const go = () =>
     start(async () => {
@@ -88,6 +121,30 @@ export function NewDocument() {
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && go()}
             />
+          )}
+
+          {/* ---- Upload a local file (admin) ---- */}
+          {convertKind === "media" && isAdmin && (
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="audio/*,video/*"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f); e.target.value = ""; }}
+              />
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={uploading || pending}
+                onClick={() => fileRef.current?.click()}
+              >
+                {uploading ? `Uploading… ${uploadPct}%` : "Upload a file"}
+              </button>
+              <span className="text-micro text-muted">
+                or paste a link above · MP3 · M4A · WAV · MP4 · MOV · WEBM · up to {MAX_UPLOAD_MB} MB
+              </span>
+            </div>
           )}
 
           {/* ---- Details: what it does, what works, example, output ---- */}
