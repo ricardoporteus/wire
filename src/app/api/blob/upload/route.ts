@@ -28,9 +28,8 @@ export async function POST(request: Request): Promise<Response> {
           addRandomSuffix: true,
         };
       },
-      // Upload completion is handled client-side (it calls createFromUpload),
-      // so no server callback is needed here.
-      onUploadCompleted: async () => {},
+      // No onUploadCompleted: the client calls createFromUpload once the upload
+      // resolves, so we don't rely on the server-to-server completion webhook.
     });
     return Response.json(result);
   } catch (e) {
