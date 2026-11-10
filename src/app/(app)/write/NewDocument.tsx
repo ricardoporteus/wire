@@ -12,9 +12,12 @@ const MAX_UPLOAD_MB = 500;
 type Mode = "write" | "convert";
 type ConvertKind = "url" | "media";
 
-// What actually works today. Spotify/Apple player pages are NOT downloadable, so
+// What actually works today. Spotify player pages are NOT downloadable, so
 // they're deliberately excluded (the note under the badges spells that out).
+// Apple Podcasts links resolve to the show's RSS feed via Apple's lookup API —
+// an admin-first feature, so the badge only shows for admins.
 const MEDIA_PLATFORMS = ["YouTube", "Podcast RSS / episode", "Google Drive · Dropbox file", "MP3 · M4A · WAV", "MP4 · MOV · WEBM"];
+const MEDIA_PLATFORMS_ADMIN = ["YouTube", "Apple Podcasts link", "Podcast RSS / episode", "Google Drive · Dropbox file", "MP3 · M4A · WAV", "MP4 · MOV · WEBM"];
 
 export function NewDocument({ isAdmin = false }: { isAdmin?: boolean }) {
   const router = useRouter();
@@ -159,13 +162,22 @@ export function NewDocument({ isAdmin = false }: { isAdmin?: boolean }) {
             {convertKind === "media" ? (
               <>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {MEDIA_PLATFORMS.map((p) => (
+                  {(isAdmin ? MEDIA_PLATFORMS_ADMIN : MEDIA_PLATFORMS).map((p) => (
                     <span key={p} className="badge badge--draft">{p}</span>
                   ))}
                 </div>
                 <p className="mt-2 text-micro text-muted">
-                  Not supported: Spotify &amp; Apple Podcasts player links (they&apos;re not downloadable).
-                  Paste the show&apos;s RSS feed or its YouTube version instead.
+                  {isAdmin ? (
+                    <>
+                      Not supported: Spotify player links (they&apos;re not downloadable).
+                      Paste the show&apos;s RSS feed or its YouTube version instead.
+                    </>
+                  ) : (
+                    <>
+                      Not supported: Spotify &amp; Apple Podcasts player links (they&apos;re not downloadable).
+                      Paste the show&apos;s RSS feed or its YouTube version instead.
+                    </>
+                  )}
                 </p>
               </>
             ) : (

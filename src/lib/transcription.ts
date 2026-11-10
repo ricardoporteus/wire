@@ -42,10 +42,72 @@ export async function transcribeMedia(url: string): Promise<Transcript> {
 
   if (isYouTube(clean)) return transcribeYouTube(clean);
 
+  // Apple Podcasts player pages aren't files, but Apple's public lookup API maps
+  // the show (and a specific episode, when the link names one) to a real RSS
+  // feed / enclosure we can transcribe.
+  if (isApplePodcast(clean)) {
+    const resolved = await resolveApplePodcast(clean);
+    if (!resolved) {
+      throw new TranscriptionError(
+        "Couldn't find this show in Apple's directory. Paste the show's RSS feed instead.",
+      );
+    }
+    const mediaUrl = resolved.episodeUrl ?? (await resolveToMediaFile(resolved.feedUrl!));
+    return transcribeWithAssemblyAI(mediaUrl);
+  }
+
   // Podcast feeds and episode pages resolve to a direct enclosure; direct files
   // pass straight through.
   const mediaUrl = await resolveToMediaFile(clean);
   return transcribeWithAssemblyAI(mediaUrl);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Apple Podcasts → RSS feed / episode enclosure                              */
+/* -------------------------------------------------------------------------- */
+
+function isApplePodcast(url: string) {
+  return /(?:podcasts|music)\.apple\.com\//i.test(url);
+}
+
+/**
+ * Resolve an Apple Podcasts URL to something AssemblyAI can fetch, using Apple's
+ * free iTunes lookup API (no key). The URL shape is
+ *   podcasts.apple.com/<country>/podcast/<slug>/id<showId>[?i=<episodeId>]
+ * The trailing /id<digits> is the SHOW id; ?i=<digits> names an episode.
+ *
+ * Apple exposes no lookup by episode id alone, so we always resolve the show,
+ * then (if an episode is named) pull that show's recent episodes and match the
+ * id to its direct enclosure. When the named episode isn't in the recent window,
+ * we fall back to the feed (its latest episode) rather than failing.
+ */
+async function resolveApplePodcast(url: string): Promise<{ feedUrl?: string; episodeUrl?: string } | null> {
+  const showId = url.match(/\/id(\d+)/)?.[1] ?? url.match(/[?&]id=(\d+)/)?.[1];
+  if (!showId) return null;
+  const episodeId = url.match(/[?&]i=(\d+)/)?.[1];
+
+  const lookup = async (params: string): Promise<Record<string, unknown>[]> => {
+    try {
+      const r = await fetch(`https://itunes.apple.com/lookup?${params}`, {
+        headers: { "user-agent": "Mozilla/5.0", accept: "application/json" },
+      });
+      if (!r.ok) return [];
+      return ((await r.json()) as { results?: Record<string, unknown>[] }).results ?? [];
+    } catch {
+      return [];
+    }
+  };
+
+  const showRes = await lookup(`id=${showId}&entity=podcast`);
+  const feedUrl = showRes.find((r) => typeof r.feedUrl === "string")?.feedUrl as string | undefined;
+
+  if (episodeId) {
+    const eps = await lookup(`id=${showId}&entity=podcastEpisode&limit=200`);
+    const match = eps.find((r) => String(r.trackId) === episodeId);
+    const episodeUrl = match?.episodeUrl;
+    if (typeof episodeUrl === "string" && episodeUrl) return { feedUrl, episodeUrl };
+  }
+  return feedUrl ? { feedUrl } : null;
 }
 
 /* -------------------------------------------------------------------------- */
