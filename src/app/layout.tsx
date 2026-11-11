@@ -1,22 +1,16 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { Figtree, Inter, IBM_Plex_Mono } from "next/font/google";
-import { GoogleTagManager, GoogleAnalytics } from "@next/third-parties/google";
+import { GoogleTagManager } from "@next/third-parties/google";
 import "./globals.css";
 
-// Cross-domain tracking: the marketing site and the app are different hosts, so
-// GA4's linker must decorate links between them with the _gl client-id param to
-// keep one visit as one session/user across the hop. Listing both hosts here is
-// the code equivalent of GA4 Admin's "Configure your domains".
-const GA_DOMAINS = ["mavrix.agency", "app.mavrix.agency"];
-
-// Analytics IDs are public by nature — they appear in every visitor's page
-// source — so a literal default is fine in this public repo, and an env var can
-// override per environment. GA4 pageviews are sent DIRECTLY via GoogleAnalytics;
-// the GTM container is only for other tags. Do not also add a GA4 tag for this
-// same property inside GTM, or pageviews double-count.
+// Analytics run entirely through the Google Tag Manager container (public id, so
+// a literal default is fine; override with NEXT_PUBLIC_GTM_ID). The container
+// fires GA4 to G-RGQCCFZZG5 (and G-8PQLB21DBR) on all pages and owns
+// cross-domain linking for mavrix.agency <-> app.mavrix.agency, configured in
+// GTM's "Configure your domains", not here. We deliberately do NOT add a direct
+// GoogleAnalytics tag: the container already sends those GA4 hits, so a second
+// tag for the same property would double-count pageviews.
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || "GTM-KRT5JKL9";
-const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-RGQCCFZZG5";
 
 const figtree = Figtree({ subsets: ["latin"], variable: "--font-display", weight: ["400", "500", "600", "700"] });
 const inter = Inter({ subsets: ["latin"], variable: "--font-body", weight: ["400", "500", "600"] });
@@ -44,15 +38,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${figtree.variable} ${inter.variable} ${plexMono.variable}`}>
       {GTM_ID && <GoogleTagManager gtmId={GTM_ID} />}
       <body>{children}</body>
-      {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
-      {/* Re-config GA4 with cross-domain linker. send_page_view:false so this
-          second config doesn't double-count the pageview GoogleAnalytics sends. */}
-      {GA_ID && (
-        <Script id="ga-cross-domain" strategy="afterInteractive">
-          {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
-gtag('config','${GA_ID}',{linker:{domains:${JSON.stringify(GA_DOMAINS)}},send_page_view:false});`}
-        </Script>
-      )}
     </html>
   );
 }
