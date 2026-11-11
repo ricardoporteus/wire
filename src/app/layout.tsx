@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Figtree, Inter, IBM_Plex_Mono } from "next/font/google";
 import { GoogleTagManager, GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
+
+// Cross-domain tracking: the marketing site and the app are different hosts, so
+// GA4's linker must decorate links between them with the _gl client-id param to
+// keep one visit as one session/user across the hop. Listing both hosts here is
+// the code equivalent of GA4 Admin's "Configure your domains".
+const GA_DOMAINS = ["mavrix.agency", "app.mavrix.agency"];
 
 // Analytics IDs are public by nature — they appear in every visitor's page
 // source — so a literal default is fine in this public repo, and an env var can
@@ -38,6 +45,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       {GTM_ID && <GoogleTagManager gtmId={GTM_ID} />}
       <body>{children}</body>
       {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
+      {/* Re-config GA4 with cross-domain linker. send_page_view:false so this
+          second config doesn't double-count the pageview GoogleAnalytics sends. */}
+      {GA_ID && (
+        <Script id="ga-cross-domain" strategy="afterInteractive">
+          {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+gtag('config','${GA_ID}',{linker:{domains:${JSON.stringify(GA_DOMAINS)}},send_page_view:false});`}
+        </Script>
+      )}
     </html>
   );
 }
