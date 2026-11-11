@@ -17,6 +17,7 @@
     "@anthropic-ai/sdk": "^0.57.0",
     "@clerk/nextjs": "^6.20.0",
     "@neondatabase/serverless": "^1.0.0",
+    "@next/third-parties": "^15.5.20",
     "@sentry/nextjs": "^10.66.0",
     "@vercel/blob": "^2.4.0",
     "docx": "^9.7.1",
